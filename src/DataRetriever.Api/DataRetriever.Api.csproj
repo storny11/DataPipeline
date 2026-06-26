@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <ItemGroup>
+      <ProjectReference Include="..\DataRetriever.Application\DataRetriever.Application.csproj" />
+      <ProjectReference Include="..\DataRetriever.Infrastructure\DataRetriever.Infrastructure.csproj" />
+      <ProjectReference Include="..\DataRetriever.Simulators\DataRetriever.Simulators.csproj" />
+      <ProjectReference Include="..\DataRetriever.Reporting\DataRetriever.Reporting.csproj" />
+      <ProjectReference Include="..\DataRetriever.Monitoring\DataRetriever.Monitoring.csproj" />
+    </ItemGroup>
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+</Project>

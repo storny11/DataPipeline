@@ -1,0 +1,308 @@
+# Prototype Service Specification
+
+## Purpose
+
+The goal is to build a simple prototype service that can be used as a template for a real work service.
+
+The main purpose of the prototype is not only the data flow itself, but also to create a clean, reusable, and extendable framework for two types of monitoring:
+
+1. progression tracking during a multi-step sequential process; and
+2. collecting warnings and errors from each step so that a final user-facing report can be produced.
+
+The design should be simple and not over-engineered. It should be generic enough that the same monitoring/progression framework can later be reused in another service with a similar serial multi-step flow, for example by implementing shared interfaces or registering step processors/progress trackers in a straightforward way.
+
+The service should follow a vertical slice architecture. Related logic should be grouped clearly by feature/step rather than spread across many unrelated layers. The structure should be easy for LLMs to understand and modify later.
+
+---
+
+## Simulator and real service separation
+
+For local development and prototyping, every external dependency should be represented by a simulator.
+
+All simulators should live together in one dedicated directory, for example `Simulators`. This directory should contain fake or in-memory implementations for the external systems, such as:
+
+* `InternalSourceSimulator`
+* `CompanyASimulator`
+* `CompanyBSimulator`
+* `PersistenceSimulator`
+
+However, the actual service structure should still contain the real application components, such as data retrievers, fetchers, providers, step processors, validators, monitoring logic, and orchestration logic.
+
+The retrievers/fetchers/providers are part of the real solution and should not live inside the simulator directory.
+
+For example, the Step 2 data retriever, such as `CompanyADataFetcher` or `CompanyAProvider`, should be part of the real Step 2 application code. In the prototype, this retriever can call `CompanyASimulator` behind the scenes. Later, when integrating with the real system, only the simulator-backed implementation needs to be replaced with the real Company A API implementation.
+
+The intended separation is:
+
+* simulators live in one removable simulator directory;
+* data retrievers/fetchers/providers remain part of the actual application design;
+* the application flow depends on abstractions/interfaces, not directly on simulator classes;
+* removing or replacing the simulator directory should not require restructuring the main service.
+
+---
+
+## Trigger and execution guard
+
+The whole flow is triggered by a controller endpoint.
+
+There should be a guard to prevent multiple parallel runs. Only one request should be processed at a time, to keep the flow simple and predictable.
+
+The controller request should support the following options:
+
+* run for all configured records;
+* run filtered by currency only;
+* run filtered by an array of internal identifiers.
+
+---
+
+## High-level data flow
+
+The data flow has four steps:
+
+1. fetch configured data from an internal source;
+2. fetch related data from Company A using `market identifier 1`;
+3. fetch amounts from Company B using `market identifier 2`;
+4. persist the final valid data.
+
+The identifier chain is important:
+
+```text
+internal identifier + market identifier 1
+        ↓
+Step 2 uses market identifier 1
+        ↓
+Step 2 returns market identifier 2
+        ↓
+Step 3 uses market identifier 2
+        ↓
+Step 3 returns amount1, amount2, amount3
+        ↓
+Step 4 persists the final mapped data
+```
+
+---
+
+## Step 1: Fetch initial configured data
+
+Step 1 makes a single request to an internal source, which can be treated as an internal database or internal API for the purposes of the prototype.
+
+The source returns a small batch of configured records, approximately 50 rows.
+
+Each row contains at least:
+
+* internal identifier;
+* market identifier 1;
+* currency;
+* configurable number of rows to fetch/keep in Step 2.
+
+The service cannot filter before downloading this data. It must first fetch the full configured dataset, then apply filtering in memory.
+
+Filtering can be done by:
+
+* currency;
+* an array of internal identifiers;
+* or no filter, meaning all records are selected.
+
+If Step 1 data is invalid, this should be tracked. For example, if a configured row is missing a required `market identifier 1` or `currency`, this should be recorded as a data problem and included in the final report.
+
+Counters should be recorded for Step 1, including:
+
+* number of configured rows returned by the internal source;
+* number of rows remaining after filtering.
+
+---
+
+## Step 2: Fetch related data from Company A
+
+Step 2 processes the filtered Step 1 rows.
+
+For each selected Step 1 row, Step 2 uses `market identifier 1` to request related records from a proprietary external API, for example Company A.
+
+Step 2 must run serially because it uses a shared connection. The calls must be made one after another, not in parallel.
+
+Each Step 1 row defines the configurable number of Step 2 records to keep. This value comes from the Step 1 data.
+
+For example, if the Step 1 row says that 3 records should be fetched/kept, Step 2 may receive 10 records from Company A, sort them by date, and keep only the latest 3.
+
+The number of output rows from Step 2 may be different from the number of input rows. For example, 26 selected Step 1 rows may produce 52 Step 2 rows.
+
+Some Step 1 rows may return no data. Some may return fewer rows than requested. Some may return more rows than requested, in which case the result should be sorted by date and limited according to the number configured on the Step 1 row.
+
+Step 2 returns records containing `market identifier 2`. This `market identifier 2` is required for Step 3.
+
+Step 2 should track warnings and errors.
+
+If Step 2 requests data for `market identifier 1` values `AAA` and `BBB` but receives data only for `AAA`, then the missing result for `BBB` should be flagged as a warning.
+
+If the whole Step 2 request/call fails, this should be flagged as an error.
+
+Counters should be recorded for Step 2, including:
+
+* number of Step 1 rows processed;
+* number of Step 2 rows produced.
+
+---
+
+## Step 3: Fetch amounts from Company B
+
+Step 3 takes the `market identifier 2` values produced by Step 2.
+
+Step 3 makes a single batch HTTP request to another external API, for example Company B.
+
+The HTTP client should be Swagger-generated and wrapped in a retry policy.
+
+The request sends a collection of `market identifier 2` values.
+
+The request asks for three amount fields for each `market identifier 2`:
+
+* `amount1`;
+* `amount2`;
+* `amount3`.
+
+The response returns a collection containing:
+
+* `market identifier 2`;
+* `amount1`;
+* `amount2`;
+* `amount3`.
+
+The response should be validated against the request.
+
+For example, if Step 3 sends 50 `market identifier 2` values but receives only 40 rows back, the 10 missing rows should be flagged as warnings.
+
+If a response row is returned but one or more of `amount1`, `amount2`, or `amount3` is missing or empty, that row should be discarded and flagged as a warning.
+
+If the whole Step 3 request fails, this should be flagged as an error.
+
+The matching of requested and returned `market identifier 2` values may need to be normalized, for example for casing, so that identifiers can be matched reliably.
+
+Counters should be recorded for Step 3, including:
+
+* number of `market identifier 2` values requested;
+* number of valid Step 3 rows returned after validation;
+* number of rows discarded due to missing amount fields.
+
+---
+
+## Step 4: Persist final data
+
+Step 4 takes the valid results from Step 3 and persists them.
+
+This should be done as a single persistence request.
+
+The persisted data should include the relevant identifier mapping and amount data, so that the final records can be traced back through the flow:
+
+* internal identifier;
+* market identifier 1;
+* market identifier 2;
+* amount1;
+* amount2;
+* amount3.
+
+Counters should be recorded for Step 4, including:
+
+* number of rows attempted for persistence;
+* number of rows successfully persisted.
+
+If the persistence request fails, this should be tracked as an error.
+
+---
+
+## Monitoring and reporting
+
+The service should support two types of monitoring.
+
+### 1. Progression tracking
+
+The first type is progression tracking through an internal service processing tracking API.
+
+This is used to track what is happening operationally during and after the run.
+
+The internal tracking API should record service/run status. Possible statuses include:
+
+* `NeverRun`, meaning the service has not successfully run yet;
+* `Running`, meaning a run is currently in progress;
+* `Success`, meaning the last run completed successfully;
+* `Failed`, meaning the last run failed.
+
+The tracking data should also include:
+
+* last refresh date/time, meaning the last time the job completed successfully;
+* number of configured rows loaded in Step 1;
+* number of rows after filtering in Step 1;
+* number of rows produced by Step 2;
+* number of valid rows produced by Step 3;
+* number of rows persisted in Step 4;
+* warning and error counts where useful.
+
+The internal tracking should give a live operational view of the service status and progress.
+
+### 2. User-facing report
+
+The second type of monitoring is user-facing reporting.
+
+Each step should collect warnings and errors. At the end of the full flow, the service should produce a report that can be sent to users.
+
+The report should show data problems by step, for example:
+
+* Step 1 rows missing required `market identifier 1`;
+* Step 1 rows missing required `currency`;
+* Step 2 missing results for requested `market identifier 1` values;
+* Step 2 full request/call failures;
+* Step 3 missing response rows for requested `market identifier 2` values;
+* Step 3 rows discarded because `amount1`, `amount2`, or `amount3` was missing;
+* Step 3 full request failure;
+* Step 4 persistence failure, if applicable.
+
+Warnings should represent partial or recoverable data issues, such as missing rows, incomplete rows, or discarded records.
+
+Errors should represent full step/request failures or serious problems that prevent the step from completing properly.
+
+---
+
+## Warning and error context
+
+Error and warning tracking must always include the relevant identifier used at the point where the problem occurred.
+
+Each step should report warnings and errors with enough context to make the issue understandable in logs and in the final user-facing report.
+
+For example:
+
+* if Step 1 finds a configured row with missing currency, the warning/error should include the internal identifier if available;
+* if Step 1 finds a configured row with missing `market identifier 1`, the warning/error should include the internal identifier;
+* if Step 2 requests data using `market identifier 1` value `XX` and no data is returned, the warning should say that `XX` was not found or returned no data;
+* if Step 2 requests data for `market identifier 1` values `AAA` and `BBB`, but only receives data for `AAA`, the warning should identify `BBB` as missing;
+* if Step 3 requests amounts using `market identifier 2` value `YY` and no response row is returned, the warning should identify `YY` as missing;
+* if Step 3 receives a row for `market identifier 2` value `ZZ` but `amount2` is missing, the warning should say that `ZZ` has missing `amount2`;
+* if Step 4 fails to persist a row, the error should include the relevant identifiers available for that row, such as internal identifier, `market identifier 1`, and `market identifier 2`.
+
+This identifier context should be present both in operational logging and in the final report sent to users.
+
+The aim is that a user or support person can look at the report and immediately understand which configured record, requested identifier, or output row caused the issue, without needing to manually reconstruct the flow.
+
+---
+
+## Framework requirements
+
+The framework should make it easy for each step to report:
+
+* counters;
+* warnings;
+* errors;
+* status/progress updates.
+
+The monitoring/progression framework should be generic enough to reuse in another sequential multi-step service.
+
+However, the implementation should stay simple. Avoid building an overly generic workflow engine.
+
+The preferred design is a lightweight reusable pattern that can be applied to this service and later reused in similar services with sequential steps.
+
+A suitable approach could be:
+
+* each step implements a simple shared interface;
+* each step returns a result containing output data, counters, warnings, and errors;
+* the orchestrator runs the steps in order;
+* the monitoring component records status and counters;
+* the report builder creates the final user-facing report from collected warnings and errors.
+
+The goal is to keep the service understandable, practical, and easy to adapt.

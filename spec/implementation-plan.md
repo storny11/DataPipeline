@@ -27,6 +27,30 @@ Build a simple prototype service that can later become a real work service. The 
 
 The design should stay lightweight. The aim is a reusable project template for serial step-based services, not a generic workflow engine.
 
+## Core rules versus prototype choices
+
+Use this plan as a template, but keep a clear line between reusable rules and this prototype's example choices.
+
+Core template rules:
+
+- Application owns the step flow, step interfaces, diagnostics, and source/sink contracts.
+- Infrastructure owns real technology clients/helpers, transport details, retry/timeout, authentication, and health checks.
+- Simulators are removable local replacements for external dependencies.
+- Reporting, monitoring, and execution primitives stay separate.
+- Issues carry step name, severity, message, and diagnostic context.
+- `RunId` is generated internally and is the primary id for one execution.
+
+Prototype/example choices:
+
+- ASP.NET Core minimal API host.
+- Synchronous run endpoint that returns the final report.
+- One-run-at-a-time guard.
+- Four concrete steps named `Step1Load`, `Step2Load`, `Step3Load`, and `Step4Persist`.
+- Serial per-input loading in Step 2, one batch request in Step 3, and one persistence request in Step 4.
+- Email report publisher and simulator-backed local development.
+
+Future services can change the host surface, execution trigger, number of steps, or delivery channel without changing the core dependency direction.
+
 ## Core architectural decisions
 
 ### 1. Create the reusable template structure immediately
@@ -82,7 +106,12 @@ This is the intended dependency direction for the template: a feature/service pr
 
 If loading data only requires opening a `SqlConnection`, calling a simple `HttpClient`, or calling a generated Swagger client, treat that concrete caller as a real technology adapter and put it in `Infrastructure` behind a source client interface such as `IStep2SourceClient`. The Application loader remains the `IStep<..., ...>` implementation and owns step orchestration, issue collection, and output shaping.
 
-The real infrastructure adapter may be intentionally thin. It can directly use:
+The real infrastructure adapter may be intentionally thin. For a tiny source, the adapter and concrete client/helper can initially be the same class. If retry, timeout, authentication, generated-client setup, or connection behavior becomes non-trivial, split Infrastructure into:
+
+- an application-facing adapter that implements the Application-owned interface and maps to/from step-local DTOs;
+- a concrete client/helper that owns transport, retry/timeout, authentication, generated DTOs, SQL commands, and low-level exceptions.
+
+The concrete client/helper can use:
 
 - `SqlConnection`, Dapper, or another lightweight SQL helper;
 - `HttpClient` or a typed HTTP client;
@@ -90,7 +119,7 @@ The real infrastructure adapter may be intentionally thin. It can directly use:
 - connection strings and options through `IOptions<TOptions>`;
 - a concrete client or helper already configured with retry/timeout policy.
 
-Prefer putting retry, timeout, authentication, and low-level connection behavior in the concrete client setup itself, such as typed `HttpClient` registration, generated-client configuration, SQL/data-access helper configuration, or a tiny infrastructure client wrapper. If a real source already needs retry, split the infrastructure implementation into a concrete client that owns retry/timeout and an application-facing adapter that maps between the Application contract and that client. Do not put retry in Application loaders, mappers, or validators.
+Prefer putting retry, timeout, authentication, and low-level connection behavior in the concrete client/helper setup itself, such as typed `HttpClient` registration, generated-client configuration, SQL/data-access helper configuration, or a tiny Infrastructure client wrapper. Do not put retry in Application loaders, mappers, or validators.
 
 Those details should not leak into Application. Application should see step-local request/response DTOs and issues, not SQL rows, generated-client models, connection strings, or HTTP-specific exceptions.
 
@@ -115,6 +144,12 @@ Each step returns output data plus structured diagnostics:
 - issues with severity;
 
 Warnings are recoverable data-quality or partial-result issues. Errors are flow-stopping step/request failures and make the run fail. A run can be successful with warnings, but not successful with errors.
+
+Issue severity is the source of truth for run outcome and report grouping. Logging should align with it:
+
+- warnings are logged as warnings when operationally useful, but they do not fail the run;
+- errors are logged as errors and make the run fail;
+- ordinary progress messages can be logs only and should not create issues.
 
 ### 6. Use a simple sequential orchestrator
 
@@ -284,7 +319,7 @@ tests/
     Monitoring/
 ```
 
-Because this solution is intended as an LLM-facing template, keep explicit placeholder files for the expected concerns even when the prototype implementation is small. The placeholders teach where future business logic belongs. Delete or collapse a placeholder only when the slice genuinely does not have that concern, not merely to reduce file count.
+Because this solution is intended as an LLM-facing template, keep explicit placeholder files for the expected concerns even when the prototype implementation is small. The placeholders teach where future business logic belongs. Treat them as scaffolding guidance: delete or collapse a placeholder when a real service genuinely does not have that concern, not merely to reduce file count during the first implementation pass.
 
 Within each loader/persister slice, keep behavior files at the slice root and put DTOs, inputs, outputs, and internal records under `Models/`. Use one `Models/` folder per slice for consistency; do not split into separate `Dtos/`, `Inputs/`, or `Outputs/` folders unless a real service grows enough to need that.
 
@@ -359,6 +394,8 @@ Responses:
 
 The prototype can run synchronously inside the request and return the final report. If the real service later needs background execution, the same orchestrator can move behind a queue or hosted service.
 
+The HTTP endpoint is the prototype host surface, not a core template rule. The same Application orchestration can be triggered by an API endpoint, hosted service, scheduler, message consumer, or test harness.
+
 ### Status endpoint
 
 Add a simple endpoint for operational progress:
@@ -402,6 +439,21 @@ Use the reusable projects as separate building blocks:
 - `DataRetriever.Monitoring` references `DataRetriever.Execution` and tracks operational status/progress from counters and issue counts.
 - `DataRetriever.Application` references the reusable projects it actually uses.
 - `DataRetriever.Reporting` and `DataRetriever.Monitoring` must not reference each other.
+
+Ownership summary:
+
+| Concern | Owner |
+| --- | --- |
+| Step orchestration and business decisions | Application |
+| Step inputs, outputs, mappers, validators, and selectors | Application slice |
+| Source/sink interfaces used by steps | Application slice |
+| Real SQL/HTTP/generated clients, retry/timeout, auth, health checks | Infrastructure |
+| Local fake source/sink implementations | Simulators |
+| Step contract, run context, counters, issues | Execution |
+| Final report model and builder | Reporting |
+| Email/report delivery implementation | Infrastructure or Simulators |
+| Live run status and instrumentation | Monitoring |
+| Host endpoints, environment selection, DI composition | API/Host |
 
 This means a future service can use:
 
@@ -628,7 +680,7 @@ Warnings should not make a run fail by themselves.
 
 The report builder should aggregate structured results, not infer meaning from the orchestrator implementation. It may preserve the configured logical step order for readability, but it should not require results to arrive in that order. A future TPL Dataflow orchestrator should be able to pass block/step results into the same report builder.
 
-The report should be structured JSON for the API response. Plain text or HTML formatting can be added later as a separate renderer.
+The report should be structured JSON for the API response. Plain text or HTML formatting can be handled by a publisher later if a real delivery channel needs it.
 
 The report builder should not update operational status. The processing tracker should not format user-facing reports. The orchestrator may use both, but they remain separate dependencies.
 
@@ -647,6 +699,14 @@ public sealed record PersistedRecordSummary(
 ```
 
 `RunReport` should include `IReadOnlyList<PersistedRecordSummary> PersistedRecords` or an equivalent section. The run endpoint can return the structured report, and the email publisher can choose whether to include the full persisted-record list or a summary.
+
+For large reports, keep `RunReport` structured but let publishers choose a practical representation:
+
+- include counts and a small sample in the email/body;
+- include the full list in the API response only when reasonable;
+- otherwise attach, link, or export the full successful-record list through a service-specific mechanism.
+
+Do not make report-size handling part of the step execution contract.
 
 ### Report publishing
 
@@ -999,7 +1059,7 @@ Expected result:
    - If the real source is SQL, this class may directly use `SqlConnection`, Dapper, or the existing lightweight data-access helper.
    - If the real source is HTTP, this class may directly use `HttpClient`, a typed HTTP client, or a generated Swagger/OpenAPI client.
    - Put connection strings, base URLs, credentials mode, and timeout settings in `Step2SourceClientOptions`.
-   - Prefer applying retry/timeout policy in the typed/generated client setup or SQL/data-access helper; keep it inside the adapter only as an isolated prototype fallback.
+   - Prefer applying retry/timeout policy in the typed/generated client setup or SQL/data-access helper. If there is no separate client/helper yet, keep retry isolated inside Infrastructure and split it out when it grows.
    - Translate transport exceptions into source failures that the step can report.
    - Map SQL rows or generated-client DTOs into step-local DTOs before returning to Application.
 4. Implement `Step2ResponseMapper`.
