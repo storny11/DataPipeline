@@ -8,6 +8,7 @@ using DataRetriever.Infrastructure.Step2Load;
 using DataRetriever.Infrastructure.Step3Load;
 using DataRetriever.Infrastructure.Step4Persist;
 using DataRetriever.Reporting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DataRetriever.Infrastructure;
@@ -16,16 +17,23 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDataRetrieverInfrastructure(this IServiceCollection services)
     {
+        return services.AddDataRetrieverInfrastructure(new ConfigurationBuilder().Build());
+    }
+
+    public static IServiceCollection AddDataRetrieverInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddDataRetrieverEmailReporting(configuration);
+
         services.AddOptions<Step2SourceClientOptions>();
         services.AddOptions<Step3SourceClientOptions>();
-        services.AddOptions<EmailRunReportOptions>();
 
         services.AddScoped<IStep1SourceClient, Step1SourceClient>();
         services.AddScoped<IStep2SourceClient, Step2SourceClient>();
         services.AddScoped<Step3ExternalClient>();
         services.AddScoped<IStep3SourceClient, Step3SourceClient>();
         services.AddScoped<IStep4SinkClient, Step4SinkClient>();
-        services.AddSingleton<IRunReportPublisher, EmailRunReportPublisher>();
 
         services.AddHealthChecks()
             .AddCheck<Step1SourceHealthCheck>("step1-source")
@@ -33,6 +41,16 @@ public static class ServiceCollectionExtensions
             .AddCheck<Step3SourceHealthCheck>("step3-source")
             .AddCheck<Step4SinkHealthCheck>("step4-sink");
 
+        return services;
+    }
+
+    public static IServiceCollection AddDataRetrieverEmailReporting(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.Configure<EmailRunReportOptions>(configuration.GetSection(EmailRunReportOptions.SectionName));
+        services.AddSingleton<IEmailSender, MailKitEmailSender>();
+        services.AddSingleton<IRunReportPublisher, EmailRunReportPublisher>();
         return services;
     }
 }

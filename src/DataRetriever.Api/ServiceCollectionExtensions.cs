@@ -1,6 +1,7 @@
 using DataRetriever.Api.Composition;
 using DataRetriever.Application;
 using DataRetriever.Execution;
+using DataRetriever.Infrastructure;
 using DataRetriever.Monitoring;
 using DataRetriever.Reporting;
 
@@ -24,11 +25,12 @@ public static class ServiceCollectionExtensions
         var adapterMode = AdapterModeOptions.FromConfiguration(configuration);
         if (adapterMode == AdapterMode.Real)
         {
-            services.AddRealAdapters();
+            services.AddRealAdapters(configuration);
         }
         else
         {
             services.AddSimulatorAdapters();
+            services.AddDataRetrieverEmailReporting(configuration);
         }
 
         return services;

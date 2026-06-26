@@ -1,0 +1,53 @@
+@using System.Globalization
+@using DataRetriever.Reporting
+@using Microsoft.AspNetCore.Components
+
+@if (Records.Count == 0)
+{
+    <p style="@EmptyStateStyle">No rows were persisted.</p>
+}
+else
+{
+    <table width="100%" cellspacing="0" cellpadding="0" style="@GridStyle">
+        <thead>
+            <tr>
+                <th align="left" style="@HeaderCellStyle">Internal Id</th>
+                <th align="left" style="@HeaderCellStyle">External Id 1</th>
+                <th align="left" style="@HeaderCellStyle">External Id 2</th>
+                <th align="right" style="@HeaderCellStyle">Amount 1</th>
+                <th align="right" style="@HeaderCellStyle">Amount 2</th>
+                <th align="right" style="@HeaderCellStyle">Amount 3</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var index = 0; index < Records.Count; index++)
+            {
+                var record = Records[index];
+                <tr style="background-color:@RowBackground(index);">
+                    <td style="@MonoCellStyle">@record.InternalId</td>
+                    <td style="@MonoCellStyle">@record.ExternalId1</td>
+                    <td style="@MonoCellStyle">@record.ExternalId2</td>
+                    <td align="right" style="@NumberCellStyle">@FormatAmount(record.Amount1)</td>
+                    <td align="right" style="@NumberCellStyle">@FormatAmount(record.Amount2)</td>
+                    <td align="right" style="@NumberCellStyle">@FormatAmount(record.Amount3)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<PersistedRecordSummary> Records { get; set; } = [];
+
+    private const string GridStyle = "border-collapse:collapse; width:100%; background-color:#ffffff; border:1px solid #98a2b3;";
+    private const string HeaderCellStyle = "background-color:#eaf4d3; border:1px solid #98a2b3; padding:9px 10px; font-size:13px; line-height:18px; color:#1d2939;";
+    private const string CellStyle = "border:1px solid #98a2b3; padding:8px 10px; font-size:13px; line-height:18px; color:#344054;";
+    private const string MonoCellStyle = CellStyle + " font-family:Consolas, 'Courier New', monospace;";
+    private const string NumberCellStyle = CellStyle + " text-align:right;";
+    private const string EmptyStateStyle = "margin:0; padding:12px 14px; background-color:#ffffff; border:1px solid #d0d5dd; color:#475467; font-size:13px;";
+
+    private static string RowBackground(int index) => index % 2 == 0 ? "#ffffff" : "#eef6f7";
+
+    private static string FormatAmount(decimal value) => value.ToString("N4", CultureInfo.InvariantCulture);
+}

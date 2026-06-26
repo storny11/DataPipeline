@@ -1,0 +1,54 @@
+@using DataRetriever.Execution
+@using DataRetriever.Reporting
+@using Microsoft.AspNetCore.Components
+
+@if (Issues.Count == 0)
+{
+    <p style="@EmptyStateStyle">@EmptyText</p>
+}
+else
+{
+    <table width="100%" cellspacing="0" cellpadding="0" style="@GridStyle">
+        <thead>
+            <tr>
+                <th align="left" style="@HeaderCellStyle">Step</th>
+                <th align="left" style="@HeaderCellStyle">Context</th>
+                <th align="left" style="@HeaderCellStyle">Message</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var index = 0; index < Issues.Count; index++)
+            {
+                var issue = Issues[index];
+                <tr style="background-color:@RowBackground(index);">
+                    <td style="@CellStyle">@issue.StepName</td>
+                    <td style="@MonoCellStyle">@FormatContext(issue.Context)</td>
+                    <td style="@CellStyle">@issue.Message</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<RunReportIssue> Issues { get; set; } = [];
+
+    [Parameter]
+    public string EmptyText { get; set; } = "None.";
+
+    private const string GridStyle = "border-collapse:collapse; width:100%; background-color:#ffffff; border:1px solid #98a2b3;";
+    private const string HeaderCellStyle = "background-color:#eaf4d3; border:1px solid #98a2b3; padding:9px 10px; font-size:13px; line-height:18px; color:#1d2939;";
+    private const string CellStyle = "border:1px solid #98a2b3; padding:8px 10px; font-size:13px; line-height:18px; color:#344054;";
+    private const string MonoCellStyle = CellStyle + " font-family:Consolas, 'Courier New', monospace;";
+    private const string EmptyStateStyle = "margin:0; padding:12px 14px; background-color:#ffffff; border:1px solid #d0d5dd; color:#475467; font-size:13px;";
+
+    private static string RowBackground(int index) => index % 2 == 0 ? "#ffffff" : "#eef6f7";
+
+    private static string FormatContext(DiagnosticContext context)
+    {
+        return context.Values.Count == 0
+            ? "-"
+            : string.Join(", ", context.Values.Select(value => $"{value.Key}={value.Value}"));
+    }
+}

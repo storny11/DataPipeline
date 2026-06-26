@@ -1,0 +1,84 @@
+@using System.Globalization
+@using DataRetriever.Execution
+@using DataRetriever.Reporting
+@using Microsoft.AspNetCore.Components
+
+<!DOCTYPE html>
+<html>
+<body style="@BodyStyle">
+    <div style="@ContainerStyle">
+        <div style="@HeaderStyle">
+            <div style="font-size:13px; color:#667085; text-transform:uppercase; letter-spacing:0;">Data retrieval report</div>
+            <h1 style="margin:6px 0 0 0; font-size:24px; line-height:32px; color:#101828;">@StatusHeading</h1>
+            <div style="margin-top:12px;">
+                <span style="@StatusPillStyle">@Report.Status</span>
+            </div>
+        </div>
+
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="@SummaryTableStyle">
+            <tbody>
+                <tr>
+                    <td style="@SummaryCellStyle"><strong>Run id</strong><br />@Report.RunId</td>
+                    <td style="@SummaryCellStyle"><strong>Started</strong><br />@FormatDate(Report.StartedAt)</td>
+                    <td style="@SummaryCellStyle"><strong>Completed</strong><br />@FormatDate(Report.CompletedAt)</td>
+                </tr>
+                <tr>
+                    <td style="@SummaryCellStyle"><strong>Persisted rows</strong><br />@Report.Summary.RowsPersisted</td>
+                    <td style="@SummaryCellStyle"><strong>Warnings</strong><br />@Report.Summary.WarningCount</td>
+                    <td style="@SummaryCellStyle"><strong>Errors</strong><br />@Report.Summary.ErrorCount</td>
+                </tr>
+                <tr>
+                    <td style="@SummaryCellStyle"><strong>Configured rows</strong><br />@Report.Summary.ConfiguredRowsReturned</td>
+                    <td style="@SummaryCellStyle"><strong>Rows after filtering</strong><br />@Report.Summary.RowsAfterFiltering</td>
+                    <td style="@SummaryCellStyle"><strong>Step 3 valid rows</strong><br />@Report.Summary.ValidStep3RowsReturned</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 style="@SectionHeadingStyle">Persisted Records</h2>
+        <PersistedRecordsTable Records="Report.PersistedRecords" />
+
+        <h2 style="@SectionHeadingStyle">Warnings</h2>
+        <IssuesTable Issues="Warnings" EmptyText="No warnings were reported." />
+
+        <h2 style="@SectionHeadingStyle">Errors</h2>
+        <IssuesTable Issues="Errors" EmptyText="No errors were reported." />
+    </div>
+</body>
+</html>
+
+@code {
+    [Parameter, EditorRequired]
+    public RunReport Report { get; set; } = null!;
+
+    private const string BodyStyle = "margin:0; padding:0; background-color:#f3f6fa; color:#101828; font-family:Segoe UI, Arial, sans-serif;";
+    private const string ContainerStyle = "max-width:1180px; margin:0 auto; padding:24px;";
+    private const string HeaderStyle = "background-color:#ffffff; border:1px solid #d0d5dd; border-radius:8px; padding:22px 24px;";
+    private const string SummaryTableStyle = "margin-top:18px; border-collapse:collapse; width:100%; background-color:#ffffff; border:1px solid #d0d5dd;";
+    private const string SummaryCellStyle = "border:1px solid #d0d5dd; padding:12px 14px; font-size:13px; line-height:20px; color:#344054;";
+    private const string SectionHeadingStyle = "margin:24px 0 10px 0; font-size:18px; line-height:24px; color:#1d2939;";
+
+    private IReadOnlyList<RunReportIssue> Warnings =>
+        Report.Issues.Where(issue => issue.Severity == StepIssueSeverity.Warning).ToList();
+
+    private IReadOnlyList<RunReportIssue> Errors =>
+        Report.Issues.Where(issue => issue.Severity == StepIssueSeverity.Error).ToList();
+
+    private string StatusHeading =>
+        Report.Summary.ErrorCount > 0
+            ? "Run completed with errors"
+            : Report.Summary.WarningCount > 0
+                ? "Run completed with warnings"
+                : "Run completed successfully";
+
+    private string StatusPillStyle =>
+        $"display:inline-block; padding:5px 10px; border-radius:999px; font-size:13px; font-weight:600; color:{StatusForeground}; background-color:{StatusBackground};";
+
+    private string StatusForeground =>
+        Report.Summary.ErrorCount > 0 ? "#912018" : Report.Summary.WarningCount > 0 ? "#93370d" : "#05603a";
+
+    private string StatusBackground =>
+        Report.Summary.ErrorCount > 0 ? "#fee4e2" : Report.Summary.WarningCount > 0 ? "#fef0c7" : "#d1fadf";
+
+    private static string FormatDate(DateTimeOffset value) => value.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture);
+}
