@@ -15,8 +15,10 @@ public sealed class DataRetrievalOrchestrator(
     IStep<Step2Output, Step3Output> step3,
     IStep<Step3Output, Step4Output> step4,
     IProcessingTracker processingTracker,
-    RunReportBuilder reportBuilder,
-    IRunReportPublisher reportPublisher,
+    StepRunner stepRunner,
+    PersistedRecordSummaryMapper persistedRecordSummaryMapper,
+    RunInstrumentationWriter instrumentationWriter,
+    RunReportFinalizer reportFinalizer,
     ILogger<DataRetrievalOrchestrator> logger)
 {
     public async Task<RunReport> RunAsync(
@@ -25,15 +27,14 @@ public sealed class DataRetrievalOrchestrator(
     {
         var context = new RunContext(Guid.NewGuid(), DateTimeOffset.UtcNow);
         var instrumentation = processingTracker.ForRun(context.RunId);
-        AppendStatus(instrumentation, "Running");
+        instrumentationWriter.RecordRunStatus(instrumentation, "Running");
 
         var results = new List<IStepExecutionResult>();
         IReadOnlyList<PersistedRecordSummary> persistedRecords = [];
-        var finalStatus = "Success";
 
         try
         {
-            var step1Result = await ExecuteStepAsync(
+            var step1Result = await stepRunner.ExecuteAsync(
                 step1,
                 new Step1Input(options),
                 context,
@@ -43,11 +44,10 @@ public sealed class DataRetrievalOrchestrator(
 
             if (!CanContinue(step1Result))
             {
-                finalStatus = "Failed";
-                return await FinishAsync(context, options, results, persistedRecords, finalStatus, instrumentation, cancellationToken);
+                return await FinishFailedAsync(context, options, results, persistedRecords, instrumentation, cancellationToken);
             }
 
-            var step2Result = await ExecuteStepAsync(
+            var step2Result = await stepRunner.ExecuteAsync(
                 step2,
                 step1Result.Output!,
                 context,
@@ -57,11 +57,10 @@ public sealed class DataRetrievalOrchestrator(
 
             if (!CanContinue(step2Result))
             {
-                finalStatus = "Failed";
-                return await FinishAsync(context, options, results, persistedRecords, finalStatus, instrumentation, cancellationToken);
+                return await FinishFailedAsync(context, options, results, persistedRecords, instrumentation, cancellationToken);
             }
 
-            var step3Result = await ExecuteStepAsync(
+            var step3Result = await stepRunner.ExecuteAsync(
                 step3,
                 step2Result.Output!,
                 context,
@@ -71,11 +70,10 @@ public sealed class DataRetrievalOrchestrator(
 
             if (!CanContinue(step3Result))
             {
-                finalStatus = "Failed";
-                return await FinishAsync(context, options, results, persistedRecords, finalStatus, instrumentation, cancellationToken);
+                return await FinishFailedAsync(context, options, results, persistedRecords, instrumentation, cancellationToken);
             }
 
-            var step4Result = await ExecuteStepAsync(
+            var step4Result = await stepRunner.ExecuteAsync(
                 step4,
                 step3Result.Output!,
                 context,
@@ -83,27 +81,21 @@ public sealed class DataRetrievalOrchestrator(
                 results,
                 cancellationToken);
 
-            if (!CanContinue(step4Result))
-            {
-                finalStatus = "Failed";
-            }
+            var finalStatus = CanContinue(step4Result) ? "Success" : "Failed";
+            persistedRecords = persistedRecordSummaryMapper.Map(step4Result.Output);
 
-            persistedRecords = step4Result.Output?.PersistedRecords
-                .Select(record => new PersistedRecordSummary(
-                    record.InternalId,
-                    record.ExternalId1,
-                    record.ExternalId2,
-                    record.Amount1,
-                    record.Amount2,
-                    record.Amount3))
-                .ToList() ?? [];
-
-            return await FinishAsync(context, options, results, persistedRecords, finalStatus, instrumentation, cancellationToken);
+            return await reportFinalizer.FinishAsync(
+                context,
+                options,
+                results,
+                persistedRecords,
+                finalStatus,
+                instrumentation,
+                cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Unexpected data retrieval run failure for {RunId}", context.RunId);
-            finalStatus = "Failed";
             results.Add(StepExecutionResult<NoOutput>.Failed(
                 "Run",
                 [
@@ -114,94 +106,30 @@ public sealed class DataRetrievalOrchestrator(
                         DiagnosticContext.From(("runId", context.RunId.ToString())))
                 ]));
 
-            return await FinishAsync(context, options, results, persistedRecords, finalStatus, instrumentation, cancellationToken);
+            return await FinishFailedAsync(context, options, results, persistedRecords, instrumentation, cancellationToken);
         }
     }
 
-    private async Task<StepExecutionResult<TOutput>> ExecuteStepAsync<TInput, TOutput>(
-        IStep<TInput, TOutput> step,
-        TInput input,
-        RunContext context,
-        IRunInstrumentation instrumentation,
-        List<IStepExecutionResult> results,
-        CancellationToken cancellationToken)
-    {
-        logger.LogInformation("Starting {StepName} for run {RunId}", step.Name, context.RunId);
-        var result = await step.ExecuteAsync(input, context, cancellationToken);
-        results.Add(result);
-
-        foreach (var issue in result.Issues)
-        {
-            var logLevel = issue.Severity == StepIssueSeverity.Error
-                ? LogLevel.Error
-                : LogLevel.Warning;
-            logger.Log(
-                logLevel,
-                "{StepName} {Severity}: {Message}. Context: {@Context}",
-                issue.StepName,
-                issue.Severity,
-                issue.Message,
-                issue.Context.Values);
-        }
-
-        var info = new BasicInstrumentationInfo();
-        info.AddValue("Status", result.Status.ToString());
-        info.AddValue("Warnings", result.Issues.Count(issue => issue.Severity == StepIssueSeverity.Warning));
-        info.AddValue("Errors", result.Issues.Count(issue => issue.Severity == StepIssueSeverity.Error));
-        foreach (var counter in result.Counters)
-        {
-            info.AddValue(counter.Name, counter.Value);
-        }
-
-        instrumentation.AppendInstrumentationInfo(result.StepName, info);
-        logger.LogInformation("Completed {StepName} for run {RunId} with {Status}", step.Name, context.RunId, result.Status);
-        return result;
-    }
-
-    private async Task<RunReport> FinishAsync(
+    private Task<RunReport> FinishFailedAsync(
         RunContext context,
         DataRetrievalRunOptions options,
         IReadOnlyList<IStepExecutionResult> results,
         IReadOnlyList<PersistedRecordSummary> persistedRecords,
-        string status,
         IRunInstrumentation instrumentation,
         CancellationToken cancellationToken)
     {
-        AppendStatus(instrumentation, status);
-
-        var report = reportBuilder.Build(
+        return reportFinalizer.FinishAsync(
             context,
-            DateTimeOffset.UtcNow,
-            status,
-            new RunRequestSummary(options.Currency, options.InternalIds),
+            options,
             results,
-            persistedRecords);
-
-        await reportPublisher.PublishAsync(report, cancellationToken);
-        return report;
+            persistedRecords,
+            "Failed",
+            instrumentation,
+            cancellationToken);
     }
 
     private static bool CanContinue<TOutput>(StepExecutionResult<TOutput> result)
     {
         return !result.HasErrors && result.HasUsableOutput;
-    }
-
-    private static void AppendStatus(IRunInstrumentation instrumentation, string status)
-    {
-        var info = new BasicInstrumentationInfo();
-        info.AddValue("Status", status);
-        instrumentation.AppendInstrumentationInfo("run", info);
-    }
-
-    private sealed class BasicInstrumentationInfo : IInstrumentationInfo
-    {
-        private readonly Dictionary<string, object?> _values = new(StringComparer.OrdinalIgnoreCase);
-
-        public IReadOnlyDictionary<string, object?> Values => _values;
-
-        public void AddValue<T>(string name, T value)
-        {
-            _values[name] = value;
-        }
     }
 }

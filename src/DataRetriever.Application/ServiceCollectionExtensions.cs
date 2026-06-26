@@ -17,6 +17,10 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddDataRetrieverApplication(this IServiceCollection services)
     {
         services.AddSingleton<SingleRunGuard>();
+        services.AddScoped<RunInstrumentationWriter>();
+        services.AddScoped<StepRunner>();
+        services.AddScoped<PersistedRecordSummaryMapper>();
+        services.AddScoped<RunReportFinalizer>();
         services.AddScoped<DataRetrievalOrchestrator>();
 
         services.AddScoped<Step1Mapper>();
