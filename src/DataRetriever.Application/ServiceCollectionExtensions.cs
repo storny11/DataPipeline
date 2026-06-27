@@ -19,7 +19,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<SingleRunGuard>();
         services.AddScoped<RunInstrumentationWriter>();
         services.AddScoped<StepRunner>();
-        services.AddScoped<PersistedRecordSummaryMapper>();
+        services.AddScoped<DataRetrievalReportSummaryBuilder>();
+        services.AddScoped<Step4ReportTableBuilder>();
         services.AddScoped<RunReportFinalizer>();
         services.AddScoped<DataRetrievalOrchestrator>();
 

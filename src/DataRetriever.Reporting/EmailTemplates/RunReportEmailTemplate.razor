@@ -22,27 +22,52 @@
                     <td style="@SummaryCellStyle"><strong>Started</strong><br />@FormatDate(Report.StartedAt)</td>
                     <td style="@SummaryCellStyle"><strong>Completed</strong><br />@FormatDate(Report.CompletedAt)</td>
                 </tr>
-                <tr>
-                    <td style="@SummaryCellStyle"><strong>Persisted rows</strong><br />@Report.Summary.RowsPersisted</td>
-                    <td style="@SummaryCellStyle"><strong>Warnings</strong><br />@Report.Summary.WarningCount</td>
-                    <td style="@SummaryCellStyle"><strong>Errors</strong><br />@Report.Summary.ErrorCount</td>
-                </tr>
-                <tr>
-                    <td style="@SummaryCellStyle"><strong>Configured rows</strong><br />@Report.Summary.ConfiguredRowsReturned</td>
-                    <td style="@SummaryCellStyle"><strong>Rows after filtering</strong><br />@Report.Summary.RowsAfterFiltering</td>
-                    <td style="@SummaryCellStyle"><strong>Step 3 valid rows</strong><br />@Report.Summary.ValidStep3RowsReturned</td>
-                </tr>
+                @if (DisplayStats)
+                {
+                    <tr>
+                        <td style="@SummaryCellStyle"><strong>Warnings</strong><br />@Report.WarningCount</td>
+                        <td style="@SummaryCellStyle"><strong>Errors</strong><br />@Report.ErrorCount</td>
+                        <td style="@SummaryCellStyle"><strong>Report tables</strong><br />@Report.Tables.Count</td>
+                    </tr>
+                    @for (var index = 0; index < Report.Summary.Count; index += 3)
+                    {
+                        <tr>
+                            @for (var offset = 0; offset < 3; offset++)
+                            {
+                                var metricIndex = index + offset;
+                                if (metricIndex < Report.Summary.Count)
+                                {
+                                    var metric = Report.Summary[metricIndex];
+                                    <td style="@SummaryCellStyle"><strong>@metric.Label</strong><br />@metric.Value</td>
+                                }
+                                else
+                                {
+                                    <td style="@SummaryCellStyle">&nbsp;</td>
+                                }
+                            }
+                        </tr>
+                    }
+                }
             </tbody>
         </table>
 
-        <h2 style="@SectionHeadingStyle">Persisted Records</h2>
-        <PersistedRecordsTable Records="Report.PersistedRecords" />
+        @if (Errors.Count > 0)
+        {
+            <h2 style="@SectionHeadingStyle">Errors</h2>
+            <IssuesTable Issues="Errors" />
+        }
 
-        <h2 style="@SectionHeadingStyle">Warnings</h2>
-        <IssuesTable Issues="Warnings" EmptyText="No warnings were reported." />
+        @if (Warnings.Count > 0)
+        {
+            <h2 style="@SectionHeadingStyle">Warnings</h2>
+            <IssuesTable Issues="Warnings" />
+        }
 
-        <h2 style="@SectionHeadingStyle">Errors</h2>
-        <IssuesTable Issues="Errors" EmptyText="No errors were reported." />
+        @foreach (var table in Report.Tables)
+        {
+            <h2 style="@SectionHeadingStyle">@table.Title</h2>
+            <ReportTable Table="table" />
+        }
     </div>
 </body>
 </html>
@@ -50,6 +75,9 @@
 @code {
     [Parameter, EditorRequired]
     public RunReport Report { get; set; } = null!;
+
+    [Parameter]
+    public bool DisplayStats { get; set; }
 
     private const string BodyStyle = "margin:0; padding:0; background-color:#f3f6fa; color:#101828; font-family:Segoe UI, Arial, sans-serif;";
     private const string ContainerStyle = "max-width:1180px; margin:0 auto; padding:24px;";
@@ -65,9 +93,9 @@
         Report.Issues.Where(issue => issue.Severity == StepIssueSeverity.Error).ToList();
 
     private string StatusHeading =>
-        Report.Summary.ErrorCount > 0
+        Report.ErrorCount > 0
             ? "Run completed with errors"
-            : Report.Summary.WarningCount > 0
+            : Report.WarningCount > 0
                 ? "Run completed with warnings"
                 : "Run completed successfully";
 
@@ -75,10 +103,10 @@
         $"display:inline-block; padding:5px 10px; border-radius:999px; font-size:13px; font-weight:600; color:{StatusForeground}; background-color:{StatusBackground};";
 
     private string StatusForeground =>
-        Report.Summary.ErrorCount > 0 ? "#912018" : Report.Summary.WarningCount > 0 ? "#93370d" : "#05603a";
+        Report.ErrorCount > 0 ? "#912018" : Report.WarningCount > 0 ? "#93370d" : "#05603a";
 
     private string StatusBackground =>
-        Report.Summary.ErrorCount > 0 ? "#fee4e2" : Report.Summary.WarningCount > 0 ? "#fef0c7" : "#d1fadf";
+        Report.ErrorCount > 0 ? "#fee4e2" : Report.WarningCount > 0 ? "#fef0c7" : "#d1fadf";
 
     private static string FormatDate(DateTimeOffset value) => value.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture);
 }

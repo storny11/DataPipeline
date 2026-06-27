@@ -1,7 +1,7 @@
 using DataRetriever.Api;
 using DataRetriever.Api.Composition;
+using DataRetriever.Infrastructure.Reporting;
 using DataRetriever.Reporting;
-using DataRetriever.Simulators.Reporting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -11,7 +11,7 @@ namespace DataRetriever.Tests.Api;
 public sealed class ServiceCollectionExtensionsTests
 {
     [Fact]
-    public void AddDataRetrieverApi_DefaultSimulatorMode_UsesSimulatorReportPublisher()
+    public void AddDataRetrieverApi_DefaultSimulatorMode_UsesRealEmailPublisherForLocalSmtpTesting()
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -22,7 +22,7 @@ public sealed class ServiceCollectionExtensionsTests
         using var provider = services.BuildServiceProvider();
         var publisher = provider.GetRequiredService<IRunReportPublisher>();
 
-        Assert.IsType<SimulatedEmailRunReportPublisher>(publisher);
+        Assert.IsType<EmailRunReportPublisher>(publisher);
     }
 
     [Fact]

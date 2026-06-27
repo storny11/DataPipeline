@@ -16,7 +16,7 @@ public sealed class DataRetrievalOrchestrator(
     IStep<Step3Output, Step4Output> step4,
     IProcessingTracker processingTracker,
     StepRunner stepRunner,
-    PersistedRecordSummaryMapper persistedRecordSummaryMapper,
+    Step4ReportTableBuilder step4ReportTableBuilder,
     RunInstrumentationWriter instrumentationWriter,
     RunReportFinalizer reportFinalizer,
     ILogger<DataRetrievalOrchestrator> logger)
@@ -30,7 +30,7 @@ public sealed class DataRetrievalOrchestrator(
         instrumentationWriter.RecordRunStatus(instrumentation, RunStatus.Running);
 
         var results = new List<IStepExecutionResult>();
-        IReadOnlyList<PersistedRecordSummary> persistedRecords = [];
+        IReadOnlyList<RunReportTable> tables = [];
 
         try
         {
@@ -44,7 +44,7 @@ public sealed class DataRetrievalOrchestrator(
 
             if (!CanContinue(step1Result))
             {
-                return await FinishFailedAsync(context, options, results, persistedRecords, instrumentation, cancellationToken);
+                return await FinishFailedAsync(context, options, results, tables, instrumentation, cancellationToken);
             }
 
             var step2Result = await stepRunner.ExecuteAsync(
@@ -57,7 +57,7 @@ public sealed class DataRetrievalOrchestrator(
 
             if (!CanContinue(step2Result))
             {
-                return await FinishFailedAsync(context, options, results, persistedRecords, instrumentation, cancellationToken);
+                return await FinishFailedAsync(context, options, results, tables, instrumentation, cancellationToken);
             }
 
             var step3Result = await stepRunner.ExecuteAsync(
@@ -70,7 +70,7 @@ public sealed class DataRetrievalOrchestrator(
 
             if (!CanContinue(step3Result))
             {
-                return await FinishFailedAsync(context, options, results, persistedRecords, instrumentation, cancellationToken);
+                return await FinishFailedAsync(context, options, results, tables, instrumentation, cancellationToken);
             }
 
             var step4Result = await stepRunner.ExecuteAsync(
@@ -82,13 +82,13 @@ public sealed class DataRetrievalOrchestrator(
                 cancellationToken);
 
             var finalStatus = CanContinue(step4Result) ? RunStatus.Success : RunStatus.Failed;
-            persistedRecords = persistedRecordSummaryMapper.Map(step4Result.Output);
+            tables = [step4ReportTableBuilder.Build(step4Result.Output)];
 
             return await reportFinalizer.FinishAsync(
                 context,
                 options,
                 results,
-                persistedRecords,
+                tables,
                 finalStatus,
                 instrumentation,
                 cancellationToken);
@@ -106,7 +106,7 @@ public sealed class DataRetrievalOrchestrator(
                         DiagnosticContext.From(("runId", context.RunId.ToString())))
                 ]));
 
-            return await FinishFailedAsync(context, options, results, persistedRecords, instrumentation, cancellationToken);
+            return await FinishFailedAsync(context, options, results, tables, instrumentation, cancellationToken);
         }
     }
 
@@ -114,7 +114,7 @@ public sealed class DataRetrievalOrchestrator(
         RunContext context,
         DataRetrievalRunOptions options,
         IReadOnlyList<IStepExecutionResult> results,
-        IReadOnlyList<PersistedRecordSummary> persistedRecords,
+        IReadOnlyList<RunReportTable> tables,
         IRunInstrumentation instrumentation,
         CancellationToken cancellationToken)
     {
@@ -122,7 +122,7 @@ public sealed class DataRetrievalOrchestrator(
             context,
             options,
             results,
-            persistedRecords,
+            tables,
             RunStatus.Failed,
             instrumentation,
             cancellationToken);

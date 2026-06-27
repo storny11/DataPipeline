@@ -16,10 +16,10 @@ public sealed class EmailRunReportPublisher(
         if (!emailOptions.Enabled)
         {
             logger.LogInformation(
-                "Email publishing is disabled. Built report for run {RunId} with {IssueCount} issues and {PersistedCount} persisted rows.",
+                "Email publishing is disabled. Built report for run {RunId} with {IssueCount} issues and {TableRowCount} table rows.",
                 report.RunId,
                 report.Issues.Count,
-                report.PersistedRecords.Count);
+                report.Tables.Sum(table => table.Rows.Count));
             return;
         }
 

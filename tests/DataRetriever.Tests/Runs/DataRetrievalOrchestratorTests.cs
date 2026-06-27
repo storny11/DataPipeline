@@ -31,9 +31,14 @@ public sealed class DataRetrievalOrchestratorTests
 
         Assert.Equal(RunStatus.Success, report.Status);
         Assert.NotEmpty(report.Issues);
-        Assert.True(report.Summary.WarningCount > 0);
-        Assert.NotEmpty(report.PersistedRecords);
-        Assert.All(report.PersistedRecords, record => Assert.False(string.IsNullOrWhiteSpace(record.InternalId)));
+        Assert.True(report.WarningCount > 0);
+
+        var persistedRecordsTable = Assert.Single(report.Tables, table => table.Name == "persisted-records");
+        Assert.NotEmpty(persistedRecordsTable.Rows);
+        Assert.All(
+            persistedRecordsTable.Rows,
+            row => Assert.False(string.IsNullOrWhiteSpace(row["internalId"])));
+
         Assert.NotNull(snapshot);
         Assert.Equal(RunStatus.Success, snapshot.RunStatus);
     }

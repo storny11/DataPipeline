@@ -4,12 +4,14 @@ using DataRetriever.Reporting.EmailTemplates;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace DataRetriever.Reporting;
 
 public sealed class RazorRunReportEmailFormatter(
     IServiceProvider serviceProvider,
-    ILoggerFactory loggerFactory) : IRunReportEmailFormatter
+    ILoggerFactory loggerFactory,
+    IOptions<RunReportEmailOptions> options) : IRunReportEmailFormatter
 {
     public async Task<RunReportEmail> FormatAsync(RunReport report, CancellationToken cancellationToken)
     {
@@ -17,7 +19,11 @@ public sealed class RazorRunReportEmailFormatter(
 
         await using var renderer = new HtmlRenderer(serviceProvider, loggerFactory);
         var parameters = ParameterView.FromDictionary(
-            new Dictionary<string, object?> { ["Report"] = report });
+            new Dictionary<string, object?>
+            {
+                ["Report"] = report,
+                ["DisplayStats"] = options.Value.DisplayStats
+            });
 
         var htmlBody = await renderer.Dispatcher.InvokeAsync(async () =>
         {
@@ -30,66 +36,87 @@ public sealed class RazorRunReportEmailFormatter(
         return new RunReportEmail(
             BuildSubject(report),
             htmlBody,
-            BuildTextBody(report));
+            BuildTextBody(report, options.Value.DisplayStats));
     }
 
     private static string BuildSubject(RunReport report)
     {
-        return $"Data retrieval {report.Status}: {report.PersistedRecords.Count} persisted, {report.Summary.WarningCount} warnings, {report.Summary.ErrorCount} errors";
+        return $"Data retrieval {report.Status}: {TableRowCount(report)} table rows, {report.WarningCount} warnings, {report.ErrorCount} errors";
     }
 
-    private static string BuildTextBody(RunReport report)
+    private static string BuildTextBody(RunReport report, bool displayStats)
     {
         var builder = new StringBuilder();
         builder.AppendLine($"Data retrieval run {report.RunId}");
         builder.AppendLine($"Status: {report.Status}");
         builder.AppendLine($"Started: {report.StartedAt:O}");
         builder.AppendLine($"Completed: {report.CompletedAt:O}");
-        builder.AppendLine($"Configured rows: {report.Summary.ConfiguredRowsReturned}");
-        builder.AppendLine($"Rows after filtering: {report.Summary.RowsAfterFiltering}");
-        builder.AppendLine($"Step 2 rows: {report.Summary.Step2RowsProduced}");
-        builder.AppendLine($"Step 3 valid rows: {report.Summary.ValidStep3RowsReturned}");
-        builder.AppendLine($"Rows persisted: {report.Summary.RowsPersisted}");
-        builder.AppendLine($"Warnings: {report.Summary.WarningCount}");
-        builder.AppendLine($"Errors: {report.Summary.ErrorCount}");
+
+        if (displayStats)
+        {
+            foreach (var metric in report.Summary)
+            {
+                builder.AppendLine($"{metric.Label}: {metric.Value}");
+            }
+
+            builder.AppendLine($"Warnings: {report.WarningCount}");
+            builder.AppendLine($"Errors: {report.ErrorCount}");
+        }
         builder.AppendLine();
 
-        builder.AppendLine("Persisted records");
-        if (report.PersistedRecords.Count == 0)
+        AppendIssues(builder, "Errors", report.Issues.Where(issue => issue.Severity == StepIssueSeverity.Error));
+        AppendIssues(builder, "Warnings", report.Issues.Where(issue => issue.Severity == StepIssueSeverity.Warning));
+
+        builder.AppendLine("Report tables");
+        if (report.Tables.Count == 0)
         {
             builder.AppendLine("- none");
         }
         else
         {
-            foreach (var record in report.PersistedRecords)
+            foreach (var table in report.Tables)
             {
-                builder.AppendLine(
-                    $"- InternalId={record.InternalId}; ExternalId1={record.ExternalId1}; ExternalId2={record.ExternalId2}; Amount1={record.Amount1}; Amount2={record.Amount2}; Amount3={record.Amount3}");
+                AppendTable(builder, table);
             }
         }
-
-        AppendIssues(builder, "Warnings", report.Issues.Where(issue => issue.Severity == StepIssueSeverity.Warning));
-        AppendIssues(builder, "Errors", report.Issues.Where(issue => issue.Severity == StepIssueSeverity.Error));
 
         return builder.ToString();
     }
 
+    private static void AppendTable(StringBuilder builder, RunReportTable table)
+    {
+        builder.AppendLine();
+        builder.AppendLine(table.Title);
+
+        if (table.Rows.Count == 0)
+        {
+            builder.AppendLine("- none");
+            return;
+        }
+
+        foreach (var row in table.Rows)
+        {
+            var values = table.Columns
+                .Select(column => $"{column.Header}={Value(row, column.Key)}");
+            builder.AppendLine($"- {string.Join("; ", values)}");
+        }
+    }
+
     private static void AppendIssues(StringBuilder builder, string title, IEnumerable<RunReportIssue> issues)
     {
+        var issueList = issues.ToList();
+        if (issueList.Count == 0)
+        {
+            return;
+        }
+
         builder.AppendLine();
         builder.AppendLine(title);
 
-        var found = false;
-        foreach (var issue in issues)
+        foreach (var issue in issueList)
         {
-            found = true;
             builder.AppendLine(
                 $"- Step={issue.StepName}; Context={FormatContext(issue.Context)}; Message={issue.Message}");
-        }
-
-        if (!found)
-        {
-            builder.AppendLine("- none");
         }
     }
 
@@ -98,5 +125,17 @@ public sealed class RazorRunReportEmailFormatter(
         return context.Values.Count == 0
             ? "-"
             : string.Join(", ", context.Values.Select(value => $"{value.Key}={value.Value}"));
+    }
+
+    private static string Value(IReadOnlyDictionary<string, string?> row, string key)
+    {
+        return row.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : "-";
+    }
+
+    private static int TableRowCount(RunReport report)
+    {
+        return report.Tables.Sum(table => table.Rows.Count);
     }
 }

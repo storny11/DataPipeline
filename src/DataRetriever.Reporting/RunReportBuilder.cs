@@ -10,7 +10,8 @@ public sealed class RunReportBuilder
         RunStatus status,
         RunRequestSummary request,
         IReadOnlyList<IStepExecutionResult> stepResults,
-        IReadOnlyList<PersistedRecordSummary> persistedRecords)
+        IReadOnlyList<RunReportMetric> summary,
+        IReadOnlyList<RunReportTable> tables)
     {
         var issues = stepResults
             .SelectMany(result => result.Issues)
@@ -26,15 +27,6 @@ public sealed class RunReportBuilder
                 result.Issues.Count(issue => issue.Severity == StepIssueSeverity.Error)))
             .ToList();
 
-        var summary = new RunReportSummary(
-            Counter(stepResults, "ConfiguredRowsReturned"),
-            Counter(stepResults, "RowsAfterFiltering"),
-            Counter(stepResults, "Step2RowsProduced"),
-            Counter(stepResults, "ValidStep3RowsReturned"),
-            Counter(stepResults, "RowsSuccessfullyPersisted"),
-            issues.Count(issue => issue.Severity == StepIssueSeverity.Warning),
-            issues.Count(issue => issue.Severity == StepIssueSeverity.Error));
-
         return new RunReport(
             context.RunId,
             context.StartedAt,
@@ -44,14 +36,6 @@ public sealed class RunReportBuilder
             summary,
             steps,
             issues,
-            persistedRecords);
-    }
-
-    private static long Counter(IEnumerable<IStepExecutionResult> stepResults, string name)
-    {
-        return stepResults
-            .SelectMany(result => result.Counters)
-            .Where(counter => string.Equals(counter.Name, name, StringComparison.OrdinalIgnoreCase))
-            .Sum(counter => counter.Value);
+            tables);
     }
 }

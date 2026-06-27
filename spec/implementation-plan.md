@@ -672,10 +672,10 @@ Warnings should not make a run fail by themselves.
 - started/completed timestamps;
 - final status;
 - request filter summary;
-- counter summary by step;
+- generic summary metrics;
 - issue counts by severity;
 - grouped issues by step and severity;
-- successfully persisted records;
+- zero or more service-specific report tables;
 - issue messages with diagnostic context.
 
 The report builder should aggregate structured results, not infer meaning from the orchestrator implementation. It may preserve the configured logical step order for readability, but it should not require results to arrive in that order. A future TPL Dataflow orchestrator should be able to pass block/step results into the same report builder.
@@ -686,19 +686,22 @@ The report builder should not update operational status. The processing tracker 
 
 The report should group issues first by step and severity. It should not create separate top-level user-facing report sections for validator issues versus mapper issues. A Step 3 missing-response warning and a Step 3 amount-mapping warning both belong in the Step 3 warning group.
 
-Successfully persisted data should be represented as normal report output, not as issues. The report can include a section such as:
+Successfully processed data should be represented as normal report output, not as issues. Use generic report tables so each service can add one or more grids without changing the shared reporting model. For example, this prototype can add a `persisted-records` table, while another service could add `expiring-coupons` and `rejected-records` tables.
 
 ```csharp
-public sealed record PersistedRecordSummary(
-    string InternalId,
-    string ExternalId1,
-    string ExternalId2,
-    decimal Amount1,
-    decimal Amount2,
-    decimal Amount3);
+public sealed record RunReportTable(
+    string Name,
+    string Title,
+    IReadOnlyList<RunReportColumn> Columns,
+    IReadOnlyList<IReadOnlyDictionary<string, string?>> Rows);
+
+public sealed record RunReportColumn(
+    string Key,
+    string Header,
+    RunReportColumnAlignment Alignment = RunReportColumnAlignment.Left);
 ```
 
-`RunReport` should include `IReadOnlyList<PersistedRecordSummary> PersistedRecords` or an equivalent section. The run endpoint can return the structured report, and the email publisher can choose whether to include the full persisted-record list or a summary.
+`RunReport` should include `IReadOnlyList<RunReportTable> Tables`. The run endpoint can return the structured report, and the email publisher should render every table as a grid.
 
 For large reports, keep `RunReport` structured but let publishers choose a practical representation:
 
@@ -1332,7 +1335,7 @@ Recommended test groups:
 - `Step4RequestMapperTests`
 - `Step4PersisterTests`
 - `RunReportBuilderTests`
-- `PersistedRecordsReportTests`
+- `ReportTableEmailTests`
 - `RunReportPublisherTests`
 - `DataRetrievalOrchestratorTests`
 - `DataRetrievalApiTests`

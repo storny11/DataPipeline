@@ -8,19 +8,20 @@ public sealed record RunReport(
     DateTimeOffset CompletedAt,
     RunStatus Status,
     RunRequestSummary Request,
-    RunReportSummary Summary,
+    IReadOnlyList<RunReportMetric> Summary,
     IReadOnlyList<RunReportStep> Steps,
     IReadOnlyList<RunReportIssue> Issues,
-    IReadOnlyList<PersistedRecordSummary> PersistedRecords);
+    IReadOnlyList<RunReportTable> Tables)
+{
+    public int WarningCount => Issues.Count(issue => issue.Severity == StepIssueSeverity.Warning);
 
-public sealed record RunReportSummary(
-    long ConfiguredRowsReturned,
-    long RowsAfterFiltering,
-    long Step2RowsProduced,
-    long ValidStep3RowsReturned,
-    long RowsPersisted,
-    int WarningCount,
-    int ErrorCount);
+    public int ErrorCount => Issues.Count(issue => issue.Severity == StepIssueSeverity.Error);
+}
+
+public sealed record RunReportMetric(
+    string Name,
+    string Label,
+    string Value);
 
 public sealed record RunReportStep(
     string StepName,
@@ -38,3 +39,21 @@ public sealed record RunReportIssue(
 public sealed record RunRequestSummary(
     string? Currency,
     IReadOnlyList<string> InternalIds);
+
+public sealed record RunReportTable(
+    string Name,
+    string Title,
+    IReadOnlyList<RunReportColumn> Columns,
+    IReadOnlyList<IReadOnlyDictionary<string, string?>> Rows);
+
+public sealed record RunReportColumn(
+    string Key,
+    string Header,
+    RunReportColumnAlignment Alignment = RunReportColumnAlignment.Left);
+
+public enum RunReportColumnAlignment
+{
+    Left,
+    Right,
+    Center
+}

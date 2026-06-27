@@ -6,6 +6,7 @@ namespace DataRetriever.Application.Runs;
 
 public sealed class RunReportFinalizer(
     RunInstrumentationWriter instrumentationWriter,
+    DataRetrievalReportSummaryBuilder summaryBuilder,
     RunReportBuilder reportBuilder,
     IRunReportPublisher reportPublisher)
 {
@@ -13,7 +14,7 @@ public sealed class RunReportFinalizer(
         RunContext context,
         DataRetrievalRunOptions options,
         IReadOnlyList<IStepExecutionResult> results,
-        IReadOnlyList<PersistedRecordSummary> persistedRecords,
+        IReadOnlyList<RunReportTable> tables,
         RunStatus status,
         IRunInstrumentation instrumentation,
         CancellationToken cancellationToken)
@@ -26,7 +27,8 @@ public sealed class RunReportFinalizer(
             status,
             new RunRequestSummary(options.Currency, options.InternalIds),
             results,
-            persistedRecords);
+            summaryBuilder.Build(results),
+            tables);
 
         await reportPublisher.PublishAsync(report, cancellationToken);
         return report;
