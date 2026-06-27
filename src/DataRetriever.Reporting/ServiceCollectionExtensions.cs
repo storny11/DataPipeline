@@ -1,3 +1,4 @@
+// Registers reporting builders and email formatters.
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

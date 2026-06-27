@@ -1,3 +1,4 @@
+// Reports Step 3 real adapter readiness to health checks.
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace DataRetriever.Infrastructure.Step3Load;

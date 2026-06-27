@@ -1,3 +1,4 @@
+// Verifies Step 4 counts duplicate persisted rows correctly.
 using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Application.Step4Persist;
 using DataRetriever.Application.Step4Persist.Models;

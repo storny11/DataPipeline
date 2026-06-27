@@ -1,3 +1,4 @@
+// Validates run requests, applies the one-run guard, and starts the orchestrated retrieval flow.
 using DataRetriever.Api.Contracts;
 using DataRetriever.Application.Runs;
 

@@ -1,3 +1,4 @@
+// Represents validated run filters used by Step 1 and the report request summary.
 namespace DataRetriever.Application.Runs;
 
 public sealed record DataRetrievalRunOptions(

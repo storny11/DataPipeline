@@ -1,3 +1,4 @@
+// Maps the data retrieval HTTP endpoints in one place to keep Program.cs small.
 using DataRetriever.Api.Contracts;
 
 namespace DataRetriever.Api.Endpoints;

@@ -1,3 +1,4 @@
+// Normalizes Step 3 external identifiers so request and response rows can be matched reliably.
 namespace DataRetriever.Application.Step3Load;
 
 public sealed class ExternalId2Normalizer

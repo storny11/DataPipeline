@@ -1,3 +1,4 @@
+// Provides deterministic simulator data for local runs and tests.
 using DataRetriever.Application.Step1Load.Models;
 using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Application.Step3Load.Models;

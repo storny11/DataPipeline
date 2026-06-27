@@ -1,3 +1,4 @@
+// Logs report publication instead of sending email when simulator reporting is used.
 using DataRetriever.Reporting;
 using Microsoft.Extensions.Logging;
 

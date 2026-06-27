@@ -1,3 +1,4 @@
+// Verifies report email layout, ordering, and generic table rendering.
 using DataRetriever.Execution;
 using DataRetriever.Reporting;
 using Microsoft.Extensions.DependencyInjection;

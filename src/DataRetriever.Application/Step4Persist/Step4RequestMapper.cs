@@ -1,3 +1,4 @@
+// Maps Step 3 records into persistence requests while preserving source-row correlation.
 using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Application.Step4Persist.Models;
 using DataRetriever.Execution;

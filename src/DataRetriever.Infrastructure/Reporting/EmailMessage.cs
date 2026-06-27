@@ -1,3 +1,4 @@
+// Represents a transport-ready email message for infrastructure senders.
 namespace DataRetriever.Infrastructure.Reporting;
 
 public sealed record EmailMessage(

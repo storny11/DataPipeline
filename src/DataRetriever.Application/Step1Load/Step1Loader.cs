@@ -1,3 +1,4 @@
+// Loads configured data, maps it to Step 1 output, and applies request filters.
 using DataRetriever.Application.Step1Load.Models;
 using DataRetriever.Execution;
 

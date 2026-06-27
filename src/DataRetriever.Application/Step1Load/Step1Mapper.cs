@@ -1,3 +1,4 @@
+// Maps Step 1 source DTOs into internal output records and reports mapping issues.
 using DataRetriever.Application.Step1Load.Models;
 
 namespace DataRetriever.Application.Step1Load;

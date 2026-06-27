@@ -1,3 +1,4 @@
+// Placeholder real Step 4 sink client to be replaced by actual persistence.
 using DataRetriever.Application.Step4Persist;
 using DataRetriever.Application.Step4Persist.Models;
 

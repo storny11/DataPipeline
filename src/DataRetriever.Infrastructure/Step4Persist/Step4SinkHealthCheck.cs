@@ -1,3 +1,4 @@
+// Reports Step 4 real sink readiness to health checks.
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace DataRetriever.Infrastructure.Step4Persist;

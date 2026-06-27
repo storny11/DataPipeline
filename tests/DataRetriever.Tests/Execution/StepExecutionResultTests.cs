@@ -1,3 +1,4 @@
+// Verifies shared step-result status behavior.
 using DataRetriever.Execution;
 
 namespace DataRetriever.Tests.Execution;

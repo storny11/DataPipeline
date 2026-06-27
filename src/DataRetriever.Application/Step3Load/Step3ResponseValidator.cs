@@ -1,3 +1,4 @@
+// Checks whether Step 3 returned data for requested identifiers.
 using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Execution;

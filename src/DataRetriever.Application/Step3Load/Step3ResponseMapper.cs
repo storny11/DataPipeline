@@ -1,3 +1,4 @@
+// Maps Step 3 source response rows into parsed amount values and warnings.
 using System.Globalization;
 using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Execution;

@@ -1,3 +1,4 @@
+// Verifies the one-run-at-a-time guard behavior.
 using DataRetriever.Application.Runs;
 
 namespace DataRetriever.Tests.Runs;

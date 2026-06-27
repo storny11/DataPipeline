@@ -1,3 +1,4 @@
+// Carries records confirmed as persisted by Step 4.
 using DataRetriever.Application.Step3Load.Models;
 
 namespace DataRetriever.Application.Step4Persist.Models;

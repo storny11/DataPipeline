@@ -1,3 +1,4 @@
+// Builds, publishes, and returns the final report while recording the final run status.
 using DataRetriever.Execution;
 using DataRetriever.Monitoring;
 using DataRetriever.Reporting;

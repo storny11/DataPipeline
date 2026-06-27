@@ -1,3 +1,4 @@
+// Composes the API host dependencies and chooses simulator or real adapter registration.
 using DataRetriever.Api.Composition;
 using DataRetriever.Application;
 using DataRetriever.Infrastructure;

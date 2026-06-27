@@ -1,3 +1,4 @@
+// Placeholder real Step 1 client to be replaced by an actual configured-data source.
 using DataRetriever.Application.Step1Load;
 using DataRetriever.Application.Step1Load.Models;
 

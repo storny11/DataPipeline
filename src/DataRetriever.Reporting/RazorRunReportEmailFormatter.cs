@@ -1,3 +1,4 @@
+// Renders structured run reports into email bodies using Razor templates.
 using System.Text;
 using DataRetriever.Execution;
 using DataRetriever.Reporting.EmailTemplates;

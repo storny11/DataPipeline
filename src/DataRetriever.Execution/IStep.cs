@@ -1,3 +1,4 @@
+// Defines the common executable contract for each application step.
 namespace DataRetriever.Execution;
 
 public interface IStep<TInput, TOutput>

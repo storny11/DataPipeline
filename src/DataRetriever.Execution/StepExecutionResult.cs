@@ -1,3 +1,4 @@
+// Wraps a step output together with status, counters, and issues.
 namespace DataRetriever.Execution;
 
 public sealed record StepExecutionResult<TOutput>(

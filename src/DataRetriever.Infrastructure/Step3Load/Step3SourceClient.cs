@@ -1,3 +1,4 @@
+// Adapts the Step 3 external client to the application-owned source interface.
 using DataRetriever.Application.Step3Load;
 using DataRetriever.Application.Step3Load.Models;
 

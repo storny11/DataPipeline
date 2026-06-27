@@ -1,3 +1,4 @@
+// Maps final records, calls the sink, and converts persistence outcomes into step output and issues.
 using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Application.Step4Persist.Models;
 using DataRetriever.Execution;

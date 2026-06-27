@@ -1,3 +1,4 @@
+// Chooses the latest Step 2 rows when the source returns more rows than needed.
 using DataRetriever.Application.Step2Load.Models;
 
 namespace DataRetriever.Application.Step2Load;

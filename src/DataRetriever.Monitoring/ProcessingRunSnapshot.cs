@@ -1,3 +1,4 @@
+// Represents the status endpoint view of one tracked run.
 using DataRetriever.Execution;
 
 namespace DataRetriever.Monitoring;

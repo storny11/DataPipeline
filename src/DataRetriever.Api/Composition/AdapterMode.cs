@@ -1,3 +1,4 @@
+// Defines whether the host uses simulator adapters or real infrastructure adapters at composition time.
 namespace DataRetriever.Api.Composition;
 
 public enum AdapterMode

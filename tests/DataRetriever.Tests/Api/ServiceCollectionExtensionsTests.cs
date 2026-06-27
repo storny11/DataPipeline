@@ -1,3 +1,4 @@
+// Verifies API dependency composition choices for simulator and real adapter modes.
 using DataRetriever.Api;
 using DataRetriever.Api.Composition;
 using DataRetriever.Infrastructure.Reporting;

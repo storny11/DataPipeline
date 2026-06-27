@@ -1,3 +1,4 @@
+// Stores run progress snapshots in memory for local status endpoints.
 using System.Collections.Concurrent;
 using DataRetriever.Execution;
 

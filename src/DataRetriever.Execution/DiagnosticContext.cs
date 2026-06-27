@@ -1,3 +1,4 @@
+// Carries row identifiers and other diagnostics for issues, logs, and reports.
 namespace DataRetriever.Execution;
 
 public sealed record DiagnosticContext(

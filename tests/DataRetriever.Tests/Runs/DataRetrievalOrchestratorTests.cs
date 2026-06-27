@@ -1,3 +1,4 @@
+// Verifies the full simulator-backed orchestration path and status tracking.
 using DataRetriever.Application;
 using DataRetriever.Application.Runs;
 using DataRetriever.Execution;

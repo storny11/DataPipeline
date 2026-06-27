@@ -1,3 +1,4 @@
+// Verifies Step 3 amount parsing is culture-invariant.
 using System.Globalization;
 using DataRetriever.Application.Step3Load;
 using DataRetriever.Application.Step3Load.Models;

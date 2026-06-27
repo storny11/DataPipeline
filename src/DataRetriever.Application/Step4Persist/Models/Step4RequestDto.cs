@@ -1,3 +1,4 @@
+// Represents one row sent to the persistence sink.
 namespace DataRetriever.Application.Step4Persist.Models;
 
 public sealed record Step4RequestDto(

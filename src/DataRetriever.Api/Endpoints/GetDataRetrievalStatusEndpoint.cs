@@ -1,3 +1,4 @@
+// Returns the latest tracked run status for operational visibility.
 using DataRetriever.Monitoring;
 
 namespace DataRetriever.Api.Endpoints;

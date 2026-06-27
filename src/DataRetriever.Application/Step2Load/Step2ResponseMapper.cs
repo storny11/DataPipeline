@@ -1,3 +1,4 @@
+// Maps Step 2 response DTOs into internal output records.
 using DataRetriever.Application.Step1Load.Models;
 using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Execution;

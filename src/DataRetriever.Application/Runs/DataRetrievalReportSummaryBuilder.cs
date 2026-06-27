@@ -1,3 +1,4 @@
+// Maps step counters into service-specific summary metrics for the run report.
 using System.Globalization;
 using DataRetriever.Execution;
 using DataRetriever.Reporting;

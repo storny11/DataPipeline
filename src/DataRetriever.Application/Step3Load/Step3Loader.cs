@@ -1,3 +1,4 @@
+// Builds the Step 3 request, fetches amount data, maps responses, and joins rows back to Step 2 output.
 using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Execution;

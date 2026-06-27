@@ -1,3 +1,4 @@
+// Represents one complete record ready for Step 4 persistence.
 namespace DataRetriever.Application.Step3Load.Models;
 
 public sealed record Step3OutputRecord(

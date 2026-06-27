@@ -1,3 +1,4 @@
+// Defines the Step 3 source boundary for fetching amount data.
 using DataRetriever.Application.Step3Load.Models;
 
 namespace DataRetriever.Application.Step3Load;

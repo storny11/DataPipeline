@@ -1,3 +1,4 @@
+// Defines how runs create and read operational progress snapshots.
 namespace DataRetriever.Monitoring;
 
 public interface IProcessingTracker

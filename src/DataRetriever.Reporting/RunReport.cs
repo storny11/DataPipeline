@@ -1,3 +1,4 @@
+// Defines the structured report model shared by API responses and email formatting.
 using DataRetriever.Execution;
 
 namespace DataRetriever.Reporting;

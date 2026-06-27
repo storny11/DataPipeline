@@ -1,3 +1,4 @@
+// Binds retry and endpoint options for the real Step 3 source client.
 namespace DataRetriever.Infrastructure.Step3Load;
 
 public sealed class Step3SourceClientOptions

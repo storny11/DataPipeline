@@ -1,3 +1,4 @@
+// Starts the ASP.NET Core host and wires the service endpoints.
 using DataRetriever.Api;
 using DataRetriever.Api.Composition;
 using DataRetriever.Api.Endpoints;

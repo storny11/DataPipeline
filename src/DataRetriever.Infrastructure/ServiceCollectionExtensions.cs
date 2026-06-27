@@ -1,3 +1,4 @@
+// Registers real infrastructure adapters, health checks, and email reporting.
 using DataRetriever.Application.Step1Load;
 using DataRetriever.Application.Step2Load;
 using DataRetriever.Application.Step3Load;

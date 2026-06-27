@@ -1,3 +1,4 @@
+// Returns configured Step 1 seed data for simulator runs.
 using DataRetriever.Application.Step1Load;
 using DataRetriever.Application.Step1Load.Models;
 

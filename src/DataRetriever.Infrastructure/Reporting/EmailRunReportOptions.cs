@@ -1,3 +1,4 @@
+// Binds SMTP/report-email configuration for the real email publisher.
 namespace DataRetriever.Infrastructure.Reporting;
 
 public sealed class EmailRunReportOptions

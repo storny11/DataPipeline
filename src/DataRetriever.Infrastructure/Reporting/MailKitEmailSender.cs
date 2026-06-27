@@ -1,3 +1,4 @@
+// Sends email through SMTP using MailKit.
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

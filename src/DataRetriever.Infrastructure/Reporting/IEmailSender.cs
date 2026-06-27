@@ -1,3 +1,4 @@
+// Defines the infrastructure boundary for sending email messages.
 namespace DataRetriever.Infrastructure.Reporting;
 
 public interface IEmailSender

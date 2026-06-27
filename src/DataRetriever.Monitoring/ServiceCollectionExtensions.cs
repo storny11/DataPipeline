@@ -1,3 +1,4 @@
+// Registers monitoring services for the host.
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DataRetriever.Monitoring;

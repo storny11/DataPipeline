@@ -1,3 +1,4 @@
+// Aggregates step results into a structured run report.
 using DataRetriever.Execution;
 
 namespace DataRetriever.Reporting;

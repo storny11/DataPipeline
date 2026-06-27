@@ -1,3 +1,4 @@
+// Maps persisted Step 4 output into the service-specific report table.
 using System.Globalization;
 using DataRetriever.Application.Step4Persist.Models;
 using DataRetriever.Reporting;

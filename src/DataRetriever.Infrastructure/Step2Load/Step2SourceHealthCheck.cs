@@ -1,3 +1,4 @@
+// Reports Step 2 real adapter readiness to health checks.
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace DataRetriever.Infrastructure.Step2Load;

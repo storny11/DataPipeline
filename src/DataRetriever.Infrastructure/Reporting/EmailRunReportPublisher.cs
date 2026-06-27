@@ -1,3 +1,4 @@
+// Formats run reports and sends them through the configured email sender.
 using DataRetriever.Reporting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

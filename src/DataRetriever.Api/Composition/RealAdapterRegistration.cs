@@ -1,3 +1,4 @@
+// Blocks real adapter composition until the template placeholders are replaced with real implementations.
 namespace DataRetriever.Api.Composition;
 
 public static class RealAdapterRegistration

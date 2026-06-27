@@ -1,3 +1,4 @@
+// Verifies Step 3 matching counters with duplicate and extra source rows.
 using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Application.Step3Load;
 using DataRetriever.Application.Step3Load.Models;

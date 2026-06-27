@@ -1,3 +1,4 @@
+// Represents typed row-level persistence outcomes returned by the sink.
 namespace DataRetriever.Application.Step4Persist.Models;
 
 public sealed record Step4PersistResult(IReadOnlyList<Step4PersistRecordResult> Records)

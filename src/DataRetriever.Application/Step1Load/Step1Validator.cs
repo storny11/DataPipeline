@@ -1,3 +1,4 @@
+// Validates Step 1 configured rows before downstream steps consume them.
 using DataRetriever.Application.Step1Load.Models;
 using DataRetriever.Execution;
 

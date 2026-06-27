@@ -1,3 +1,4 @@
+// Provides a simple simulated run instrumentation implementation.
 using DataRetriever.Monitoring;
 
 namespace DataRetriever.Simulators.Monitoring;

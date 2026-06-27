@@ -1,3 +1,4 @@
+// Simulates persistence success or configured failure for Step 4.
 using DataRetriever.Application.Step4Persist;
 using DataRetriever.Application.Step4Persist.Models;
 

@@ -1,3 +1,4 @@
+// Prevents overlapping runs in this prototype host.
 namespace DataRetriever.Application.Runs;
 
 public sealed class SingleRunGuard

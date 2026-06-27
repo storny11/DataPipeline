@@ -1,3 +1,4 @@
+// Registers simulator implementations for all application-owned external boundaries.
 using DataRetriever.Application.Step1Load;
 using DataRetriever.Application.Step2Load;
 using DataRetriever.Application.Step3Load;

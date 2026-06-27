@@ -1,3 +1,4 @@
+// Captures instrumentation values for simulator-backed monitoring tests or demos.
 using DataRetriever.Monitoring;
 
 namespace DataRetriever.Simulators.Monitoring;

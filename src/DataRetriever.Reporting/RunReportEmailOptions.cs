@@ -1,3 +1,4 @@
+// Controls optional email-layout behavior such as displaying statistics.
 namespace DataRetriever.Reporting;
 
 public sealed class RunReportEmailOptions

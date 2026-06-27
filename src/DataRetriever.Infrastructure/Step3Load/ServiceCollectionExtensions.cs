@@ -1,3 +1,4 @@
+// Reserved registration point for Step 3 infrastructure-specific services.
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DataRetriever.Infrastructure.Step3Load;
