@@ -120,7 +120,7 @@ public sealed class RazorRunReportEmailFormatterTests
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
 
-        Assert.DoesNotContain("<h2 style=\"margin:24px 0 10px 0; font-size:18px; line-height:24px; color:#1d2939;\">Errors</h2>", email.HtmlBody);
+        Assert.DoesNotContain(">Errors</h2>", email.HtmlBody);
         Assert.DoesNotContain("Errors", email.TextBody);
         Assert.Contains("Warnings", email.HtmlBody);
     }

@@ -9,10 +9,12 @@
 <body style="@BodyStyle">
     <div style="@ContainerStyle">
         <div style="@HeaderStyle">
-            <div style="font-size:13px; color:#667085; text-transform:uppercase; letter-spacing:0;">Data retrieval report</div>
-            <h1 style="margin:6px 0 0 0; font-size:24px; line-height:32px; color:#101828;">@StatusHeading</h1>
-            <div style="margin-top:12px;">
+            <div style="@HeaderAccentStyle"></div>
+            <div style="@EyebrowStyle">Data retrieval report</div>
+            <h1 style="@TitleStyle">@StatusHeading</h1>
+            <div style="@HeaderMetaStyle">
                 <span style="@StatusPillStyle">@Report.Status</span>
+                <span style="@HeaderMetaTextStyle">Run @Report.RunId</span>
             </div>
         </div>
 
@@ -54,20 +56,29 @@
 
         @if (Errors.Count > 0)
         {
-            <h2 style="@SectionHeadingStyle">Errors</h2>
-            <IssuesTable Issues="Errors" />
+            <div style="@ErrorSectionStyle">
+                <h2 style="@SectionHeadingStyle">Errors</h2>
+                <div style="@SectionCaptionStyle">These items need attention before the run can be treated as clean.</div>
+                <IssuesTable Issues="Errors" />
+            </div>
         }
 
         @if (Warnings.Count > 0)
         {
-            <h2 style="@SectionHeadingStyle">Warnings</h2>
-            <IssuesTable Issues="Warnings" />
+            <div style="@WarningSectionStyle">
+                <h2 style="@SectionHeadingStyle">Warnings</h2>
+                <div style="@SectionCaptionStyle">The run completed, but these rows or fields should be reviewed.</div>
+                <IssuesTable Issues="Warnings" />
+            </div>
         }
 
         @foreach (var table in Report.Tables)
         {
-            <h2 style="@SectionHeadingStyle">@table.Title</h2>
-            <ReportTable Table="table" />
+            <div style="@DataSectionStyle">
+                <h2 style="@SectionHeadingStyle">@table.Title</h2>
+                <div style="@SectionCaptionStyle">@table.Rows.Count rows</div>
+                <ReportTable Table="table" />
+            </div>
         }
     </div>
 </body>
@@ -80,12 +91,22 @@
     [Parameter]
     public bool DisplayStats { get; set; }
 
-    private const string BodyStyle = "margin:0; padding:0; background-color:#f3f6fa; color:#101828; font-family:Segoe UI, Arial, sans-serif;";
-    private const string ContainerStyle = "max-width:1180px; margin:0 auto; padding:24px;";
-    private const string HeaderStyle = "background-color:#ffffff; border:1px solid #d0d5dd; border-radius:8px; padding:22px 24px;";
-    private const string SummaryTableStyle = "margin-top:18px; border-collapse:collapse; width:100%; background-color:#ffffff; border:1px solid #d0d5dd;";
-    private const string SummaryCellStyle = "border:1px solid #d0d5dd; padding:12px 14px; font-size:13px; line-height:20px; color:#344054;";
-    private const string SectionHeadingStyle = "margin:24px 0 10px 0; font-size:18px; line-height:24px; color:#1d2939;";
+    private const string BodyStyle = "margin:0; padding:0; background-color:#f5f7fb; color:#101828; font-family:Segoe UI, Arial, sans-serif;";
+    private const string ContainerStyle = "max-width:1180px; margin:0 auto; padding:28px;";
+    private const string HeaderStyle = "background-color:#ffffff; border:1px solid #d7dde8; border-radius:10px; padding:0 24px 24px 24px;";
+    private const string HeaderAccentStyle = "height:4px; margin:0 -24px 22px -24px; background-color:#2557a7; border-radius:10px 10px 0 0;";
+    private const string EyebrowStyle = "font-size:13px; line-height:18px; color:#52627a; text-transform:uppercase; letter-spacing:0; font-weight:600;";
+    private const string TitleStyle = "margin:6px 0 0 0; font-size:25px; line-height:34px; color:#111827; font-weight:650;";
+    private const string HeaderMetaStyle = "margin-top:14px;";
+    private const string HeaderMetaTextStyle = "display:inline-block; margin-left:10px; font-size:13px; line-height:20px; color:#667085;";
+    private const string SummaryTableStyle = "margin-top:16px; border-collapse:separate; border-spacing:0; width:100%;";
+    private const string SummaryCellStyle = "border:1px solid #d7dde8; background-color:#ffffff; padding:13px 15px; font-size:13px; line-height:20px; color:#344054;";
+    private const string SectionHeadingStyle = "margin:0; font-size:18px; line-height:25px; color:#1d2939; font-weight:650;";
+    private const string SectionCaptionStyle = "margin:4px 0 14px 0; font-size:13px; line-height:19px; color:#667085;";
+    private const string SectionBaseStyle = "margin-top:18px; background-color:#ffffff; border:1px solid #d7dde8; border-radius:10px; padding:18px;";
+    private const string ErrorSectionStyle = SectionBaseStyle + " border-left:4px solid #d92d20;";
+    private const string WarningSectionStyle = SectionBaseStyle + " border-left:4px solid #f79009;";
+    private const string DataSectionStyle = SectionBaseStyle + " border-left:4px solid #2557a7;";
 
     private IReadOnlyList<RunReportIssue> Warnings =>
         Report.Issues.Where(issue => issue.Severity == StepIssueSeverity.Warning).ToList();

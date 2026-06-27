@@ -38,13 +38,13 @@ else
     [Parameter]
     public string EmptyText { get; set; } = "None.";
 
-    private const string GridStyle = "border-collapse:collapse; width:100%; background-color:#ffffff; border:1px solid #98a2b3;";
-    private const string HeaderCellStyle = "background-color:#eaf4d3; border:1px solid #98a2b3; padding:9px 10px; font-size:13px; line-height:18px; color:#1d2939;";
-    private const string CellStyle = "border:1px solid #98a2b3; padding:8px 10px; font-size:13px; line-height:18px; color:#344054;";
+    private const string GridStyle = "border-collapse:collapse; width:100%; background-color:#ffffff; border:1px solid #d7dde8;";
+    private const string HeaderCellStyle = "background-color:#f1f5fb; border:1px solid #d7dde8; padding:10px 12px; font-size:12px; line-height:17px; color:#344054; font-weight:700; text-transform:uppercase; letter-spacing:0;";
+    private const string CellStyle = "border:1px solid #e4e7ec; padding:10px 12px; font-size:13px; line-height:19px; color:#344054; vertical-align:top;";
     private const string MonoCellStyle = CellStyle + " font-family:Consolas, 'Courier New', monospace;";
-    private const string EmptyStateStyle = "margin:0; padding:12px 14px; background-color:#ffffff; border:1px solid #d0d5dd; color:#475467; font-size:13px;";
+    private const string EmptyStateStyle = "margin:0; padding:12px 14px; background-color:#f8fafc; border:1px solid #d7dde8; color:#475467; font-size:13px; border-radius:8px;";
 
-    private static string RowBackground(int index) => index % 2 == 0 ? "#ffffff" : "#eef6f7";
+    private static string RowBackground(int index) => index % 2 == 0 ? "#ffffff" : "#f8fafc";
 
     private static string FormatContext(DiagnosticContext context)
     {
