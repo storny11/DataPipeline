@@ -9,6 +9,7 @@ public sealed class Step4RequestMapper
     public Step4RequestMappingResult Map(IReadOnlyList<Step3OutputRecord> records)
     {
         var request = new List<Step4RequestDto>();
+        var sourceRecords = new List<Step3OutputRecord>();
         var issues = new List<StepIssue>();
 
         foreach (var record in records)
@@ -32,9 +33,10 @@ public sealed class Step4RequestMapper
                 record.Amount1,
                 record.Amount2,
                 record.Amount3));
+            sourceRecords.Add(record);
         }
 
-        return new Step4RequestMappingResult(request, issues);
+        return new Step4RequestMappingResult(request, sourceRecords, issues);
     }
 
     public static DiagnosticContext Context(Step3OutputRecord record)
@@ -48,4 +50,5 @@ public sealed class Step4RequestMapper
 
 public sealed record Step4RequestMappingResult(
     IReadOnlyList<Step4RequestDto> Request,
+    IReadOnlyList<Step3OutputRecord> SourceRecords,
     IReadOnlyList<StepIssue> Issues);

@@ -8,6 +8,6 @@ public sealed class Step3SourceHealthCheck : IHealthCheck
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(HealthCheckResult.Healthy("Step 3 source health check placeholder."));
+        return Task.FromResult(HealthCheckResult.Unhealthy("Step 3 real source adapter is not implemented."));
     }
 }

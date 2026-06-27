@@ -17,7 +17,6 @@ public sealed class DataRetrievalOrchestratorTests
         var services = new ServiceCollection();
         services.AddLogging();
         services
-            .AddDataRetrieverExecution()
             .AddDataRetrieverReporting()
             .AddDataRetrieverMonitoring()
             .AddDataRetrieverApplication()
@@ -30,12 +29,12 @@ public sealed class DataRetrievalOrchestratorTests
         var tracker = provider.GetRequiredService<IProcessingTracker>();
         var snapshot = await tracker.GetSnapshotAsync(report.RunId, CancellationToken.None);
 
-        Assert.Equal("Success", report.Status);
+        Assert.Equal(RunStatus.Success, report.Status);
         Assert.NotEmpty(report.Issues);
         Assert.True(report.Summary.WarningCount > 0);
         Assert.NotEmpty(report.PersistedRecords);
         Assert.All(report.PersistedRecords, record => Assert.False(string.IsNullOrWhiteSpace(record.InternalId)));
         Assert.NotNull(snapshot);
-        Assert.Equal(ProcessingRunStatus.Success, snapshot.RunStatus);
+        Assert.Equal(RunStatus.Success, snapshot.RunStatus);
     }
 }

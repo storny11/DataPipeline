@@ -27,7 +27,7 @@ public sealed class DataRetrievalOrchestrator(
     {
         var context = new RunContext(Guid.NewGuid(), DateTimeOffset.UtcNow);
         var instrumentation = processingTracker.ForRun(context.RunId);
-        instrumentationWriter.RecordRunStatus(instrumentation, "Running");
+        instrumentationWriter.RecordRunStatus(instrumentation, RunStatus.Running);
 
         var results = new List<IStepExecutionResult>();
         IReadOnlyList<PersistedRecordSummary> persistedRecords = [];
@@ -81,7 +81,7 @@ public sealed class DataRetrievalOrchestrator(
                 results,
                 cancellationToken);
 
-            var finalStatus = CanContinue(step4Result) ? "Success" : "Failed";
+            var finalStatus = CanContinue(step4Result) ? RunStatus.Success : RunStatus.Failed;
             persistedRecords = persistedRecordSummaryMapper.Map(step4Result.Output);
 
             return await reportFinalizer.FinishAsync(
@@ -123,7 +123,7 @@ public sealed class DataRetrievalOrchestrator(
             options,
             results,
             persistedRecords,
-            "Failed",
+            RunStatus.Failed,
             instrumentation,
             cancellationToken);
     }

@@ -5,7 +5,7 @@ namespace DataRetriever.Simulators.Step4Persist;
 
 public sealed class Step4SinkSimulator : IStep4SinkClient
 {
-    public Task<IReadOnlyList<Step4RequestDto>> PersistAsync(
+    public Task<Step4PersistResult> PersistAsync(
         IReadOnlyList<Step4RequestDto> records,
         CancellationToken cancellationToken)
     {
@@ -16,6 +16,6 @@ public sealed class Step4SinkSimulator : IStep4SinkClient
             throw new InvalidOperationException("Simulated persistence failure.");
         }
 
-        return Task.FromResult(records);
+        return Task.FromResult(Step4PersistResult.AllSucceeded(records.Count));
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using DataRetriever.Execution;
 
 namespace DataRetriever.Monitoring;
 
@@ -70,11 +71,11 @@ public sealed class InMemoryProcessingTracker : IProcessingTracker
                 return;
             }
 
-            var statusText = statusValue?.ToString();
-            if (Enum.TryParse<ProcessingRunStatus>(statusText, ignoreCase: true, out var status))
+            if (statusValue is RunStatus status ||
+                Enum.TryParse(statusValue?.ToString(), ignoreCase: true, out status))
             {
                 state.SetStatus(status, now);
-                if (status == ProcessingRunStatus.Success)
+                if (status == RunStatus.Success)
                 {
                     owner.MarkSuccessful(now);
                 }
@@ -86,7 +87,7 @@ public sealed class InMemoryProcessingTracker : IProcessingTracker
     {
         private readonly object _lock = new();
         private readonly Dictionary<string, Dictionary<string, object?>> _levels = new(StringComparer.OrdinalIgnoreCase);
-        private ProcessingRunStatus _status = ProcessingRunStatus.NeverRun;
+        private RunStatus _status = RunStatus.NeverRun;
         private DateTimeOffset? _startedAt;
         private DateTimeOffset? _completedAt;
 
@@ -109,12 +110,12 @@ public sealed class InMemoryProcessingTracker : IProcessingTracker
             }
         }
 
-        public void SetStatus(ProcessingRunStatus status, DateTimeOffset now)
+        public void SetStatus(RunStatus status, DateTimeOffset now)
         {
             lock (_lock)
             {
                 _status = status;
-                if (status == ProcessingRunStatus.Running)
+                if (status == RunStatus.Running)
                 {
                     _startedAt ??= now;
                     _completedAt = null;

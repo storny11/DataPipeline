@@ -28,7 +28,7 @@ public sealed class Step3Loader(
         {
             response = await sourceClient.FetchAmountsAsync(requestMapping.Request, cancellationToken);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             issues.Add(new StepIssue(
                 Name,
@@ -64,7 +64,7 @@ public sealed class Step3Loader(
                 amount.Amount3));
         }
 
-        var validMappedRows = mapped.Amounts.Count;
+        var missingStep3Rows = Math.Max(0, input.Records.Count - requestMapping.Issues.Count - output.Count);
         var counters = new[]
         {
             new StepCounter("ExternalId2ValuesRequested", requestMapping.Request.ExternalId2Values.Count),
@@ -73,7 +73,7 @@ public sealed class Step3Loader(
             new StepCounter("RowsDiscardedDueToMissingAmounts", mapped.Issues.Count),
             new StepCounter("RowsDiscardedDueToMappingErrors", requestMapping.Issues.Count),
             new StepCounter("RowsMatchedToStep2Output", output.Count),
-            new StepCounter("MissingStep3Rows", input.Records.Count - validMappedRows)
+            new StepCounter("MissingStep3Rows", missingStep3Rows)
         };
 
         return StepExecutionResult<Step3Output>.Success(

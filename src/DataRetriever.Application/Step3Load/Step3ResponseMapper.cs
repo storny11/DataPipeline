@@ -1,3 +1,4 @@
+using System.Globalization;
 using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Execution;
 
@@ -48,7 +49,11 @@ public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer)
 
     private static bool TryAmount(string? value, out decimal amount)
     {
-        return decimal.TryParse(value, out amount);
+        return decimal.TryParse(
+            value,
+            NumberStyles.Number,
+            CultureInfo.InvariantCulture,
+            out amount);
     }
 }
 

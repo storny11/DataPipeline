@@ -33,12 +33,12 @@ public sealed class Step4Persister(
                 issues);
         }
 
-        IReadOnlyList<Step4RequestDto> persisted;
+        Step4PersistResult persistResult;
         try
         {
-            persisted = await sinkClient.PersistAsync(mapped.Request, cancellationToken);
+            persistResult = await sinkClient.PersistAsync(mapped.Request, cancellationToken);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             issues.Add(new StepIssue(
                 Name,
@@ -53,13 +53,34 @@ public sealed class Step4Persister(
             ]);
         }
 
-        var persistedKeys = persisted
-            .Select(record => $"{record.InternalId}|{record.ExternalId1}|{record.ExternalId2}")
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var persistedOutput = new List<Step3OutputRecord>();
+        foreach (var outcome in persistResult.Records)
+        {
+            if (outcome.RequestIndex < 0 || outcome.RequestIndex >= mapped.SourceRecords.Count)
+            {
+                issues.Add(new StepIssue(
+                    Name,
+                    StepIssueSeverity.Error,
+                    $"Persistence sink returned an invalid request index '{outcome.RequestIndex}'.",
+                    DiagnosticContext.From(("requestIndex", outcome.RequestIndex.ToString()))));
+                continue;
+            }
 
-        var persistedOutput = input.Records
-            .Where(record => persistedKeys.Contains($"{record.InternalId}|{record.ExternalId1}|{record.ExternalId2}"))
-            .ToList();
+            var sourceRecord = mapped.SourceRecords[outcome.RequestIndex];
+            if (outcome.Succeeded)
+            {
+                persistedOutput.Add(sourceRecord);
+                continue;
+            }
+
+            issues.Add(new StepIssue(
+                Name,
+                StepIssueSeverity.Error,
+                string.IsNullOrWhiteSpace(outcome.Message)
+                    ? "Persistence sink reported a row-level failure."
+                    : outcome.Message,
+                Step4RequestMapper.Context(sourceRecord)));
+        }
 
         return StepExecutionResult<Step4Output>.Success(
             Name,

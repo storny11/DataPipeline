@@ -8,6 +8,6 @@ public sealed class Step4SinkHealthCheck : IHealthCheck
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(HealthCheckResult.Healthy("Step 4 sink health check placeholder."));
+        return Task.FromResult(HealthCheckResult.Unhealthy("Step 4 real sink adapter is not implemented."));
     }
 }

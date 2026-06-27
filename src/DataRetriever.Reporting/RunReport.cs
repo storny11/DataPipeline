@@ -6,7 +6,7 @@ public sealed record RunReport(
     Guid RunId,
     DateTimeOffset StartedAt,
     DateTimeOffset CompletedAt,
-    string Status,
+    RunStatus Status,
     RunRequestSummary Request,
     RunReportSummary Summary,
     IReadOnlyList<RunReportStep> Steps,

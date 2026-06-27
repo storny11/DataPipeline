@@ -1,9 +1,8 @@
 using DataRetriever.Api.Composition;
 using DataRetriever.Application;
-using DataRetriever.Execution;
-using DataRetriever.Infrastructure;
 using DataRetriever.Monitoring;
 using DataRetriever.Reporting;
+using System.Text.Json.Serialization;
 
 namespace DataRetriever.Api;
 
@@ -16,8 +15,12 @@ public static class ServiceCollectionExtensions
         services
             .AddHealthChecks();
 
+        services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        });
+
         services
-            .AddDataRetrieverExecution()
             .AddDataRetrieverReporting()
             .AddDataRetrieverMonitoring()
             .AddDataRetrieverApplication();
@@ -30,7 +33,6 @@ public static class ServiceCollectionExtensions
         else
         {
             services.AddSimulatorAdapters();
-            services.AddDataRetrieverEmailReporting(configuration);
         }
 
         return services;

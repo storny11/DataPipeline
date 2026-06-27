@@ -7,7 +7,7 @@ public sealed class RunReportBuilder
     public RunReport Build(
         RunContext context,
         DateTimeOffset completedAt,
-        string status,
+        RunStatus status,
         RunRequestSummary request,
         IReadOnlyList<IStepExecutionResult> stepResults,
         IReadOnlyList<PersistedRecordSummary> persistedRecords)

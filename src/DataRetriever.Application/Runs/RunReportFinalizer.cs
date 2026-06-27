@@ -14,7 +14,7 @@ public sealed class RunReportFinalizer(
         DataRetrievalRunOptions options,
         IReadOnlyList<IStepExecutionResult> results,
         IReadOnlyList<PersistedRecordSummary> persistedRecords,
-        string status,
+        RunStatus status,
         IRunInstrumentation instrumentation,
         CancellationToken cancellationToken)
     {

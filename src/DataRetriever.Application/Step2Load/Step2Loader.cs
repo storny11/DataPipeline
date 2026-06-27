@@ -33,7 +33,7 @@ public sealed class Step2Loader(
             {
                 sourceRows = await sourceClient.FetchRelatedDataAsync(row, cancellationToken);
             }
-            catch (Exception exception)
+            catch (Exception exception) when (exception is not OperationCanceledException)
             {
                 issues.Add(new StepIssue(
                     Name,

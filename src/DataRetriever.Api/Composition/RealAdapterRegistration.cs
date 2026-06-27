@@ -1,5 +1,3 @@
-using DataRetriever.Infrastructure;
-
 namespace DataRetriever.Api.Composition;
 
 public static class RealAdapterRegistration
@@ -8,6 +6,7 @@ public static class RealAdapterRegistration
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        return services.AddDataRetrieverInfrastructure(configuration);
+        throw new NotSupportedException(
+            "AdapterMode.Real is not available until the real source and sink adapters are implemented.");
     }
 }

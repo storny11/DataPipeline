@@ -5,7 +5,7 @@ namespace DataRetriever.Application.Runs;
 
 public sealed class RunInstrumentationWriter
 {
-    public void RecordRunStatus(IRunInstrumentation instrumentation, string status)
+    public void RecordRunStatus(IRunInstrumentation instrumentation, RunStatus status)
     {
         var info = new InstrumentationInfo();
         info.AddValue("Status", status);

@@ -20,7 +20,7 @@ public sealed class RazorRunReportEmailFormatterTests
             Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
             DateTimeOffset.Parse("2026-06-26T09:00:00+00:00"),
             DateTimeOffset.Parse("2026-06-26T09:01:00+00:00"),
-            "Success",
+            RunStatus.Success,
             new RunRequestSummary("GBP", ["INT-1"]),
             new RunReportSummary(1, 1, 1, 1, 2, 1, 1),
             [],

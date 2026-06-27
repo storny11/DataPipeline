@@ -1,8 +1,10 @@
+using DataRetriever.Execution;
+
 namespace DataRetriever.Monitoring;
 
 public sealed record ProcessingRunSnapshot(
     Guid? RunId,
-    ProcessingRunStatus RunStatus,
+    RunStatus RunStatus,
     DateTimeOffset? LastAttemptedRunStartedAt,
     DateTimeOffset? LastAttemptedRunCompletedAt,
     DateTimeOffset? LastSuccessfulRunCompletedAt,
@@ -10,7 +12,7 @@ public sealed record ProcessingRunSnapshot(
 {
     public static ProcessingRunSnapshot NeverRun { get; } = new(
         null,
-        ProcessingRunStatus.NeverRun,
+        RunStatus.NeverRun,
         null,
         null,
         null,
