@@ -13,9 +13,10 @@ public static class RunDataRetrievalEndpoint
         CancellationToken cancellationToken)
     {
         request ??= new RunDataRetrievalRequest(null, null);
+        var internalIds = request.SplitInternalIds();
 
         var hasCurrency = !string.IsNullOrWhiteSpace(request.Currency);
-        var hasInternalIds = request.InternalIds?.Any(id => !string.IsNullOrWhiteSpace(id)) == true;
+        var hasInternalIds = internalIds.Count > 0;
         if (hasCurrency && hasInternalIds)
         {
             return Results.BadRequest(new
@@ -33,7 +34,7 @@ public static class RunDataRetrievalEndpoint
             });
         }
 
-        var options = DataRetrievalRunOptions.FromRequest(request.Currency, request.InternalIds);
+        var options = DataRetrievalRunOptions.FromRequest(request.Currency, internalIds);
         var report = await orchestrator.RunAsync(options, cancellationToken);
         return Results.Ok(report);
     }

@@ -376,12 +376,21 @@ Request:
 }
 ```
 
+Internal-id filter example:
+
+```json
+{
+  "currency": null,
+  "internalIds": "BARC:L, DKE:DD,D:KKKX"
+}
+```
+
 Rules:
 
 - `currency` omitted/null and `internalIds` omitted/null means run all configured records.
 - `currency` provided means filter by currency.
-- `internalIds` provided means filter by those internal ids.
-- Reject requests that provide both `currency` and `internalIds` to match the spec's "currency only" and "array of internal ids" modes.
+- `internalIds` provided means filter by those internal ids. The API contract accepts this as a comma-separated string and splits it at the API boundary before creating application run options.
+- Reject requests that provide both `currency` and `internalIds` to match the spec's "currency only" and "internal ids only" modes.
 - Normalize currency by trimming and uppercasing.
 - Normalize internal ids by trimming, removing duplicates, and preserving a stable order for reports.
 

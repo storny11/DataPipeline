@@ -23,7 +23,7 @@ public sealed class Step4Persister(
 
         if (mapped.Request.Count == 0)
         {
-            return StepExecutionResult<Step4Output>.Success(
+            return StepExecutionResult<Step4Output>.FromOutput(
                 Name,
                 new Step4Output([]),
                 [
@@ -54,7 +54,7 @@ public sealed class Step4Persister(
             ]);
         }
 
-        var persistedOutput = new List<Step3OutputRecord>();
+        var outcomesByRequestIndex = new Dictionary<int, List<Step4PersistRecordResult>>();
         foreach (var outcome in persistResult.Records)
         {
             if (outcome.RequestIndex < 0 || outcome.RequestIndex >= mapped.SourceRecords.Count)
@@ -67,7 +67,40 @@ public sealed class Step4Persister(
                 continue;
             }
 
-            var sourceRecord = mapped.SourceRecords[outcome.RequestIndex];
+            if (!outcomesByRequestIndex.TryGetValue(outcome.RequestIndex, out var outcomes))
+            {
+                outcomes = [];
+                outcomesByRequestIndex[outcome.RequestIndex] = outcomes;
+            }
+
+            outcomes.Add(outcome);
+        }
+
+        var persistedOutput = new List<Step3OutputRecord>();
+        for (var requestIndex = 0; requestIndex < mapped.SourceRecords.Count; requestIndex++)
+        {
+            var sourceRecord = mapped.SourceRecords[requestIndex];
+            if (!outcomesByRequestIndex.TryGetValue(requestIndex, out var outcomes))
+            {
+                issues.Add(new StepIssue(
+                    Name,
+                    StepIssueSeverity.Error,
+                    $"Persistence sink did not return an outcome for request index '{requestIndex}'.",
+                    Context(sourceRecord, requestIndex)));
+                continue;
+            }
+
+            if (outcomes.Count > 1)
+            {
+                issues.Add(new StepIssue(
+                    Name,
+                    StepIssueSeverity.Error,
+                    $"Persistence sink returned {outcomes.Count} outcomes for request index '{requestIndex}'. Exactly one outcome is required.",
+                    Context(sourceRecord, requestIndex)));
+                continue;
+            }
+
+            var outcome = outcomes[0];
             if (outcome.Succeeded)
             {
                 persistedOutput.Add(sourceRecord);
@@ -80,10 +113,10 @@ public sealed class Step4Persister(
                 string.IsNullOrWhiteSpace(outcome.Message)
                     ? "Persistence sink reported a row-level failure."
                     : outcome.Message,
-                Step4RequestMapper.Context(sourceRecord)));
+                Context(sourceRecord, requestIndex)));
         }
 
-        return StepExecutionResult<Step4Output>.Success(
+        return StepExecutionResult<Step4Output>.FromOutput(
             Name,
             new Step4Output(persistedOutput),
             [
@@ -92,5 +125,14 @@ public sealed class Step4Persister(
                 new StepCounter("RowsSuccessfullyPersisted", persistedOutput.Count)
             ],
             issues);
+    }
+
+    private static DiagnosticContext Context(Step3OutputRecord record, int requestIndex)
+    {
+        return DiagnosticContext.From(
+            ("requestIndex", requestIndex.ToString()),
+            ("internalId", record.InternalId),
+            ("externalId1", record.ExternalId1),
+            ("externalId2", record.ExternalId2));
     }
 }

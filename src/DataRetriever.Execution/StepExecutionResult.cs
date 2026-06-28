@@ -13,7 +13,7 @@ public sealed record StepExecutionResult<TOutput>(
 
     public bool HasErrors => Issues.Any(issue => issue.Severity == StepIssueSeverity.Error);
 
-    public static StepExecutionResult<TOutput> Success(
+    public static StepExecutionResult<TOutput> FromOutput(
         string stepName,
         TOutput output,
         IEnumerable<StepCounter>? counters = null,
@@ -28,6 +28,15 @@ public sealed record StepExecutionResult<TOutput>(
             status != StepExecutionStatus.Failed,
             (counters ?? []).ToList(),
             issueList);
+    }
+
+    public static StepExecutionResult<TOutput> Success(
+        string stepName,
+        TOutput output,
+        IEnumerable<StepCounter>? counters = null,
+        IEnumerable<StepIssue>? issues = null)
+    {
+        return FromOutput(stepName, output, counters, issues);
     }
 
     public static StepExecutionResult<TOutput> Failed(

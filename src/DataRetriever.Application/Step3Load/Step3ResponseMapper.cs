@@ -42,7 +42,21 @@ public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer)
                 continue;
             }
 
-            amounts[normalized] = new Step3MappedAmounts(normalized, amount1, amount2, amount3);
+            if (amounts.ContainsKey(normalized))
+            {
+                var context = contextByExternalId2.TryGetValue(normalized, out var matchedContext)
+                    ? matchedContext
+                    : DiagnosticContext.From(("externalId2", row.ExternalId2));
+
+                issues.Add(new StepIssue(
+                    Step3Loader.StepName,
+                    StepIssueSeverity.Warning,
+                    $"Step 3 response returned more than one valid row for external id 2 '{row.ExternalId2}'. The duplicate row was discarded and the first value was kept.",
+                    context));
+                continue;
+            }
+
+            amounts.Add(normalized, new Step3MappedAmounts(normalized, amount1, amount2, amount3));
         }
 
         return new Step3ResponseMappingResult(amounts, issues);
