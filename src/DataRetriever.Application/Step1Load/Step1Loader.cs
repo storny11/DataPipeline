@@ -33,7 +33,7 @@ public sealed class Step1Loader(
             new StepCounter("InvalidRowsDiscarded", rows.Count - validation.ValidRows.Count)
         };
 
-        return StepExecutionResult<Step1Output>.Success(
+        return StepExecutionResult<Step1Output>.FromOutput(
             Name,
             new Step1Output(filteredRows),
             counters,

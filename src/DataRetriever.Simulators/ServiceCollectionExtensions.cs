@@ -3,7 +3,6 @@ using DataRetriever.Application.Step1Load;
 using DataRetriever.Application.Step2Load;
 using DataRetriever.Application.Step3Load;
 using DataRetriever.Application.Step4Persist;
-using DataRetriever.Monitoring;
 using DataRetriever.Reporting;
 using DataRetriever.Simulators.Reporting;
 using DataRetriever.Simulators.Step1Load;

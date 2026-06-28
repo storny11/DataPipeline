@@ -286,7 +286,6 @@ src/
     ServiceCollectionExtensions.cs
     IInstrumentationInfo.cs
     IRunInstrumentation.cs
-    ProcessingRunStatus.cs
     ProcessingRunSnapshot.cs
     IProcessingTracker.cs
     InMemoryProcessingTracker.cs
@@ -294,9 +293,6 @@ src/
   DataRetriever.Simulators/
     DataRetriever.Simulators.csproj
     ServiceCollectionExtensions.cs
-    Monitoring/
-      SimulatedInstrumentationInfo.cs
-      SimulatedRunInstrumentation.cs
     Reporting/
       SimulatedEmailRunReportPublisher.cs
     Step1Load/
@@ -324,7 +320,7 @@ Because this solution is intended as an LLM-facing template, keep explicit place
 
 Within each loader/persister slice, keep behavior files at the slice root and put DTOs, inputs, outputs, and internal records under `Models/`. Use one `Models/` folder per slice for consistency; do not split into separate `Dtos/`, `Inputs/`, or `Outputs/` folders unless a real service grows enough to need that.
 
-Use the standard .NET naming pattern `ServiceCollectionExtensions.cs` for service registration extension methods, for example `AddDataRetrieverApplication(...)`, `AddDataRetrieverInfrastructure(...)`, `AddDataRetrieverReporting(...)`, and `AddDataRetrieverMonitoring(...)`. Avoid generic names like `DependencyInjection.cs` in the template.
+Use the standard .NET naming pattern `ServiceCollectionExtensions.cs` for service registration extension methods, for example `AddDataRetrieverApplication(...)`, `AddDataRetrieverReporting(...)`, `AddDataRetrieverMonitoring(...)`, and adapter-specific registration methods only when real adapters exist. Avoid generic names like `DependencyInjection.cs` in the template.
 
 The Application tree shows `Step1Loader.cs`, `Step2Loader.cs`, and `Step3Loader.cs` as the step implementations. Keep them in Application because they own `IStep<..., ...>` execution, application decisions, issue collection, and output shaping. If a load only needs SQL/HTTP/generated-client access, move that concrete caller to the matching `Infrastructure/<SliceName>/` folder behind the source client interface.
 
@@ -558,9 +554,9 @@ public sealed record StepExecutionResult<TOutput>(
 }
 ```
 
-Use helper factories for success, completed, and failed results so steps remain readable:
+Use helper factories for output, completed, and failed results so steps remain readable:
 
-- `StepExecutionResult.Success(output, counters, issues)`
+- `StepExecutionResult.FromOutput(output, counters, issues)`
 - `StepExecutionResult.Completed(counters, issues)` for `NoOutput`
 - `StepExecutionResult.Failed(issues, counters)`
 
@@ -649,7 +645,7 @@ Example usage:
 
 ```csharp
 var instrumentation = processingTracker.ForRun(runId);
-var info = new SimulatedInstrumentationInfo();
+var info = new ServiceOwnedInstrumentationInfo(); // any service-owned IInstrumentationInfo implementation
 
 info.AddValue("Status", "Running");
 info.AddValue("External Ids Requested", 50);
@@ -659,12 +655,11 @@ info.AddValue("Warning Count", 2);
 instrumentation.AppendInstrumentationInfo("step3", info);
 ```
 
-Instrumentation is optional. A loader/persister can skip instrumentation entirely; the final report still comes from `StepExecutionResult` values. The simulator can decide whether repeated values update or append because this behavior will later be owned by the internal instrumentation package.
+Instrumentation is optional. A loader/persister can skip instrumentation entirely; the final report still comes from `StepExecutionResult` values. The concrete instrumentation package can decide whether repeated values update or append.
 
 Prototype implementation:
 
 - `InMemoryProcessingTracker`
-- `SimulatedInstrumentationInfo` and `SimulatedRunInstrumentation` live in `DataRetriever.Simulators/Monitoring`;
 - unknown run-id lookup returns `null`;
 - latest status starts as `NeverRun`, represented by the initial snapshot before any progress is recorded;
 - status becomes `Running`, `Success`, or `Failed` when the orchestrator appends run-level instrumentation;
@@ -984,13 +979,10 @@ Expected result:
 3. In `DataRetriever.Monitoring`, implement:
    - `IInstrumentationInfo`
    - `IRunInstrumentation`
-   - `ProcessingRunStatus`
    - `ProcessingRunSnapshot`
    - `IProcessingTracker`
    - `InMemoryProcessingTracker`
 4. In `DataRetriever.Simulators`, implement:
-   - `SimulatedInstrumentationInfo`
-   - `SimulatedRunInstrumentation`
    - `SimulatedEmailRunReportPublisher`
 5. Add tests for:
    - no-input and no-output step result helpers;

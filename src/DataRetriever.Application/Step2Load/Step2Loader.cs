@@ -79,7 +79,7 @@ public sealed class Step2Loader(
             new StepCounter("Step2RowsDiscarded", rowsDiscarded)
         };
 
-        return StepExecutionResult<Step2Output>.Success(
+        return StepExecutionResult<Step2Output>.FromOutput(
             Name,
             new Step2Output(outputRecords),
             counters,

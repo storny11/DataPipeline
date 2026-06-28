@@ -30,15 +30,6 @@ public sealed record StepExecutionResult<TOutput>(
             issueList);
     }
 
-    public static StepExecutionResult<TOutput> Success(
-        string stepName,
-        TOutput output,
-        IEnumerable<StepCounter>? counters = null,
-        IEnumerable<StepIssue>? issues = null)
-    {
-        return FromOutput(stepName, output, counters, issues);
-    }
-
     public static StepExecutionResult<TOutput> Failed(
         string stepName,
         IEnumerable<StepIssue> issues,

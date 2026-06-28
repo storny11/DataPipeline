@@ -2,12 +2,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DataRetriever.Application\DataRetriever.Application.csproj" />
-    <ProjectReference Include="..\DataRetriever.Monitoring\DataRetriever.Monitoring.csproj" />
     <ProjectReference Include="..\DataRetriever.Reporting\DataRetriever.Reporting.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

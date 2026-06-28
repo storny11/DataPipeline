@@ -6,9 +6,9 @@ namespace DataRetriever.Tests.Execution;
 public sealed class StepExecutionResultTests
 {
     [Fact]
-    public void Success_WithWarning_ReturnsSucceededWithIssues()
+    public void FromOutput_WithWarning_ReturnsSucceededWithIssues()
     {
-        var result = StepExecutionResult<string>.Success(
+        var result = StepExecutionResult<string>.FromOutput(
             "Step",
             "output",
             issues:

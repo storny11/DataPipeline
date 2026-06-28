@@ -77,7 +77,7 @@ public sealed class Step3Loader(
             new StepCounter("MissingStep3Rows", missingStep3Rows)
         };
 
-        return StepExecutionResult<Step3Output>.Success(
+        return StepExecutionResult<Step3Output>.FromOutput(
             Name,
             new Step3Output(output),
             counters,
