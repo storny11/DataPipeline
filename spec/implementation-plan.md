@@ -1132,7 +1132,8 @@ Expected result:
    - Prefer wiring retry into typed `HttpClient`/generated-client registration in `DataRetriever.Infrastructure/Step3Load/ServiceCollectionExtensions.cs`.
    - If the generated client needs a wrapper, create a small `Step3ExternalClient` in Infrastructure that owns retry/timeout behavior and calls the generated client.
    - Keep `Step3SourceClient` as the application-facing adapter that maps between `IStep3SourceClient` and the Infrastructure client.
-   - Use `Microsoft.Extensions.Http.Resilience` if the target framework/project already supports it; otherwise use Polly or a small local retry helper in Infrastructure.
+   - This template uses Polly in `Step3ExternalClient` for retry behavior around the future generated client.
+   - Keep a placeholder `ApiException` with `StatusCode` in the Step 3 infrastructure slice until the real generated Swagger client exception type is available. Replace the placeholder or change the Polly `.Handle<ApiException>(...)` type when wiring the real client.
    - Retry only transient failures: timeout, network failure, HTTP 408, HTTP 429, and HTTP 5xx.
    - This is appropriate because Step 3 is a read-only/idempotent fetch. Do not copy the same retry policy blindly to non-idempotent write operations without an idempotency key or equivalent protection.
    - Do not retry validation failures, mapping failures, HTTP 400/404-style request/data problems, or cancellation.
