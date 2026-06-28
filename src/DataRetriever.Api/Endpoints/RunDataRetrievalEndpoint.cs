@@ -12,16 +12,11 @@ public static class RunDataRetrievalEndpoint
         SingleRunGuard singleRunGuard,
         CancellationToken cancellationToken)
     {
-        request ??= new RunDataRetrievalRequest(null, null);
-        var internalIds = request.SplitInternalIds();
-
-        var hasCurrency = !string.IsNullOrWhiteSpace(request.Currency);
-        var hasInternalIds = internalIds.Count > 0;
-        if (hasCurrency && hasInternalIds)
+        if (!RunDataRetrievalRequestMapper.TryMap(request, out var options, out var errorMessage))
         {
             return Results.BadRequest(new
             {
-                message = "Provide either currency or internalIds, not both."
+                message = errorMessage
             });
         }
 
@@ -34,7 +29,6 @@ public static class RunDataRetrievalEndpoint
             });
         }
 
-        var options = DataRetrievalRunOptions.FromRequest(request.Currency, internalIds);
         var report = await orchestrator.RunAsync(options, cancellationToken);
         return Results.Ok(report);
     }

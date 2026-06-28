@@ -188,6 +188,7 @@ src/
       GetDataRetrievalStatusEndpoint.cs
     Contracts/
       RunDataRetrievalRequest.cs
+      RunDataRetrievalRequestMapper.cs
       RunDataRetrievalResponse.cs
 
   DataRetriever.Application/
@@ -1016,10 +1017,10 @@ Expected result:
 ### Phase 3: Request handling and run guard
 
 1. Implement `RunDataRetrievalRequest`.
-2. Implement validation for filter modes.
+2. Implement `RunDataRetrievalRequestMapper` to parse API-only request formats and validate filter modes before creating `DataRetrievalRunOptions`.
 3. Implement `DataRetrievalRunOptions`.
 4. Implement `SingleRunGuard`.
-5. Wire `POST /api/data-retrieval/runs` to validate, acquire the guard, and call the orchestrator.
+5. Wire `POST /api/data-retrieval/runs` to call the mapper, acquire the guard, and call the orchestrator.
 6. Add tests for invalid requests and concurrent run rejection.
 
 Expected result:
