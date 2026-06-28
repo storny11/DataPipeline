@@ -11,9 +11,6 @@ namespace DataRetriever.Api;
 
 public static class ServiceCollectionExtensions
 {
-    // TODO: Replace this hardcoded local-test switch with explicit configuration before production use.
-    private const bool UseRealEmailSenderWithSimulatorData = true;
-
     public static IServiceCollection AddDataRetrieverApi(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -40,7 +37,7 @@ public static class ServiceCollectionExtensions
         {
             services.AddSimulatorAdapters();
 
-            if (UseRealEmailSenderWithSimulatorData)
+            if (configuration.GetValue<bool>("EmailReport:Enabled"))
             {
                 services.RemoveAll<IRunReportPublisher>();
                 services.AddDataRetrieverEmailReporting(configuration);

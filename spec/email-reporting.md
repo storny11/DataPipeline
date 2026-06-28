@@ -24,6 +24,25 @@ public sealed record RunReportTable(
     IReadOnlyList<IReadOnlyDictionary<string, string?>> Rows);
 ```
 
+Prefer creating tables from shaped row objects instead of hand-building dictionaries:
+
+```csharp
+return RunReportTable.FromRows(
+    "persisted-records",
+    "Persisted Records",
+    persistedRecords.Select(row => new
+    {
+        row.InternalId,
+        row.ExternalId1,
+        row.ExternalId2,
+        row.Amount1,
+        row.Amount2,
+        row.Amount3
+    }));
+```
+
+The anonymous object shape defines column order and values. The table helper converts property names such as `ExternalId1` into `externalId1` keys and `External Id 1` headers.
+
 Each service decides which tables to add. Examples:
 
 - `persisted-records`
@@ -85,10 +104,10 @@ persisted-records -> Persisted Records
 
 ## Guidelines
 
-- Keep table rows as simple string dictionaries.
-- Keep columns explicit so the email renderer can preserve order and alignment.
-- Format numbers/dates before putting them into the table row.
-- Use `CultureInfo.InvariantCulture` for external/report-stable numeric values.
+- Prefer `RunReportTable.FromRows(...)` for service-owned report grids.
+- Shape rows with anonymous objects so each service controls included columns and order.
+- Keep the final `RunReportTable` model generic so the email renderer can preserve order and alignment.
+- Use explicit formatting before projection only when the default invariant formatting is not suitable. Decimal and floating-point values default to `N4`.
 - Keep warnings and errors in `RunReport.Issues`; do not duplicate them into service-specific tables unless users need a custom view.
 - Keep statistics optional in the email. They remain available in the structured `RunReport`.
 - Do not add a generic workflow/report-section framework unless several services need richer layouts than summary metrics, issues, and tables.

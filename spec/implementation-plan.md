@@ -706,6 +706,25 @@ public sealed record RunReportColumn(
     RunReportColumnAlignment Alignment = RunReportColumnAlignment.Left);
 ```
 
+Prefer creating report tables from shaped row objects:
+
+```csharp
+RunReportTable.FromRows(
+    "persisted-records",
+    "Persisted Records",
+    persistedRecords.Select(row => new
+    {
+        row.InternalId,
+        row.ExternalId1,
+        row.ExternalId2,
+        row.Amount1,
+        row.Amount2,
+        row.Amount3
+    }));
+```
+
+This keeps service-specific table creation close to Dapper-style object projection while preserving the generic `RunReportTable` shape used by API and email publishers.
+
 `RunReport` should include `IReadOnlyList<RunReportTable> Tables`. The run endpoint can return the structured report, and the email publisher should render every table as a grid.
 
 For large reports, keep `RunReport` structured but let publishers choose a practical representation:

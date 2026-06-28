@@ -1,24 +1,24 @@
 // Stores run progress snapshots in memory for local status endpoints.
-using System.Collections.Concurrent;
 using DataRetriever.Execution;
 
 namespace DataRetriever.Monitoring;
 
 public sealed class InMemoryProcessingTracker : IProcessingTracker
 {
-    private readonly ConcurrentDictionary<Guid, RunState> _runs = new();
-    private readonly object _latestLock = new();
+    // Deliberately simple for the one-run-at-a-time prototype; use locks or a concurrent store if parallel runs are enabled.
+    private readonly Dictionary<Guid, RunState> _runs = new();
     private Guid? _latestRunId;
     private DateTimeOffset? _lastSuccessfulRunCompletedAt;
 
     public IRunInstrumentation ForRun(Guid runId)
     {
-        var state = _runs.GetOrAdd(runId, id => new RunState(id));
-        lock (_latestLock)
+        if (!_runs.TryGetValue(runId, out var state))
         {
-            _latestRunId = runId;
+            state = new RunState(runId);
+            _runs[runId] = state;
         }
 
+        _latestRunId = runId;
         return new RunInstrumentation(state, this);
     }
 
@@ -35,26 +35,17 @@ public sealed class InMemoryProcessingTracker : IProcessingTracker
     public Task<ProcessingRunSnapshot?> GetLatestSnapshotAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Guid? latest;
-        lock (_latestLock)
-        {
-            latest = _latestRunId;
-        }
-
-        if (latest is null)
+        if (_latestRunId is null)
         {
             return Task.FromResult<ProcessingRunSnapshot?>(ProcessingRunSnapshot.NeverRun);
         }
 
-        return GetSnapshotAsync(latest.Value, cancellationToken);
+        return GetSnapshotAsync(_latestRunId.Value, cancellationToken);
     }
 
     private void MarkSuccessful(DateTimeOffset completedAt)
     {
-        lock (_latestLock)
-        {
-            _lastSuccessfulRunCompletedAt = completedAt;
-        }
+        _lastSuccessfulRunCompletedAt = completedAt;
     }
 
     private sealed class RunInstrumentation(
@@ -86,7 +77,6 @@ public sealed class InMemoryProcessingTracker : IProcessingTracker
 
     private sealed class RunState(Guid runId)
     {
-        private readonly object _lock = new();
         private readonly Dictionary<string, Dictionary<string, object?>> _levels = new(StringComparer.OrdinalIgnoreCase);
         private RunStatus _status = RunStatus.NeverRun;
         private DateTimeOffset? _startedAt;
@@ -94,60 +84,51 @@ public sealed class InMemoryProcessingTracker : IProcessingTracker
 
         public void Append(string level, IReadOnlyDictionary<string, object?> values, DateTimeOffset now)
         {
-            lock (_lock)
+            if (!_levels.TryGetValue(level, out var levelValues))
             {
-                if (!_levels.TryGetValue(level, out var levelValues))
-                {
-                    levelValues = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-                    _levels[level] = levelValues;
-                }
-
-                foreach (var value in values)
-                {
-                    levelValues[value.Key] = value.Value;
-                }
-
-                _startedAt ??= now;
+                levelValues = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                _levels[level] = levelValues;
             }
+
+            foreach (var value in values)
+            {
+                levelValues[value.Key] = value.Value;
+            }
+
+            _startedAt ??= now;
         }
 
         public void SetStatus(RunStatus status, DateTimeOffset now)
         {
-            lock (_lock)
+            _status = status;
+            if (status == RunStatus.Running)
             {
-                _status = status;
-                if (status == RunStatus.Running)
-                {
-                    _startedAt ??= now;
-                    _completedAt = null;
-                }
-                else
-                {
-                    _completedAt = now;
-                }
+                _startedAt ??= now;
+                _completedAt = null;
+            }
+            else
+            {
+                _completedAt = now;
             }
         }
 
         public ProcessingRunSnapshot ToSnapshot(DateTimeOffset? lastSuccessfulRunCompletedAt)
         {
-            lock (_lock)
-            {
-                var values = _levels.ToDictionary(
-                    level => level.Key,
-                    level => (IReadOnlyDictionary<string, object?>)level.Value.ToDictionary(
-                        value => value.Key,
-                        value => value.Value,
-                        StringComparer.OrdinalIgnoreCase),
-                    StringComparer.OrdinalIgnoreCase);
+            var values = _levels.ToDictionary(
+                level => level.Key,
+                level => (IReadOnlyDictionary<string, object?>)level.Value.ToDictionary(
+                    value => value.Key,
+                    value => value.Value,
+                    StringComparer.OrdinalIgnoreCase),
+                StringComparer.OrdinalIgnoreCase);
 
-                return new ProcessingRunSnapshot(
-                    runId,
-                    _status,
-                    _startedAt,
-                    _completedAt,
-                    lastSuccessfulRunCompletedAt,
-                    values);
-            }
+            return new ProcessingRunSnapshot(
+                runId,
+                _status,
+                _startedAt,
+                _completedAt,
+                lastSuccessfulRunCompletedAt,
+                values);
         }
     }
 }
