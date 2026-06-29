@@ -1,4 +1,5 @@
 // Validates Step 1 configured rows before downstream steps consume them.
+using System.Globalization;
 using DataRetriever.Application.Step1Load.Models;
 using DataRetriever.Execution;
 
@@ -33,7 +34,8 @@ public sealed class Step1Validator
         var context = DiagnosticContext.From(
             ("internalId", row.InternalId),
             ("externalId1", row.ExternalId1),
-            ("currency", row.Currency));
+            ("currency", row.Currency),
+            ("step2RecordsToKeep", row.Step2RecordsToKeep));
 
         if (string.IsNullOrWhiteSpace(row.InternalId))
         {
@@ -62,7 +64,7 @@ public sealed class Step1Validator
                 context));
         }
 
-        if (row.Step2RecordsToKeep <= 0)
+        if (!TryParsePositiveStep2RecordsToKeep(row.Step2RecordsToKeep, out _))
         {
             issues.Add(new StepIssue(
                 Step1Loader.StepName,
@@ -72,6 +74,12 @@ public sealed class Step1Validator
         }
 
         return issues;
+    }
+
+    private static bool TryParsePositiveStep2RecordsToKeep(string? value, out int recordsToKeep)
+    {
+        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out recordsToKeep) &&
+            recordsToKeep > 0;
     }
 }
 
