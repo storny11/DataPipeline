@@ -18,6 +18,8 @@ public sealed class Step1Loader(
         RunContext context,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(input);
+
         var rows = await sourceClient.LoadConfiguredDataAsync(cancellationToken);
         var validation = validator.Validate(rows);
         var mappedRows = validation.ValidRows.Select(mapper.Map).ToList();
@@ -32,6 +34,20 @@ public sealed class Step1Loader(
             new StepCounter("ValidRowsSelected", filteredRows.Count),
             new StepCounter("InvalidRowsDiscarded", rows.Count - validation.ValidRows.Count)
         };
+
+        if (validation.ValidRows.Count == 0)
+        {
+            var issues = new List<StepIssue>(validation.Issues)
+            {
+                new(
+                    Name,
+                    StepIssueSeverity.Error,
+                    "No valid configured rows were available after validating the configured Step 1 source rows.",
+                    DiagnosticContext.From())
+            };
+
+            return StepExecutionResult<Step1Output>.Failed(Name, issues, counters);
+        }
 
         return StepExecutionResult<Step1Output>.FromOutput(
             Name,
