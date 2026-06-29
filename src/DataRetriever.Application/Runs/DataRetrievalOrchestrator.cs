@@ -97,7 +97,7 @@ public sealed class DataRetrievalOrchestrator(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Unexpected data retrieval run failure for {RunId}", context.RunId);
-            results.Add(StepExecutionResult<NoOutput>.Failed(
+            var runFailure = StepExecutionResult<NoOutput>.Failed(
                 "Run",
                 [
                     new StepIssue(
@@ -105,7 +105,21 @@ public sealed class DataRetrievalOrchestrator(
                         StepIssueSeverity.Error,
                         $"Unexpected run failure: {exception.Message}",
                         DiagnosticContext.From(("runId", context.RunId.ToString())))
-                ]));
+                ]);
+
+            results.Add(runFailure);
+
+            try
+            {
+                instrumentationWriter.RecordStepResult(instrumentation, runFailure);
+            }
+            catch (Exception instrumentationException)
+            {
+                logger.LogError(
+                    instrumentationException,
+                    "Failed to record instrumentation step result for failed run {RunId}",
+                    context.RunId);
+            }
 
             return await FinishFailedAsync(context, options, results, tables, instrumentation, cancellationToken);
         }
