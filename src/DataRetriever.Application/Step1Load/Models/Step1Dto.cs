@@ -5,4 +5,4 @@ public sealed record Step1Dto(
     string? InternalId,
     string? ExternalId1,
     string? Currency,
-    int Step2RecordsToKeep);
+    string? Step2RecordsToKeep);

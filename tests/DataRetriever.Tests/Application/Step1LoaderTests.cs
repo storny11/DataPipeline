@@ -25,6 +25,7 @@ public sealed class Step1LoaderTests
         Assert.Single(result.Output!.Records);
         Assert.Equal("INT-001", result.Output.Records[0].InternalId);
         Assert.Contains(result.Issues, issue => issue.Message.Contains("currency", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(result.Issues, issue => issue.Message.Contains("records-to-keep", StringComparison.OrdinalIgnoreCase));
     }
 
     private sealed class Source : IStep1SourceClient
@@ -33,8 +34,9 @@ public sealed class Step1LoaderTests
         {
             IReadOnlyList<Step1Dto> rows =
             [
-                new("INT-001", "EXT1-AAA", "GBP", 1),
-                new("INT-002", "EXT1-BBB", null, 1)
+                new("INT-001", "EXT1-AAA", "GBP", "1"),
+                new("INT-002", "EXT1-BBB", null, "1"),
+                new("INT-003", "EXT1-CCC", "GBP", "not-a-number")
             ];
 
             return Task.FromResult(rows);

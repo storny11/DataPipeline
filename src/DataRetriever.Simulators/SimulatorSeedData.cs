@@ -9,14 +9,14 @@ public sealed class SimulatorSeedData
 {
     public IReadOnlyList<Step1Dto> ConfiguredRows { get; } =
     [
-        new("INT-001", "EXT1-AAA", "GBP", 2),
-        new("INT-002", "EXT1-BBB", "EUR", 1),
-        new("INT-003", "EXT1-CCC", "GBP", 2),
-        new("INT-004", null, "GBP", 1),
-        new("INT-005", "EXT1-DDD", null, 1),
-        new("INT-006", "EXT1-EEE", "USD", 1),
-        new("INT-007", "EXT1-FFF", "GBP", 1),
-        new("INT-008", "EXT1-GGG", "GBP", 1)
+        new("INT-001", "EXT1-AAA", "GBP", "2"),
+        new("INT-002", "EXT1-BBB", "EUR", "1"),
+        new("INT-003", "EXT1-CCC", "GBP", "2"),
+        new("INT-004", null, "GBP", "1"),
+        new("INT-005", "EXT1-DDD", null, "1"),
+        new("INT-006", "EXT1-EEE", "USD", "1"),
+        new("INT-007", "EXT1-FFF", "GBP", "1"),
+        new("INT-008", "EXT1-GGG", "GBP", "1")
     ];
 
     public IReadOnlyDictionary<string, IReadOnlyList<Step2ResponseDto>> Step2Rows { get; } =
