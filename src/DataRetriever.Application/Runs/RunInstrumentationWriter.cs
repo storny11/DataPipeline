@@ -20,6 +20,12 @@ public sealed class RunInstrumentationWriter
         info.AddValue("Warnings", result.Issues.Count(issue => issue.Severity == StepIssueSeverity.Warning));
         info.AddValue("Errors", result.Issues.Count(issue => issue.Severity == StepIssueSeverity.Error));
 
+        var firstError = result.Issues.FirstOrDefault(issue => issue.Severity == StepIssueSeverity.Error);
+        if (firstError is not null)
+        {
+            info.AddValue("FirstErrorMessage", firstError.Message);
+        }
+
         foreach (var counter in result.Counters)
         {
             info.AddValue(counter.Name, counter.Value);
