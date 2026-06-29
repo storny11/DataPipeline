@@ -5,6 +5,7 @@ using DataRetriever.Infrastructure;
 using DataRetriever.Monitoring;
 using DataRetriever.Reporting;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.FeatureManagement;
 using System.Text.Json.Serialization;
 
 namespace DataRetriever.Api;
@@ -17,6 +18,12 @@ public static class ServiceCollectionExtensions
     {
         services
             .AddHealthChecks();
+
+        services.AddFeatureManagement(configuration);
+        services.Configure<ConfigurationFeatureDefinitionProviderOptions>(options =>
+        {
+            options.CustomConfigurationMergingEnabled = true;
+        });
 
         services.ConfigureHttpJsonOptions(options =>
         {

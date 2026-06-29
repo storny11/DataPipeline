@@ -2,6 +2,7 @@
 using DataRetriever.Api.Contracts;
 using DataRetriever.Application.Runs;
 using DataRetriever.Execution;
+using Microsoft.FeatureManagement;
 
 namespace DataRetriever.Api.Endpoints;
 
@@ -11,8 +12,16 @@ public static class RunDataRetrievalEndpoint
         RunDataRetrievalRequest? request,
         DataRetrievalOrchestrator orchestrator,
         SingleRunGuard singleRunGuard,
+        IFeatureManager featureManager,
         CancellationToken cancellationToken)
     {
+        if (!await featureManager.IsEnabledAsync(DataRetrieverFeatureFlags.RunRequests))
+        {
+            return Results.Json(
+                new { message = "Data retrieval run requests are disabled." },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
         if (!RunDataRetrievalRequestMapper.TryMap(request, out var options, out var errorMessage))
         {
             return Results.BadRequest(new
