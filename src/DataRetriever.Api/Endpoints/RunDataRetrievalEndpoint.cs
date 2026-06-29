@@ -1,6 +1,7 @@
 // Validates run requests, applies the one-run guard, and starts the orchestrated retrieval flow.
 using DataRetriever.Api.Contracts;
 using DataRetriever.Application.Runs;
+using DataRetriever.Execution;
 
 namespace DataRetriever.Api.Endpoints;
 
@@ -30,6 +31,11 @@ public static class RunDataRetrievalEndpoint
         }
 
         var report = await orchestrator.RunAsync(options, cancellationToken);
+        if (report.Status != RunStatus.Success)
+        {
+            return Results.Json(report, statusCode: StatusCodes.Status500InternalServerError);
+        }
+
         return Results.Ok(report);
     }
 }
