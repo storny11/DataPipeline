@@ -6,7 +6,7 @@ namespace DataRetriever.Infrastructure.Step4Persist;
 
 public sealed class Step4SinkClient : IStep4SinkClient
 {
-    public Task<Step4PersistResult> PersistAsync(
+    public Task PersistAsync(
         IReadOnlyList<Step4RequestDto> records,
         CancellationToken cancellationToken)
     {

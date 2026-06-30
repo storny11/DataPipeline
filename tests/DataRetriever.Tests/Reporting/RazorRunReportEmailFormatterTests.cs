@@ -89,6 +89,11 @@ public sealed class RazorRunReportEmailFormatterTests
         Assert.True(email.TextBody.IndexOf("Errors", StringComparison.Ordinal) < email.TextBody.IndexOf("Warnings", StringComparison.Ordinal));
         Assert.True(email.TextBody.IndexOf("Warnings", StringComparison.Ordinal) < email.TextBody.IndexOf("Report tables", StringComparison.Ordinal));
         Assert.DoesNotContain("Rows persisted", email.HtmlBody);
+        Assert.DoesNotContain("max-width", email.HtmlBody);
+        Assert.DoesNotContain("border-radius", email.HtmlBody);
+        Assert.DoesNotContain("text-transform", email.HtmlBody);
+        Assert.DoesNotContain("letter-spacing", email.HtmlBody);
+        Assert.DoesNotContain("display:inline-block", email.HtmlBody);
     }
 
     [Fact]

@@ -6,81 +6,154 @@
 
 <!DOCTYPE html>
 <html>
-<body style="@BodyStyle">
-    <div style="@ContainerStyle">
-        <div style="@HeaderStyle">
-            <div style="@HeaderAccentStyle"></div>
-            <div style="@EyebrowStyle">Data retrieval report</div>
-            <h1 style="@TitleStyle">@StatusHeading</h1>
-            <div style="@HeaderMetaStyle">
-                <span style="@StatusPillStyle">@Report.Status</span>
-                <span style="@HeaderMetaTextStyle">Run @Report.RunId</span>
-            </div>
-        </div>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body style="@BodyStyle" bgcolor="#f5f7fb">
+    <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f5f7fb" style="@OuterTableStyle">
+        <tbody>
+            <tr>
+                <td align="center" style="@OuterCellStyle">
+                    <table width="1180" align="center" cellspacing="0" cellpadding="0" border="0" style="@ContainerTableStyle">
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="@PanelTableStyle">
+                                        <tbody>
+                                            <tr>
+                                                <td height="4" bgcolor="#2557a7" style="@HeaderAccentStyle">&nbsp;</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="@HeaderContentStyle">
+                                                    <div style="@EyebrowStyle">DATA RETRIEVAL REPORT</div>
+                                                    <div style="@TitleStyle">@StatusHeading</div>
+                                                    <table cellspacing="0" cellpadding="0" border="0" style="@StatusTableStyle">
+                                                        <tbody>
+                                                            <tr>
+                                                                <td bgcolor="@StatusBackground" style="@StatusPillStyle">@Report.Status</td>
+                                                                <td width="12" style="@TinySpacerStyle">&nbsp;</td>
+                                                                <td style="@HeaderMetaTextStyle">Run @Report.RunId</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
 
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="@SummaryTableStyle">
-            <tbody>
-                <tr>
-                    <td style="@SummaryCellStyle"><strong>Run id</strong><br />@Report.RunId</td>
-                    <td style="@SummaryCellStyle"><strong>Started</strong><br />@FormatDate(Report.StartedAt)</td>
-                    <td style="@SummaryCellStyle"><strong>Completed</strong><br />@FormatDate(Report.CompletedAt)</td>
-                </tr>
-                @if (DisplayStats)
-                {
-                    <tr>
-                        <td style="@SummaryCellStyle"><strong>Warnings</strong><br />@Report.WarningCount</td>
-                        <td style="@SummaryCellStyle"><strong>Errors</strong><br />@Report.ErrorCount</td>
-                        <td style="@SummaryCellStyle"><strong>Report tables</strong><br />@Report.Tables.Count</td>
-                    </tr>
-                    @for (var index = 0; index < Report.Summary.Count; index += 3)
-                    {
-                        <tr>
-                            @for (var offset = 0; offset < 3; offset++)
+                            <tr><td height="16" style="@SpacerStyle">&nbsp;</td></tr>
+
+                            <tr>
+                                <td>
+                                    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="@SummaryTableStyle">
+                                        <tbody>
+                                            <tr>
+                                                <td style="@SummaryCellStyle"><strong>Run id</strong><br />@Report.RunId</td>
+                                                <td style="@SummaryCellStyle"><strong>Started</strong><br />@FormatDate(Report.StartedAt)</td>
+                                                <td style="@SummaryCellStyle"><strong>Completed</strong><br />@FormatDate(Report.CompletedAt)</td>
+                                            </tr>
+                                            @if (DisplayStats)
+                                            {
+                                                <tr>
+                                                    <td style="@SummaryCellStyle"><strong>Warnings</strong><br />@Report.WarningCount</td>
+                                                    <td style="@SummaryCellStyle"><strong>Errors</strong><br />@Report.ErrorCount</td>
+                                                    <td style="@SummaryCellStyle"><strong>Report tables</strong><br />@Report.Tables.Count</td>
+                                                </tr>
+                                                @for (var index = 0; index < Report.Summary.Count; index += 3)
+                                                {
+                                                    <tr>
+                                                        @for (var offset = 0; offset < 3; offset++)
+                                                        {
+                                                            var metricIndex = index + offset;
+                                                            if (metricIndex < Report.Summary.Count)
+                                                            {
+                                                                var metric = Report.Summary[metricIndex];
+                                                                <td style="@SummaryCellStyle"><strong>@metric.Label</strong><br />@metric.Value</td>
+                                                            }
+                                                            else
+                                                            {
+                                                                <td style="@SummaryCellStyle">&nbsp;</td>
+                                                            }
+                                                        }
+                                                    </tr>
+                                                }
+                                            }
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            @if (Errors.Count > 0)
                             {
-                                var metricIndex = index + offset;
-                                if (metricIndex < Report.Summary.Count)
-                                {
-                                    var metric = Report.Summary[metricIndex];
-                                    <td style="@SummaryCellStyle"><strong>@metric.Label</strong><br />@metric.Value</td>
-                                }
-                                else
-                                {
-                                    <td style="@SummaryCellStyle">&nbsp;</td>
-                                }
+                                <tr><td height="18" style="@SpacerStyle">&nbsp;</td></tr>
+                                <tr>
+                                    <td>
+                                        <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="@PanelTableStyle">
+                                            <tbody>
+                                                <tr>
+                                                    <td width="4" bgcolor="#d92d20" style="@SectionAccentStyle">&nbsp;</td>
+                                                    <td style="@SectionContentStyle">
+                                                        <div style="@SectionHeadingStyle">Errors</div>
+                                                        <div style="@SectionCaptionStyle">These items need attention before the run can be treated as clean.</div>
+                                                        <IssuesTable Issues="Errors" />
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
                             }
-                        </tr>
-                    }
-                }
-            </tbody>
-        </table>
 
-        @if (Errors.Count > 0)
-        {
-            <div style="@ErrorSectionStyle">
-                <h2 style="@SectionHeadingStyle">Errors</h2>
-                <div style="@SectionCaptionStyle">These items need attention before the run can be treated as clean.</div>
-                <IssuesTable Issues="Errors" />
-            </div>
-        }
+                            @if (Warnings.Count > 0)
+                            {
+                                <tr><td height="18" style="@SpacerStyle">&nbsp;</td></tr>
+                                <tr>
+                                    <td>
+                                        <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="@PanelTableStyle">
+                                            <tbody>
+                                                <tr>
+                                                    <td width="4" bgcolor="#f79009" style="@SectionAccentStyle">&nbsp;</td>
+                                                    <td style="@SectionContentStyle">
+                                                        <div style="@SectionHeadingStyle">Warnings</div>
+                                                        <div style="@SectionCaptionStyle">The run completed, but these rows or fields should be reviewed.</div>
+                                                        <IssuesTable Issues="Warnings" />
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            }
 
-        @if (Warnings.Count > 0)
-        {
-            <div style="@WarningSectionStyle">
-                <h2 style="@SectionHeadingStyle">Warnings</h2>
-                <div style="@SectionCaptionStyle">The run completed, but these rows or fields should be reviewed.</div>
-                <IssuesTable Issues="Warnings" />
-            </div>
-        }
-
-        @foreach (var table in Report.Tables)
-        {
-            <div style="@DataSectionStyle">
-                <h2 style="@SectionHeadingStyle">@table.Title</h2>
-                <div style="@SectionCaptionStyle">@table.Rows.Count rows</div>
-                <ReportTable Table="table" />
-            </div>
-        }
-    </div>
+                            @foreach (var table in Report.Tables)
+                            {
+                                <tr><td height="18" style="@SpacerStyle">&nbsp;</td></tr>
+                                <tr>
+                                    <td>
+                                        <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="@PanelTableStyle">
+                                            <tbody>
+                                                <tr>
+                                                    <td width="4" bgcolor="#2557a7" style="@SectionAccentStyle">&nbsp;</td>
+                                                    <td style="@SectionContentStyle">
+                                                        <div style="@SectionHeadingStyle">@table.Title</div>
+                                                        <div style="@SectionCaptionStyle">@table.Rows.Count rows</div>
+                                                        <ReportTable Table="table" />
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        </tbody>
+    </table>
 </body>
 </html>
 
@@ -92,21 +165,24 @@
     public bool DisplayStats { get; set; }
 
     private const string BodyStyle = "margin:0; padding:0; background-color:#f5f7fb; color:#101828; font-family:Segoe UI, Arial, sans-serif;";
-    private const string ContainerStyle = "max-width:1180px; margin:0 auto; padding:28px;";
-    private const string HeaderStyle = "background-color:#ffffff; border:1px solid #d7dde8; border-radius:10px; padding:0 24px 24px 24px;";
-    private const string HeaderAccentStyle = "height:4px; margin:0 -24px 22px -24px; background-color:#2557a7; border-radius:10px 10px 0 0;";
-    private const string EyebrowStyle = "font-size:13px; line-height:18px; color:#52627a; text-transform:uppercase; letter-spacing:0; font-weight:600;";
-    private const string TitleStyle = "margin:6px 0 0 0; font-size:25px; line-height:34px; color:#111827; font-weight:650;";
-    private const string HeaderMetaStyle = "margin-top:14px;";
-    private const string HeaderMetaTextStyle = "display:inline-block; margin-left:10px; font-size:13px; line-height:20px; color:#667085;";
-    private const string SummaryTableStyle = "margin-top:16px; border-collapse:separate; border-spacing:0; width:100%;";
-    private const string SummaryCellStyle = "border:1px solid #d7dde8; background-color:#ffffff; padding:13px 15px; font-size:13px; line-height:20px; color:#344054;";
-    private const string SectionHeadingStyle = "margin:0; font-size:18px; line-height:25px; color:#1d2939; font-weight:650;";
-    private const string SectionCaptionStyle = "margin:4px 0 14px 0; font-size:13px; line-height:19px; color:#667085;";
-    private const string SectionBaseStyle = "margin-top:18px; background-color:#ffffff; border:1px solid #d7dde8; border-radius:10px; padding:18px;";
-    private const string ErrorSectionStyle = SectionBaseStyle + " border-left:4px solid #d92d20;";
-    private const string WarningSectionStyle = SectionBaseStyle + " border-left:4px solid #f79009;";
-    private const string DataSectionStyle = SectionBaseStyle + " border-left:4px solid #2557a7;";
+    private const string OuterTableStyle = "width:100%; background-color:#f5f7fb; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string OuterCellStyle = "padding:28px 14px;";
+    private const string ContainerTableStyle = "width:1180px; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string PanelTableStyle = "width:100%; background-color:#ffffff; border:1px solid #d7dde8; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string HeaderAccentStyle = "height:4px; font-size:1px; line-height:4px; mso-line-height-rule:exactly; background-color:#2557a7;";
+    private const string HeaderContentStyle = "padding:22px 24px 24px 24px; background-color:#ffffff;";
+    private const string EyebrowStyle = "font-size:13px; line-height:18px; color:#52627a; font-weight:700; mso-line-height-rule:exactly;";
+    private const string TitleStyle = "padding-top:6px; font-size:25px; line-height:34px; color:#111827; font-weight:700; mso-line-height-rule:exactly;";
+    private const string StatusTableStyle = "margin-top:14px; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string HeaderMetaTextStyle = "font-size:13px; line-height:20px; color:#667085; mso-line-height-rule:exactly;";
+    private const string TinySpacerStyle = "font-size:1px; line-height:1px;";
+    private const string SpacerStyle = "font-size:1px; line-height:1px; mso-line-height-rule:exactly;";
+    private const string SummaryTableStyle = "width:100%; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string SummaryCellStyle = "border:1px solid #d7dde8; background-color:#ffffff; padding:13px 15px; font-size:13px; line-height:20px; color:#344054; mso-line-height-rule:exactly;";
+    private const string SectionAccentStyle = "width:4px; font-size:1px; line-height:1px;";
+    private const string SectionContentStyle = "padding:18px; background-color:#ffffff;";
+    private const string SectionHeadingStyle = "font-size:18px; line-height:25px; color:#1d2939; font-weight:700; mso-line-height-rule:exactly;";
+    private const string SectionCaptionStyle = "padding-top:4px; padding-bottom:14px; font-size:13px; line-height:19px; color:#667085; mso-line-height-rule:exactly;";
 
     private IReadOnlyList<RunReportIssue> Warnings =>
         Report.Issues.Where(issue => issue.Severity == StepIssueSeverity.Warning).ToList();
@@ -122,7 +198,7 @@
                 : "Run completed successfully";
 
     private string StatusPillStyle =>
-        $"display:inline-block; padding:5px 10px; border-radius:999px; font-size:13px; font-weight:600; color:{StatusForeground}; background-color:{StatusBackground};";
+        $"padding:5px 10px; font-size:13px; line-height:18px; font-weight:700; color:{StatusForeground}; background-color:{StatusBackground}; mso-line-height-rule:exactly;";
 
     private string StatusForeground =>
         Report.ErrorCount > 0 ? "#912018" : Report.WarningCount > 0 ? "#93370d" : "#05603a";

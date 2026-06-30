@@ -4,16 +4,22 @@
 
 @if (Table.Rows.Count == 0)
 {
-    <p style="@EmptyStateStyle">No rows in this section.</p>
+    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="@EmptyStateTableStyle">
+        <tbody>
+            <tr>
+                <td bgcolor="#f8fafc" style="@EmptyStateCellStyle">No rows in this section.</td>
+            </tr>
+        </tbody>
+    </table>
 }
 else
 {
-    <table width="100%" cellspacing="0" cellpadding="0" style="@GridStyle">
+    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="@GridStyle">
         <thead>
             <tr>
                 @foreach (var column in Table.Columns)
                 {
-                    <th align="@Align(column.Alignment)" style="@HeaderCellStyle">@column.Header</th>
+                    <th align="@Align(column.Alignment)" bgcolor="#eef4ff" style="@HeaderCellStyle">@column.Header.ToUpperInvariant()</th>
                 }
             </tr>
         </thead>
@@ -21,10 +27,11 @@ else
             @for (var index = 0; index < Table.Rows.Count; index++)
             {
                 var row = Table.Rows[index];
-                <tr style="background-color:@RowBackground(index);">
+                var rowBackground = RowBackground(index);
+                <tr>
                     @foreach (var column in Table.Columns)
                     {
-                        <td align="@Align(column.Alignment)" style="@CellStyleFor(column.Alignment)">@Value(row, column.Key)</td>
+                        <td align="@Align(column.Alignment)" bgcolor="@rowBackground" style="@CellStyleFor(column.Alignment, rowBackground)">@Value(row, column.Key)</td>
                     }
                 </tr>
             }
@@ -36,11 +43,12 @@ else
     [Parameter, EditorRequired]
     public RunReportTable Table { get; set; } = null!;
 
-    private const string GridStyle = "border-collapse:collapse; width:100%; background-color:#ffffff; border:1px solid #d7dde8;";
-    private const string HeaderCellStyle = "background-color:#eef4ff; border:1px solid #d7dde8; padding:10px 12px; font-size:12px; line-height:17px; color:#1f3a5f; font-weight:700; text-transform:uppercase; letter-spacing:0;";
-    private const string CellStyle = "border:1px solid #e4e7ec; padding:10px 12px; font-size:13px; line-height:19px; color:#344054; vertical-align:top;";
+    private const string GridStyle = "border-collapse:collapse; width:100%; background-color:#ffffff; border:1px solid #d7dde8; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string HeaderCellStyle = "background-color:#eef4ff; border:1px solid #d7dde8; padding:10px 12px; font-size:12px; line-height:17px; color:#1f3a5f; font-weight:700; mso-line-height-rule:exactly;";
+    private const string CellStyle = "border:1px solid #e4e7ec; padding:10px 12px; font-size:13px; line-height:19px; color:#344054; vertical-align:top; mso-line-height-rule:exactly;";
     private const string NumberCellStyle = CellStyle + " text-align:right;";
-    private const string EmptyStateStyle = "margin:0; padding:12px 14px; background-color:#f8fafc; border:1px solid #d7dde8; color:#475467; font-size:13px; border-radius:8px;";
+    private const string EmptyStateTableStyle = "width:100%; border-collapse:collapse; border:1px solid #d7dde8; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string EmptyStateCellStyle = "padding:12px 14px; background-color:#f8fafc; color:#475467; font-size:13px; line-height:19px; mso-line-height-rule:exactly;";
 
     private static string RowBackground(int index) => index % 2 == 0 ? "#ffffff" : "#f8fafc";
 
@@ -61,10 +69,12 @@ else
         };
     }
 
-    private static string CellStyleFor(RunReportColumnAlignment alignment)
+    private static string CellStyleFor(RunReportColumnAlignment alignment, string backgroundColor)
     {
-        return alignment == RunReportColumnAlignment.Right
+        string style = alignment == RunReportColumnAlignment.Right
             ? NumberCellStyle
             : CellStyle;
+
+        return $"{style} background-color:{backgroundColor};";
     }
 }
