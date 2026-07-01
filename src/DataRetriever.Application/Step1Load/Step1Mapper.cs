@@ -6,14 +6,14 @@ namespace DataRetriever.Application.Step1Load;
 
 public sealed class Step1Mapper
 {
-    public Step1OutputRecord Map(Step1Dto dto)
+    public Step1OutputRecord Map(Step1SourceRow row)
     {
-        ArgumentNullException.ThrowIfNull(dto);
+        ArgumentNullException.ThrowIfNull(row);
 
         return new Step1OutputRecord(
-            dto.InternalId!.Trim(),
-            dto.ExternalId1!.Trim(),
-            dto.Currency!.Trim().ToUpperInvariant(),
-            int.Parse(dto.Step2RecordsToKeep!, NumberStyles.Integer, CultureInfo.InvariantCulture));
+            row.InternalId!.Trim(),
+            row.ExternalId1!.Trim(),
+            row.Currency!.Trim().ToUpperInvariant(),
+            int.Parse(row.Step2RecordsToKeep!, NumberStyles.Integer, CultureInfo.InvariantCulture));
     }
 }

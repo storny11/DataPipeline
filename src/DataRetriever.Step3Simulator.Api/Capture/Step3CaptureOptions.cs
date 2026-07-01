@@ -11,5 +11,10 @@ public sealed class Step3CaptureOptions
     [Required]
     public string CaptureDirectory { get; init; } = "captures/step3";
 
+    public bool ExportSeedData { get; init; } = true;
+
+    [Required]
+    public string SeedExportPath { get; init; } = "captures/seed/step3.json";
+
     public string? UpstreamBaseUrl { get; init; }
 }

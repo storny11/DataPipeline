@@ -10,6 +10,7 @@ builder.Services
 
 builder.Services.AddSingleton<CaptureKeyBuilder>();
 builder.Services.AddSingleton<CaptureStore>();
+builder.Services.AddSingleton<Step3SeedExportStore>();
 builder.Services.AddScoped<Step3CaptureProxy>();
 builder.Services.AddHttpClient<IUpstreamStep3Client, HttpUpstreamStep3Client>();
 

@@ -12,12 +12,15 @@ services:
       DOTNET_CLI_HOME: /tmp/dotnet
       Step3Capture__Mode: ${STEP3_CAPTURE_MODE:-Replay}
       Step3Capture__CaptureDirectory: /captures/step3
+      Step3Capture__ExportSeedData: ${STEP3_EXPORT_SEED_DATA:-true}
+      Step3Capture__SeedExportPath: /captures/seed/step3.json
       Step3Capture__UpstreamBaseUrl: ${STEP3_UPSTREAM_BASE_URL:-}
     ports:
       - "${STEP3_SIMULATOR_PORT:-8080}:8080"
     volumes:
       - .:/workspace
       - ./captures/step3:/captures/step3
+      - ./captures/seed:/captures/seed
       - step3-simulator-nuget:/root/.nuget/packages
 
 volumes:

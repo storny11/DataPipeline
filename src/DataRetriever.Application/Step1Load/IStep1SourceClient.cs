@@ -5,5 +5,5 @@ namespace DataRetriever.Application.Step1Load;
 
 public interface IStep1SourceClient
 {
-    Task<IReadOnlyList<Step1Dto>> LoadConfiguredDataAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<Step1SourceRow>> LoadConfiguredDataAsync(CancellationToken cancellationToken);
 }

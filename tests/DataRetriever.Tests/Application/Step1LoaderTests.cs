@@ -71,14 +71,14 @@ public sealed class Step1LoaderTests
 
     private sealed class Source : IStep1SourceClient
     {
-        private readonly IReadOnlyList<Step1Dto> _rows;
+        private readonly IReadOnlyList<Step1SourceRow> _rows;
 
-        public Source(IReadOnlyList<Step1Dto> rows)
+        public Source(IReadOnlyList<Step1SourceRow> rows)
         {
             _rows = rows;
         }
 
-        public Task<IReadOnlyList<Step1Dto>> LoadConfiguredDataAsync(CancellationToken cancellationToken)
+        public Task<IReadOnlyList<Step1SourceRow>> LoadConfiguredDataAsync(CancellationToken cancellationToken)
         {
             return Task.FromResult(_rows);
         }

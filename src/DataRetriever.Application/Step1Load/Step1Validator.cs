@@ -7,9 +7,9 @@ namespace DataRetriever.Application.Step1Load;
 
 public sealed class Step1Validator
 {
-    public Step1ValidationResult Validate(IReadOnlyList<Step1Dto> rows)
+    public Step1ValidationResult Validate(IReadOnlyList<Step1SourceRow> rows)
     {
-        var validRows = new List<Step1Dto>();
+        var validRows = new List<Step1SourceRow>();
         var issues = new List<StepIssue>();
 
         foreach (var row in rows)
@@ -28,7 +28,7 @@ public sealed class Step1Validator
         return new Step1ValidationResult(validRows, issues);
     }
 
-    private static IReadOnlyList<StepIssue> ValidateRow(Step1Dto row)
+    private static IReadOnlyList<StepIssue> ValidateRow(Step1SourceRow row)
     {
         var issues = new List<StepIssue>();
         var context = DiagnosticContext.From(
@@ -84,5 +84,5 @@ public sealed class Step1Validator
 }
 
 public sealed record Step1ValidationResult(
-    IReadOnlyList<Step1Dto> ValidRows,
+    IReadOnlyList<Step1SourceRow> ValidRows,
     IReadOnlyList<StepIssue> Issues);

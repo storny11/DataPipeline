@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.Json;
+using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Step3Simulator.Api.Capture;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -112,22 +114,62 @@ public sealed class Step3CaptureTests
         Assert.Single(Directory.GetFiles(directory, "*.json"));
     }
 
+    [Fact]
+    public async Task HandleAsync_CaptureMode_WithSeedExport_WritesCaptureAndSeedFile()
+    {
+        string captureDirectory = CreateTempDirectory();
+        string seedDirectory = CreateTempDirectory();
+        string seedPath = Path.Combine(seedDirectory, "step3.json");
+        string upstreamBody = JsonSerializer.Serialize(
+            new Step3ResponseDto([
+                new Step3ResponseItemDto("EXT2-AAA", "100.10", "200.20", "300.30")
+            ]),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        StubUpstreamStep3Client upstreamClient = new(StatusCodes.Status200OK, "application/json", upstreamBody);
+        Step3CaptureProxy proxy = CreateProxy(
+            captureDirectory,
+            Step3CaptureMode.Capture,
+            upstreamClient,
+            exportSeedData: true,
+            seedExportPath: seedPath);
+        DefaultHttpContext context = CreateContext("/api/step3?x=1", "{\"request\":true}");
+
+        await proxy.HandleAsync(context, CancellationToken.None);
+
+        Assert.Single(Directory.GetFiles(captureDirectory, "*.json"));
+        Assert.True(File.Exists(seedPath));
+
+        await using FileStream stream = File.OpenRead(seedPath);
+        Step3ResponseDto? seed = await JsonSerializer.DeserializeAsync<Step3ResponseDto>(
+            stream,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web),
+            CancellationToken.None);
+        Step3ResponseItemDto item = Assert.Single(seed!.Items);
+        Assert.Equal("EXT2-AAA", item.ExternalId2);
+        Assert.Equal("100.10", item.Amount1);
+    }
+
     private static Step3CaptureProxy CreateProxy(
         string captureDirectory,
         Step3CaptureMode mode,
         IUpstreamStep3Client upstreamClient,
-        CaptureKeyBuilder? keyBuilder = null)
+        CaptureKeyBuilder? keyBuilder = null,
+        bool exportSeedData = false,
+        string? seedExportPath = null)
     {
         Step3CaptureOptions options = new()
         {
             Mode = mode,
             CaptureDirectory = captureDirectory,
+            ExportSeedData = exportSeedData,
+            SeedExportPath = seedExportPath ?? Path.Combine(captureDirectory, "seed", "step3.json"),
             UpstreamBaseUrl = "https://example.test"
         };
 
         return new Step3CaptureProxy(
             keyBuilder ?? new CaptureKeyBuilder(),
             new CaptureStore(Options.Create(options)),
+            new Step3SeedExportStore(Options.Create(options), NullLogger<Step3SeedExportStore>.Instance),
             upstreamClient,
             Options.Create(options),
             NullLogger<Step3CaptureProxy>.Instance);

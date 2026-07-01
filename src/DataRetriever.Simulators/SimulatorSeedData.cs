@@ -7,7 +7,7 @@ namespace DataRetriever.Simulators;
 
 public sealed class SimulatorSeedData
 {
-    public IReadOnlyList<Step1Dto> ConfiguredRows { get; } =
+    public IReadOnlyList<Step1SourceRow> ConfiguredRows { get; } =
     [
         new("INT-001", "EXT1-AAA", "GBP", "2"),
         new("INT-002", "EXT1-BBB", "EUR", "1"),

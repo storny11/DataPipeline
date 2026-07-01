@@ -5,6 +5,7 @@ namespace DataRetriever.Step3Simulator.Api.Capture;
 public sealed class Step3CaptureProxy(
     CaptureKeyBuilder keyBuilder,
     CaptureStore captureStore,
+    Step3SeedExportStore seedExportStore,
     IUpstreamStep3Client upstreamClient,
     IOptions<Step3CaptureOptions> options,
     ILogger<Step3CaptureProxy> logger)
@@ -46,6 +47,7 @@ public sealed class Step3CaptureProxy(
             Convert.ToBase64String(response.Body));
 
         await captureStore.WriteAsync(key, interaction, cancellationToken);
+        await seedExportStore.WriteAsync(response, cancellationToken);
         logger.LogInformation("Captured Step 3 response for {Method} {PathAndQuery} as {CaptureKey}.", context.Request.Method, pathAndQuery, key);
 
         return response;
