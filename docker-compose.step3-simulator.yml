@@ -1,27 +1,9 @@
 services:
   step3-simulator:
-    image: mcr.microsoft.com/dotnet/sdk:10.0
-    working_dir: /workspace
-    command: >
-      dotnet run
-      --project src/DataRetriever.Step3Simulator.Api/DataRetriever.Step3Simulator.Api.csproj
-      --no-launch-profile
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-      DOTNET_CLI_HOME: /tmp/dotnet
-      Step3Capture__Mode: ${STEP3_CAPTURE_MODE:-Replay}
-      Step3Capture__CaptureDirectory: /captures/step3
-      Step3Capture__ExportSeedData: ${STEP3_EXPORT_SEED_DATA:-true}
-      Step3Capture__SeedExportPath: /captures/seed/step3.json
-      Step3Capture__UpstreamBaseUrl: ${STEP3_UPSTREAM_BASE_URL:-}
+    image: wiremock/wiremock:3.13.2
     ports:
       - "${STEP3_SIMULATOR_PORT:-8080}:8080"
+    environment:
+      WIREMOCK_OPTIONS: ${WIREMOCK_OPTIONS:---verbose}
     volumes:
-      - .:/workspace
-      - ./captures/step3:/captures/step3
-      - ./captures/seed:/captures/seed
-      - step3-simulator-nuget:/root/.nuget/packages
-
-volumes:
-  step3-simulator-nuget:
+      - ./captures/wiremock/step3:/home/wiremock
