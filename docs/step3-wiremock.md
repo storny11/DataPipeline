@@ -8,6 +8,8 @@ The mock runs from:
 docker-compose.step3-simulator.yml
 ```
 
+The same compose file also starts smtp4dev so local report emails can be inspected without sending real email.
+
 Captured files are written under:
 
 ```text
@@ -86,4 +88,40 @@ If the service also runs inside Docker Compose on the same network, use the serv
 
 ```text
 Step3SourceClient:BaseUrl = http://step3-simulator:8080
+```
+
+## Local Email with smtp4dev
+
+Start the local mock services:
+
+```powershell
+docker compose -f docker-compose.step3-simulator.yml up
+```
+
+Open the smtp4dev web UI:
+
+```text
+http://localhost:5000
+```
+
+When the service runs on the host machine, send report email to smtp4dev with:
+
+```text
+EmailReport:Host = localhost
+EmailReport:Port = 2525
+EmailReport:SocketOptions = None
+```
+
+When the service also runs inside Docker Compose on the same network, use:
+
+```text
+EmailReport:Host = smtp4dev
+EmailReport:Port = 25
+EmailReport:SocketOptions = None
+```
+
+smtp4dev data is stored under:
+
+```text
+captures/smtp4dev
 ```

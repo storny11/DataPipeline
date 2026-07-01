@@ -7,3 +7,11 @@ services:
       WIREMOCK_OPTIONS: ${WIREMOCK_OPTIONS:---verbose}
     volumes:
       - ./captures/wiremock/step3:/home/wiremock
+
+  smtp4dev:
+    image: rnwood/smtp4dev:v3
+    ports:
+      - "127.0.0.1:${SMTP4DEV_WEB_PORT:-5000}:80"
+      - "127.0.0.1:${SMTP4DEV_SMTP_PORT:-2525}:25"
+    volumes:
+      - ./captures/smtp4dev:/smtp4dev
