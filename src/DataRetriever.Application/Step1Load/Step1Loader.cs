@@ -21,39 +21,38 @@ public sealed class Step1Loader(
         ArgumentNullException.ThrowIfNull(input);
 
         var rows = await sourceClient.LoadConfiguredDataAsync(cancellationToken);
-        var validation = validator.Validate(rows);
-        var mappedRows = validation.ValidRows.Select(mapper.Map).ToList();
+        var validRows = validator.Validate(rows);
+        var mappedRows = validRows.Select(mapper.Map).ToList();
         var filteredRows = ApplyFilter(mappedRows, input).ToList();
 
         var counters = new[]
         {
             new StepCounter("ConfiguredRowsReturned", rows.Count),
-            new StepCounter("InvalidConfiguredRows", rows.Count - validation.ValidRows.Count),
-            new StepCounter("ValidConfiguredRows", validation.ValidRows.Count),
+            new StepCounter("InvalidConfiguredRows", rows.Count - validRows.Count),
+            new StepCounter("ValidConfiguredRows", validRows.Count),
             new StepCounter("RowsAfterFiltering", filteredRows.Count),
             new StepCounter("ValidRowsSelected", filteredRows.Count),
-            new StepCounter("InvalidRowsDiscarded", rows.Count - validation.ValidRows.Count)
+            new StepCounter("InvalidRowsDiscarded", rows.Count - validRows.Count)
         };
 
-        if (validation.ValidRows.Count == 0)
+        if (validRows.Count == 0)
         {
-            var issues = new List<StepIssue>(validation.Issues)
-            {
-                new(
-                    Name,
-                    StepIssueSeverity.Error,
-                    "No valid configured rows were available after validating the configured Step 1 source rows.",
-                    DiagnosticContext.From())
-            };
-
-            return StepExecutionResult<Step1Output>.Failed(Name, issues, counters);
+            return StepExecutionResult<Step1Output>.Failed(
+                Name,
+                [
+                    new StepIssue(
+                        Name,
+                        StepIssueSeverity.Error,
+                        "No valid configured rows were available after validating the configured Step 1 source rows.",
+                        DiagnosticContext.From())
+                ],
+                counters);
         }
 
         return StepExecutionResult<Step1Output>.FromOutput(
             Name,
             new Step1Output(filteredRows),
-            counters,
-            validation.Issues);
+            counters);
     }
 
     private static IEnumerable<Step1OutputRecord> ApplyFilter(

@@ -7,6 +7,7 @@ using DataRetriever.Execution;
 using DataRetriever.Monitoring;
 using DataRetriever.Reporting;
 using Microsoft.Extensions.Logging;
+using RunReporting;
 
 namespace DataRetriever.Application.Runs;
 
@@ -17,82 +18,26 @@ public sealed class DataRetrievalOrchestrator(
     IStep<Step3Output, Step4Output> step4,
     IProcessingTracker processingTracker,
     StepRunner stepRunner,
-    Step4ReportTableBuilder step4ReportTableBuilder,
     RunInstrumentationWriter instrumentationWriter,
-    RunReportFinalizer reportFinalizer,
+    IRunReporter runReporter,
+    RunReportBuilder reportBuilder,
     ILogger<DataRetrievalOrchestrator> logger)
 {
-    public async Task<RunReport> RunAsync(
+    public async Task<DataRetrievalReport> RunAsync(
         DataRetrievalRunOptions options,
         CancellationToken cancellationToken)
     {
         var context = new RunContext(Guid.NewGuid(), DateTimeOffset.UtcNow);
+        using var run = runReporter.BeginRun(("runId", context.RunId.ToString()));
         var instrumentation = processingTracker.ForRun(context.RunId);
         instrumentationWriter.RecordRunStatus(instrumentation, RunStatus.Running);
 
         var results = new List<IStepExecutionResult>();
-        IReadOnlyList<RunReportTable> tables = [];
+        RunStatus status;
 
         try
         {
-            var step1Result = await stepRunner.ExecuteAsync(
-                step1,
-                new Step1Input(options),
-                context,
-                instrumentation,
-                results,
-                cancellationToken);
-
-            if (!CanContinue(step1Result))
-            {
-                return await FinishFailedAsync(context, options, results, tables, instrumentation, cancellationToken);
-            }
-
-            var step2Result = await stepRunner.ExecuteAsync(
-                step2,
-                step1Result.Output!,
-                context,
-                instrumentation,
-                results,
-                cancellationToken);
-
-            if (!CanContinue(step2Result))
-            {
-                return await FinishFailedAsync(context, options, results, tables, instrumentation, cancellationToken);
-            }
-
-            var step3Result = await stepRunner.ExecuteAsync(
-                step3,
-                step2Result.Output!,
-                context,
-                instrumentation,
-                results,
-                cancellationToken);
-
-            if (!CanContinue(step3Result))
-            {
-                return await FinishFailedAsync(context, options, results, tables, instrumentation, cancellationToken);
-            }
-
-            var step4Result = await stepRunner.ExecuteAsync(
-                step4,
-                step3Result.Output!,
-                context,
-                instrumentation,
-                results,
-                cancellationToken);
-
-            var finalStatus = CanContinue(step4Result) ? RunStatus.Success : RunStatus.Failed;
-            tables = [step4ReportTableBuilder.Build(step4Result.Output)];
-
-            return await reportFinalizer.FinishAsync(
-                context,
-                options,
-                results,
-                tables,
-                finalStatus,
-                instrumentation,
-                cancellationToken);
+            status = await ExecuteStepsAsync(options, context, instrumentation, results, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -108,6 +53,12 @@ public sealed class DataRetrievalOrchestrator(
                 ]);
 
             results.Add(runFailure);
+            runReporter.AddIssue(
+                new { runId = context.RunId.ToString() },
+                $"Unexpected run failure: {exception.Message}",
+                "Run",
+                IssueSeverity.Error);
+            status = RunStatus.Failed;
 
             try
             {
@@ -120,27 +71,79 @@ public sealed class DataRetrievalOrchestrator(
                     "Failed to record instrumentation step result for failed run {RunId}",
                     context.RunId);
             }
-
-            return await FinishFailedAsync(context, options, results, tables, instrumentation, cancellationToken);
         }
+
+        // Finish exactly once: publish drains and delivers everything reported at origin,
+        // and the API response is shaped from the same published report.
+        instrumentationWriter.RecordRunStatus(instrumentation, status);
+        var published = await runReporter.PublishAsync(
+            status == RunStatus.Failed ? RunOutcome.Failed : null,
+            cancellationToken);
+
+        return reportBuilder.Build(
+            context,
+            DateTimeOffset.UtcNow,
+            status,
+            results,
+            published.Tables.Select(RunReportMapper.ToRunReportTable).ToList(),
+            published.Issues.Select(RunReportMapper.ToRunReportIssue).ToList());
     }
 
-    private Task<RunReport> FinishFailedAsync(
-        RunContext context,
+    private async Task<RunStatus> ExecuteStepsAsync(
         DataRetrievalRunOptions options,
-        IReadOnlyList<IStepExecutionResult> results,
-        IReadOnlyList<RunReportTable> tables,
+        RunContext context,
         IRunInstrumentation instrumentation,
+        List<IStepExecutionResult> results,
         CancellationToken cancellationToken)
     {
-        return reportFinalizer.FinishAsync(
+        var step1Result = await stepRunner.ExecuteAsync(
+            step1,
+            new Step1Input(options),
             context,
-            options,
-            results,
-            tables,
-            RunStatus.Failed,
             instrumentation,
+            results,
             cancellationToken);
+
+        if (!CanContinue(step1Result))
+        {
+            return RunStatus.Failed;
+        }
+
+        var step2Result = await stepRunner.ExecuteAsync(
+            step2,
+            step1Result.Output!,
+            context,
+            instrumentation,
+            results,
+            cancellationToken);
+
+        if (!CanContinue(step2Result))
+        {
+            return RunStatus.Failed;
+        }
+
+        var step3Result = await stepRunner.ExecuteAsync(
+            step3,
+            step2Result.Output!,
+            context,
+            instrumentation,
+            results,
+            cancellationToken);
+
+        if (!CanContinue(step3Result))
+        {
+            return RunStatus.Failed;
+        }
+
+        var step4Result = await stepRunner.ExecuteAsync(
+            step4,
+            step3Result.Output!,
+            context,
+            instrumentation,
+            results,
+            cancellationToken);
+
+        return CanContinue(step4Result) ? RunStatus.Success : RunStatus.Failed;
     }
 
     private static bool CanContinue<TOutput>(StepExecutionResult<TOutput> result)

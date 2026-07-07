@@ -1,11 +1,10 @@
 // Composes the API host dependencies and chooses simulator or real adapter registration.
 using DataRetriever.Api.Composition;
 using DataRetriever.Application;
-using DataRetriever.Infrastructure;
 using DataRetriever.Monitoring;
 using DataRetriever.Reporting;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.FeatureManagement;
+using RunReporting;
 using System.Text.Json.Serialization;
 
 namespace DataRetriever.Api;
@@ -31,7 +30,8 @@ public static class ServiceCollectionExtensions
         });
 
         services
-            .AddDataRetrieverReporting(configuration)
+            .AddRunReporting(configuration, options => options.ApplicationName = "Data retrieval")
+            .AddDataRetrieverReporting()
             .AddDataRetrieverMonitoring()
             .AddDataRetrieverApplication();
 
@@ -43,12 +43,6 @@ public static class ServiceCollectionExtensions
         else
         {
             services.AddSimulatorAdapters();
-
-            if (configuration.GetValue<bool>("EmailReport:Enabled"))
-            {
-                services.RemoveAll<IRunReportPublisher>();
-                services.AddDataRetrieverEmailReporting(configuration);
-            }
         }
 
         return services;

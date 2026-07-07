@@ -1,79 +1,54 @@
-// Validates Step 1 configured rows before downstream steps consume them.
+// Validates Step 1 configured rows before downstream steps consume them, reporting issues at origin.
 using System.Globalization;
 using DataRetriever.Application.Step1Load.Models;
-using DataRetriever.Execution;
+using RunReporting;
 
 namespace DataRetriever.Application.Step1Load;
 
-public sealed class Step1Validator
+public sealed class Step1Validator(IRunReporter reporter)
 {
-    public Step1ValidationResult Validate(IReadOnlyList<Step1SourceRow> rows)
+    public IReadOnlyList<Step1SourceRow> Validate(IReadOnlyList<Step1SourceRow> rows)
     {
-        var validRows = new List<Step1SourceRow>();
-        var issues = new List<StepIssue>();
-
-        foreach (var row in rows)
-        {
-            var rowIssues = ValidateRow(row);
-            if (rowIssues.Count == 0)
-            {
-                validRows.Add(row);
-            }
-            else
-            {
-                issues.AddRange(rowIssues);
-            }
-        }
-
-        return new Step1ValidationResult(validRows, issues);
+        return rows.Where(IsValid).ToList();
     }
 
-    private static IReadOnlyList<StepIssue> ValidateRow(Step1SourceRow row)
+    private bool IsValid(Step1SourceRow row)
     {
-        var issues = new List<StepIssue>();
-        var context = DiagnosticContext.From(
-            ("internalId", row.InternalId),
-            ("externalId1", row.ExternalId1),
-            ("currency", row.Currency),
-            ("step2RecordsToKeep", row.Step2RecordsToKeep));
+        var subject = new
+        {
+            internalId = row.InternalId,
+            externalId1 = row.ExternalId1,
+            currency = row.Currency,
+            step2RecordsToKeep = row.Step2RecordsToKeep
+        };
+
+        var valid = true;
 
         if (string.IsNullOrWhiteSpace(row.InternalId))
         {
-            issues.Add(new StepIssue(
-                Step1Loader.StepName,
-                StepIssueSeverity.Warning,
-                "Configured row is missing internal id.",
-                context));
+            reporter.AddIssue(subject, "Configured row is missing internal id.", Step1Loader.StepName);
+            valid = false;
         }
 
         if (string.IsNullOrWhiteSpace(row.ExternalId1))
         {
-            issues.Add(new StepIssue(
-                Step1Loader.StepName,
-                StepIssueSeverity.Warning,
-                "Configured row is missing external id 1.",
-                context));
+            reporter.AddIssue(subject, "Configured row is missing external id 1.", Step1Loader.StepName);
+            valid = false;
         }
 
         if (string.IsNullOrWhiteSpace(row.Currency))
         {
-            issues.Add(new StepIssue(
-                Step1Loader.StepName,
-                StepIssueSeverity.Warning,
-                "Configured row is missing currency.",
-                context));
+            reporter.AddIssue(subject, "Configured row is missing currency.", Step1Loader.StepName);
+            valid = false;
         }
 
         if (!TryParsePositiveStep2RecordsToKeep(row.Step2RecordsToKeep, out _))
         {
-            issues.Add(new StepIssue(
-                Step1Loader.StepName,
-                StepIssueSeverity.Warning,
-                "Configured row has invalid Step 2 records-to-keep value.",
-                context));
+            reporter.AddIssue(subject, "Configured row has invalid Step 2 records-to-keep value.", Step1Loader.StepName);
+            valid = false;
         }
 
-        return issues;
+        return valid;
     }
 
     private static bool TryParsePositiveStep2RecordsToKeep(string? value, out int recordsToKeep)
@@ -82,7 +57,3 @@ public sealed class Step1Validator
             recordsToKeep > 0;
     }
 }
-
-public sealed record Step1ValidationResult(
-    IReadOnlyList<Step1SourceRow> ValidRows,
-    IReadOnlyList<StepIssue> Issues);

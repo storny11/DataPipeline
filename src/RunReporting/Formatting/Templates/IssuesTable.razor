@@ -1,0 +1,66 @@
+@* Renders warning or error issues as an email-safe table. *@
+@using Microsoft.AspNetCore.Components
+@namespace RunReporting.Templates
+
+@if (Issues.Count == 0)
+{
+    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="@EmptyStateTableStyle">
+        <tbody>
+            <tr>
+                <td bgcolor="#f8fafc" style="@EmptyStateCellStyle">None.</td>
+            </tr>
+        </tbody>
+    </table>
+}
+else
+{
+    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="@GridStyle">
+        <thead>
+            <tr>
+                <th align="left" bgcolor="#f1f5fb" style="@HeaderCellStyle">STEP</th>
+                <th align="left" bgcolor="#f1f5fb" style="@HeaderCellStyle">DETAILS</th>
+                <th align="left" bgcolor="#f1f5fb" style="@HeaderCellStyle">MESSAGE</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (var index = 0; index < Issues.Count; index++)
+            {
+                var issue = Issues[index];
+                var rowBackground = RowBackground(index);
+                <tr>
+                    <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@StepName(issue)</td>
+                    <td bgcolor="@rowBackground" style="@MonoCellStyleFor(rowBackground)">@FormatData(issue)</td>
+                    <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@issue.Message</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter]
+    public IReadOnlyList<RunIssue> Issues { get; set; } = [];
+
+    private const string GridStyle = "border-collapse:collapse; width:100%; background-color:#ffffff; border:1px solid #d7dde8; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string HeaderCellStyle = "background-color:#f1f5fb; border:1px solid #d7dde8; padding:10px 12px; font-size:12px; line-height:17px; color:#344054; font-weight:700; mso-line-height-rule:exactly;";
+    private const string CellStyle = "border:1px solid #e4e7ec; padding:10px 12px; font-size:13px; line-height:19px; color:#344054; vertical-align:top; mso-line-height-rule:exactly;";
+    private const string MonoCellStyle = CellStyle + " font-family:Consolas, 'Courier New', monospace;";
+    private const string EmptyStateTableStyle = "width:100%; border-collapse:collapse; border:1px solid #d7dde8; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string EmptyStateCellStyle = "padding:12px 14px; background-color:#f8fafc; color:#475467; font-size:13px; line-height:19px; mso-line-height-rule:exactly;";
+
+    private static string RowBackground(int index) => index % 2 == 0 ? "#ffffff" : "#f8fafc";
+
+    private static string StepName(RunIssue issue) =>
+        string.IsNullOrEmpty(issue.StepName) ? "-" : issue.StepName;
+
+    private static string FormatData(RunIssue issue)
+    {
+        return issue.Data.Count == 0
+            ? "-"
+            : string.Join(", ", issue.Data.Select(pair => $"{pair.Key}={pair.Value}"));
+    }
+
+    private static string CellStyleFor(string backgroundColor) => $"{CellStyle} background-color:{backgroundColor};";
+
+    private static string MonoCellStyleFor(string backgroundColor) => $"{MonoCellStyle} background-color:{backgroundColor};";
+}

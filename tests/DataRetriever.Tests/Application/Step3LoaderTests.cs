@@ -2,6 +2,7 @@
 using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Application.Step3Load;
 using DataRetriever.Application.Step3Load.Models;
+using RunReporting;
 
 namespace DataRetriever.Tests.Application;
 
@@ -10,14 +11,15 @@ public sealed class Step3LoaderTests
     [Fact]
     public async Task ExecuteAsync_WithDuplicateInputRowsAndExtraResponseRows_CountsMatchedAndMissingRows()
     {
+        var reporter = new RunReporter(new RunReportingOptions(), []);
         var loader = new Step3Loader(
             new FakeStep3SourceClient(new Step3ResponseDto([
                 new Step3ResponseItemDto("EXT2-A", "1.1", "2.2", "3.3"),
                 new Step3ResponseItemDto("EXT2-EXTRA", "4.4", "5.5", "6.6")
             ])),
-            new Step3RequestMapper(new ExternalId2Normalizer()),
-            new Step3ResponseValidator(new ExternalId2Normalizer()),
-            new Step3ResponseMapper(new ExternalId2Normalizer()),
+            new Step3RequestMapper(new ExternalId2Normalizer(), reporter),
+            new Step3ResponseValidator(new ExternalId2Normalizer(), reporter),
+            new Step3ResponseMapper(new ExternalId2Normalizer(), reporter),
             new ExternalId2Normalizer());
 
         var result = await loader.ExecuteAsync(

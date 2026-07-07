@@ -1,17 +1,16 @@
-// Maps Step 3 records into persistence requests while preserving source-row correlation.
+// Maps Step 3 records into persistence requests, reporting discards at origin.
 using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Application.Step4Persist.Models;
-using DataRetriever.Execution;
+using RunReporting;
 
 namespace DataRetriever.Application.Step4Persist;
 
-public sealed class Step4RequestMapper
+public sealed class Step4RequestMapper(IRunReporter reporter)
 {
     public Step4RequestMappingResult Map(IReadOnlyList<Step3OutputRecord> records)
     {
         var request = new List<Step4RequestDto>();
         var sourceRecords = new List<Step3OutputRecord>();
-        var issues = new List<StepIssue>();
 
         foreach (var record in records)
         {
@@ -19,11 +18,15 @@ public sealed class Step4RequestMapper
                 string.IsNullOrWhiteSpace(record.ExternalId1) ||
                 string.IsNullOrWhiteSpace(record.ExternalId2))
             {
-                issues.Add(new StepIssue(
-                    Step4Persister.StepName,
-                    StepIssueSeverity.Warning,
+                reporter.AddIssue(
+                    new
+                    {
+                        internalId = record.InternalId,
+                        externalId1 = record.ExternalId1,
+                        externalId2 = record.ExternalId2
+                    },
                     "Persistence request row is missing an identifier and was discarded.",
-                    Context(record)));
+                    Step4Persister.StepName);
                 continue;
             }
 
@@ -37,19 +40,10 @@ public sealed class Step4RequestMapper
             sourceRecords.Add(record);
         }
 
-        return new Step4RequestMappingResult(request, sourceRecords, issues);
-    }
-
-    public static DiagnosticContext Context(Step3OutputRecord record)
-    {
-        return DiagnosticContext.From(
-            ("internalId", record.InternalId),
-            ("externalId1", record.ExternalId1),
-            ("externalId2", record.ExternalId2));
+        return new Step4RequestMappingResult(request, sourceRecords);
     }
 }
 
 public sealed record Step4RequestMappingResult(
     IReadOnlyList<Step4RequestDto> Request,
-    IReadOnlyList<Step3OutputRecord> SourceRecords,
-    IReadOnlyList<StepIssue> Issues);
+    IReadOnlyList<Step3OutputRecord> SourceRecords);

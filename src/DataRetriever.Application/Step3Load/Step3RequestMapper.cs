@@ -1,16 +1,16 @@
-// Maps Step 2 output into the Step 3 source request and reports request-mapping warnings.
+// Maps Step 2 output into the Step 3 source request, reporting request-mapping warnings at origin.
 using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Application.Step3Load.Models;
-using DataRetriever.Execution;
+using RunReporting;
 
 namespace DataRetriever.Application.Step3Load;
 
-public sealed class Step3RequestMapper(ExternalId2Normalizer normalizer)
+public sealed class Step3RequestMapper(ExternalId2Normalizer normalizer, IRunReporter reporter)
 {
     public Step3RequestMappingResult Map(Step2Output input)
     {
         var values = new List<string>();
-        var issues = new List<StepIssue>();
+        var invalidRows = 0;
 
         foreach (var row in input.Records)
         {
@@ -20,27 +20,29 @@ public sealed class Step3RequestMapper(ExternalId2Normalizer normalizer)
                 continue;
             }
 
-            issues.Add(new StepIssue(
-                Step3Loader.StepName,
-                StepIssueSeverity.Warning,
+            invalidRows++;
+            reporter.AddIssue(
+                Subject(row),
                 "Step 3 request could not be built because external id 2 is missing or invalid.",
-                Context(row)));
+                Step3Loader.StepName);
         }
 
         return new Step3RequestMappingResult(
             new Step3RequestDto(values.Distinct(StringComparer.OrdinalIgnoreCase).ToList()),
-            issues);
+            invalidRows);
     }
 
-    public static DiagnosticContext Context(Step2OutputRecord row)
+    internal static object Subject(Step2OutputRecord row)
     {
-        return DiagnosticContext.From(
-            ("internalId", row.InternalId),
-            ("externalId1", row.ExternalId1),
-            ("externalId2", row.ExternalId2));
+        return new
+        {
+            internalId = row.InternalId,
+            externalId1 = row.ExternalId1,
+            externalId2 = row.ExternalId2
+        };
     }
 }
 
 public sealed record Step3RequestMappingResult(
     Step3RequestDto Request,
-    IReadOnlyList<StepIssue> Issues);
+    int InvalidRowCount);

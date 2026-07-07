@@ -22,7 +22,6 @@ public sealed class Step3Loader(
         CancellationToken cancellationToken)
     {
         var requestMapping = requestMapper.Map(input);
-        var issues = new List<StepIssue>(requestMapping.Issues);
 
         Step3ResponseDto response;
         try
@@ -31,27 +30,29 @@ public sealed class Step3Loader(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            issues.Add(new StepIssue(
+            return StepExecutionResult<Step3Output>.Failed(
                 Name,
-                StepIssueSeverity.Error,
-                $"Step 3 source request failed: {exception.Message}",
-                DiagnosticContext.From(("requestedExternalId2Count", requestMapping.Request.ExternalId2Values.Count.ToString()))));
-
-            return StepExecutionResult<Step3Output>.Failed(Name, issues, [
-                new StepCounter("ExternalId2ValuesRequested", requestMapping.Request.ExternalId2Values.Count)
-            ]);
+                [
+                    new StepIssue(
+                        Name,
+                        StepIssueSeverity.Error,
+                        $"Step 3 source request failed: {exception.Message}",
+                        DiagnosticContext.From(("requestedExternalId2Count", requestMapping.Request.ExternalId2Values.Count.ToString())))
+                ],
+                [
+                    new StepCounter("ExternalId2ValuesRequested", requestMapping.Request.ExternalId2Values.Count)
+                ]);
         }
 
-        issues.AddRange(responseValidator.ValidateRequestedRowsReturned(input, response));
-        var contextByExternalId2 = BuildContextByExternalId2(input);
-        var mapped = responseMapper.Map(response.Items, contextByExternalId2);
-        issues.AddRange(mapped.Issues);
+        responseValidator.ValidateRequestedRowsReturned(input, response);
+        var subjectByExternalId2 = BuildSubjectByExternalId2(input);
+        var amounts = responseMapper.Map(response.Items, subjectByExternalId2);
 
         var output = new List<Step3OutputRecord>();
         foreach (var row in input.Records)
         {
             if (!normalizer.TryNormalize(row.ExternalId2, out var normalized) ||
-                !mapped.Amounts.TryGetValue(normalized, out var amount))
+                !amounts.TryGetValue(normalized, out var amount))
             {
                 continue;
             }
@@ -65,14 +66,14 @@ public sealed class Step3Loader(
                 amount.Amount3));
         }
 
-        var missingStep3Rows = Math.Max(0, input.Records.Count - requestMapping.Issues.Count - output.Count);
+        var missingStep3Rows = Math.Max(0, input.Records.Count - requestMapping.InvalidRowCount - output.Count);
         var counters = new[]
         {
             new StepCounter("ExternalId2ValuesRequested", requestMapping.Request.ExternalId2Values.Count),
             new StepCounter("Step3RowsReturned", response.Items.Count),
             new StepCounter("ValidStep3RowsReturned", output.Count),
-            new StepCounter("RowsDiscardedDueToMissingAmounts", mapped.Issues.Count),
-            new StepCounter("RowsDiscardedDueToMappingErrors", requestMapping.Issues.Count),
+            new StepCounter("RowsDiscardedDueToMissingAmounts", response.Items.Count - amounts.Count),
+            new StepCounter("RowsDiscardedDueToMappingErrors", requestMapping.InvalidRowCount),
             new StepCounter("RowsMatchedToStep2Output", output.Count),
             new StepCounter("MissingStep3Rows", missingStep3Rows)
         };
@@ -80,21 +81,20 @@ public sealed class Step3Loader(
         return StepExecutionResult<Step3Output>.FromOutput(
             Name,
             new Step3Output(output),
-            counters,
-            issues);
+            counters);
     }
 
-    private IReadOnlyDictionary<NormalizedExternalId2, DiagnosticContext> BuildContextByExternalId2(Step2Output input)
+    private IReadOnlyDictionary<NormalizedExternalId2, object> BuildSubjectByExternalId2(Step2Output input)
     {
-        var contexts = new Dictionary<NormalizedExternalId2, DiagnosticContext>();
+        var subjects = new Dictionary<NormalizedExternalId2, object>();
         foreach (var row in input.Records)
         {
             if (normalizer.TryNormalize(row.ExternalId2, out var normalized))
             {
-                contexts[normalized] = Step3RequestMapper.Context(row);
+                subjects[normalized] = Step3RequestMapper.Subject(row);
             }
         }
 
-        return contexts;
+        return subjects;
     }
 }

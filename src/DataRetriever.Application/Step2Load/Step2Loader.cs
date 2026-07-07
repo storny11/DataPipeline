@@ -1,14 +1,16 @@
-// Fetches, maps, selects, and warns for Step 2 related data.
+// Fetches, maps, and selects Step 2 related data, reporting issues at origin.
 using DataRetriever.Application.Step1Load.Models;
 using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Execution;
+using RunReporting;
 
 namespace DataRetriever.Application.Step2Load;
 
 public sealed class Step2Loader(
     IStep2SourceClient sourceClient,
     Step2ResponseMapper mapper,
-    Step2Selector selector) : IStep<Step1Output, Step2Output>
+    Step2Selector selector,
+    IRunReporter reporter) : IStep<Step1Output, Step2Output>
 {
     public const string StepName = "Step2Load";
 
@@ -20,7 +22,6 @@ public sealed class Step2Loader(
         CancellationToken cancellationToken)
     {
         var outputRecords = new List<Step2OutputRecord>();
-        var issues = new List<StepIssue>();
         var sourceCalls = 0;
         var rowsDiscarded = 0;
 
@@ -36,36 +37,32 @@ public sealed class Step2Loader(
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
-                issues.Add(new StepIssue(
-                    Name,
-                    StepIssueSeverity.Warning,
+                reporter.AddIssue(
+                    Step2ResponseMapper.Subject(row),
                     $"Step 2 source call failed for external id 1 '{row.ExternalId1}': {exception.Message}",
-                    Step2ResponseMapper.Context(row)));
+                    Name);
                 continue;
             }
 
             if (sourceRows.Count == 0)
             {
-                issues.Add(new StepIssue(
-                    Name,
-                    StepIssueSeverity.Warning,
+                reporter.AddIssue(
+                    Step2ResponseMapper.Subject(row),
                     $"Step 2 source returned no rows for external id 1 '{row.ExternalId1}'.",
-                    Step2ResponseMapper.Context(row)));
+                    Name);
                 continue;
             }
 
             var mapped = mapper.Map(row, sourceRows);
-            issues.AddRange(mapped.Issues);
-            rowsDiscarded += sourceRows.Count - mapped.Records.Count;
+            rowsDiscarded += sourceRows.Count - mapped.Count;
 
-            var selected = selector.SelectLatest(mapped.Records, row.Step2RecordsToKeep);
+            var selected = selector.SelectLatest(mapped, row.Step2RecordsToKeep);
             if (selected.Count < row.Step2RecordsToKeep)
             {
-                issues.Add(new StepIssue(
-                    Name,
-                    StepIssueSeverity.Warning,
+                reporter.AddIssue(
+                    Step2ResponseMapper.Subject(row),
                     $"Step 2 source returned {selected.Count} valid rows for external id 1 '{row.ExternalId1}', fewer than requested {row.Step2RecordsToKeep}.",
-                    Step2ResponseMapper.Context(row)));
+                    Name);
             }
 
             outputRecords.AddRange(selected);
@@ -82,7 +79,6 @@ public sealed class Step2Loader(
         return StepExecutionResult<Step2Output>.FromOutput(
             Name,
             new Step2Output(outputRecords),
-            counters,
-            issues);
+            counters);
     }
 }

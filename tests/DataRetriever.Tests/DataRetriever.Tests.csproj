@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\DataRetriever.Monitoring\DataRetriever.Monitoring.csproj" />
     <ProjectReference Include="..\..\src\DataRetriever.Simulators\DataRetriever.Simulators.csproj" />
     <ProjectReference Include="..\..\src\DataRetriever.Api\DataRetriever.Api.csproj" />
+    <ProjectReference Include="..\..\src\RunReporting\RunReporting.csproj" />
   </ItemGroup>
 
 </Project>

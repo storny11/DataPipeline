@@ -3,6 +3,7 @@ using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Application.Step4Persist;
 using DataRetriever.Application.Step4Persist.Models;
 using DataRetriever.Execution;
+using RunReporting;
 
 namespace DataRetriever.Tests.Application;
 
@@ -11,9 +12,11 @@ public sealed class Step4PersisterTests
     [Fact]
     public async Task ExecuteAsync_WithDuplicateIdentifiers_CountsEachPersistedRow()
     {
+        var reporter = new RunReporter(new RunReportingOptions(), []);
         var persister = new Step4Persister(
             new FakeStep4SinkClient(),
-            new Step4RequestMapper());
+            new Step4RequestMapper(reporter),
+            reporter);
 
         var result = await persister.ExecuteAsync(
             new Step3Output([
@@ -25,14 +28,21 @@ public sealed class Step4PersisterTests
 
         Assert.Equal(2, result.Output!.PersistedRecords.Count);
         Assert.Equal(2, result.Counters.Single(counter => counter.Name == "RowsSuccessfullyPersisted").Value);
+
+        var table = Assert.Single(reporter.Take().Tables);
+        Assert.Equal("Persisted Records", table.Title);
+        Assert.Equal(2, table.Rows.Count);
+        Assert.Equal("INT-1", table.Rows[0][0]);
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenSinkThrows_ReturnsFailedResult()
     {
+        var failedRunReporter = new RunReporter(new RunReportingOptions(), []);
         var persister = new Step4Persister(
             new FakeStep4SinkClient(_ => throw new InvalidOperationException("Sink unavailable.")),
-            new Step4RequestMapper());
+            new Step4RequestMapper(failedRunReporter),
+            failedRunReporter);
 
         var result = await persister.ExecuteAsync(
             new Step3Output([
@@ -48,6 +58,7 @@ public sealed class Step4PersisterTests
             issue.Severity == StepIssueSeverity.Error &&
             issue.Message.Contains("Sink unavailable", StringComparison.Ordinal));
         Assert.Equal(0, result.Counters.Single(counter => counter.Name == "RowsSuccessfullyPersisted").Value);
+        Assert.Empty(failedRunReporter.Take().Tables);
     }
 
     private sealed class FakeStep4SinkClient(

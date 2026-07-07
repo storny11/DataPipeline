@@ -1,28 +1,26 @@
-// Maps Step 3 source response rows into parsed amount values and warnings.
+// Maps Step 3 source response rows into parsed amount values, reporting discards at origin.
 using System.Globalization;
 using DataRetriever.Application.Step3Load.Models;
-using DataRetriever.Execution;
+using RunReporting;
 
 namespace DataRetriever.Application.Step3Load;
 
-public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer)
+public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer, IRunReporter reporter)
 {
-    public Step3ResponseMappingResult Map(
+    public IReadOnlyDictionary<NormalizedExternalId2, Step3MappedAmounts> Map(
         IReadOnlyList<Step3ResponseItemDto> rows,
-        IReadOnlyDictionary<NormalizedExternalId2, DiagnosticContext> contextByExternalId2)
+        IReadOnlyDictionary<NormalizedExternalId2, object> subjectByExternalId2)
     {
         var amounts = new Dictionary<NormalizedExternalId2, Step3MappedAmounts>();
-        var issues = new List<StepIssue>();
 
         foreach (var row in rows)
         {
             if (!normalizer.TryNormalize(row.ExternalId2, out var normalized))
             {
-                issues.Add(new StepIssue(
-                    Step3Loader.StepName,
-                    StepIssueSeverity.Warning,
+                reporter.AddIssue(
+                    new { externalId2 = row.ExternalId2 },
                     "Step 3 response row has missing or invalid external id 2 and was discarded.",
-                    DiagnosticContext.From(("externalId2", row.ExternalId2))));
+                    Step3Loader.StepName);
                 continue;
             }
 
@@ -30,36 +28,36 @@ public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer)
                 !TryAmount(row.Amount2, out var amount2) ||
                 !TryAmount(row.Amount3, out var amount3))
             {
-                var context = contextByExternalId2.TryGetValue(normalized, out var matchedContext)
-                    ? matchedContext
-                    : DiagnosticContext.From(("externalId2", row.ExternalId2));
-
-                issues.Add(new StepIssue(
-                    Step3Loader.StepName,
-                    StepIssueSeverity.Warning,
+                reporter.AddIssue(
+                    Subject(subjectByExternalId2, normalized, row),
                     $"Step 3 response row for external id 2 '{row.ExternalId2}' has missing or invalid amount data and was discarded.",
-                    context));
+                    Step3Loader.StepName);
                 continue;
             }
 
             if (amounts.ContainsKey(normalized))
             {
-                var context = contextByExternalId2.TryGetValue(normalized, out var matchedContext)
-                    ? matchedContext
-                    : DiagnosticContext.From(("externalId2", row.ExternalId2));
-
-                issues.Add(new StepIssue(
-                    Step3Loader.StepName,
-                    StepIssueSeverity.Warning,
+                reporter.AddIssue(
+                    Subject(subjectByExternalId2, normalized, row),
                     $"Step 3 response returned more than one valid row for external id 2 '{row.ExternalId2}'. The duplicate row was discarded and the first value was kept.",
-                    context));
+                    Step3Loader.StepName);
                 continue;
             }
 
             amounts.Add(normalized, new Step3MappedAmounts(normalized, amount1, amount2, amount3));
         }
 
-        return new Step3ResponseMappingResult(amounts, issues);
+        return amounts;
+    }
+
+    private static object Subject(
+        IReadOnlyDictionary<NormalizedExternalId2, object> subjectByExternalId2,
+        NormalizedExternalId2 normalized,
+        Step3ResponseItemDto row)
+    {
+        return subjectByExternalId2.TryGetValue(normalized, out var subject)
+            ? subject
+            : new { externalId2 = row.ExternalId2 };
     }
 
     private static bool TryAmount(string? value, out decimal amount)
@@ -77,7 +75,3 @@ public sealed record Step3MappedAmounts(
     decimal Amount1,
     decimal Amount2,
     decimal Amount3);
-
-public sealed record Step3ResponseMappingResult(
-    IReadOnlyDictionary<NormalizedExternalId2, Step3MappedAmounts> Amounts,
-    IReadOnlyList<StepIssue> Issues);

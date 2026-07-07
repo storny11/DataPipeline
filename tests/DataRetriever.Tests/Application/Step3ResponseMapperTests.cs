@@ -2,7 +2,7 @@
 using System.Globalization;
 using DataRetriever.Application.Step3Load;
 using DataRetriever.Application.Step3Load.Models;
-using DataRetriever.Execution;
+using RunReporting;
 
 namespace DataRetriever.Tests.Application;
 
@@ -15,18 +15,19 @@ public sealed class Step3ResponseMapperTests
         try
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
+            var reporter = new RunReporter(new RunReportingOptions(), []);
             var normalizer = new ExternalId2Normalizer();
-            var mapper = new Step3ResponseMapper(normalizer);
+            var mapper = new Step3ResponseMapper(normalizer, reporter);
             normalizer.TryNormalize("EXT2-A", out var normalized);
 
-            var result = mapper.Map(
+            var amounts = mapper.Map(
                 [new Step3ResponseItemDto("EXT2-A", "1.25", "2.50", "3.75")],
-                new Dictionary<NormalizedExternalId2, DiagnosticContext>());
+                new Dictionary<NormalizedExternalId2, object>());
 
-            Assert.True(result.Amounts.TryGetValue(normalized, out var amounts));
-            Assert.Equal(1.25m, amounts.Amount1);
-            Assert.Equal(2.50m, amounts.Amount2);
-            Assert.Equal(3.75m, amounts.Amount3);
+            Assert.True(amounts.TryGetValue(normalized, out var mapped));
+            Assert.Equal(1.25m, mapped.Amount1);
+            Assert.Equal(2.50m, mapped.Amount2);
+            Assert.Equal(3.75m, mapped.Amount3);
         }
         finally
         {
@@ -37,26 +38,29 @@ public sealed class Step3ResponseMapperTests
     [Fact]
     public void Map_WhenDuplicateValidRowsExist_KeepsFirstAmountAndWarns()
     {
+        var reporter = new RunReporter(new RunReportingOptions(), []);
         var normalizer = new ExternalId2Normalizer();
-        var mapper = new Step3ResponseMapper(normalizer);
+        var mapper = new Step3ResponseMapper(normalizer, reporter);
         normalizer.TryNormalize("EXT2-A", out var normalized);
 
-        var result = mapper.Map(
+        var amounts = mapper.Map(
             [
                 new Step3ResponseItemDto("EXT2-A", "1.25", "2.50", "3.75"),
                 new Step3ResponseItemDto("EXT2-A", "9.99", "8.88", "7.77")
             ],
-            new Dictionary<NormalizedExternalId2, DiagnosticContext>
+            new Dictionary<NormalizedExternalId2, object>
             {
-                [normalized] = DiagnosticContext.From(("internalId", "INT-1"), ("externalId2", "EXT2-A"))
+                [normalized] = new { internalId = "INT-1", externalId2 = "EXT2-A" }
             });
 
-        Assert.True(result.Amounts.TryGetValue(normalized, out var amounts));
-        Assert.Equal(1.25m, amounts.Amount1);
-        Assert.Equal(2.50m, amounts.Amount2);
-        Assert.Equal(3.75m, amounts.Amount3);
-        Assert.Contains(result.Issues, issue =>
-            issue.Severity == StepIssueSeverity.Warning &&
-            issue.Message.Contains("more than one valid row", StringComparison.Ordinal));
+        Assert.True(amounts.TryGetValue(normalized, out var mapped));
+        Assert.Equal(1.25m, mapped.Amount1);
+        Assert.Equal(2.50m, mapped.Amount2);
+        Assert.Equal(3.75m, mapped.Amount3);
+
+        var issue = Assert.Single(reporter.Take().Issues);
+        Assert.Equal(IssueSeverity.Warning, issue.Severity);
+        Assert.Contains("more than one valid row", issue.Message, StringComparison.Ordinal);
+        Assert.Equal("INT-1", issue.Data["internalId"]);
     }
 }

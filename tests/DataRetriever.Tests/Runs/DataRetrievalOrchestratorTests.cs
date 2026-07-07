@@ -7,6 +7,7 @@ using DataRetriever.Reporting;
 using DataRetriever.Simulators;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RunReporting;
 
 namespace DataRetriever.Tests.Runs;
 
@@ -17,6 +18,7 @@ public sealed class DataRetrievalOrchestratorTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddRunReporting(options => options.Enabled = false);
         services
             .AddDataRetrieverReporting()
             .AddDataRetrieverMonitoring()

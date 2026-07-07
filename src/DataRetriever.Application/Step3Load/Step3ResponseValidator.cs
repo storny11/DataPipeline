@@ -1,13 +1,13 @@
-// Checks whether Step 3 returned data for requested identifiers.
+// Checks whether Step 3 returned data for requested identifiers, reporting gaps at origin.
 using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Application.Step3Load.Models;
-using DataRetriever.Execution;
+using RunReporting;
 
 namespace DataRetriever.Application.Step3Load;
 
-public sealed class Step3ResponseValidator(ExternalId2Normalizer normalizer)
+public sealed class Step3ResponseValidator(ExternalId2Normalizer normalizer, IRunReporter reporter)
 {
-    public IReadOnlyList<StepIssue> ValidateRequestedRowsReturned(
+    public void ValidateRequestedRowsReturned(
         Step2Output input,
         Step3ResponseDto response)
     {
@@ -19,7 +19,6 @@ public sealed class Step3ResponseValidator(ExternalId2Normalizer normalizer)
             .Select(value => value!.Value)
             .ToHashSet();
 
-        var issues = new List<StepIssue>();
         foreach (var row in input.Records)
         {
             if (!normalizer.TryNormalize(row.ExternalId2, out var normalized) ||
@@ -28,13 +27,10 @@ public sealed class Step3ResponseValidator(ExternalId2Normalizer normalizer)
                 continue;
             }
 
-            issues.Add(new StepIssue(
-                Step3Loader.StepName,
-                StepIssueSeverity.Warning,
+            reporter.AddIssue(
+                Step3RequestMapper.Subject(row),
                 $"Step 3 source did not return data for requested external id 2 '{row.ExternalId2}'.",
-                Step3RequestMapper.Context(row)));
+                Step3Loader.StepName);
         }
-
-        return issues;
     }
 }

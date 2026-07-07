@@ -1,28 +1,26 @@
-// Maps Step 2 response DTOs into internal output records.
+// Maps Step 2 response DTOs into internal output records, reporting discards at origin.
 using DataRetriever.Application.Step1Load.Models;
 using DataRetriever.Application.Step2Load.Models;
-using DataRetriever.Execution;
+using RunReporting;
 
 namespace DataRetriever.Application.Step2Load;
 
-public sealed class Step2ResponseMapper
+public sealed class Step2ResponseMapper(IRunReporter reporter)
 {
-    public Step2MappingResult Map(
+    public IReadOnlyList<Step2OutputRecord> Map(
         Step1OutputRecord input,
         IReadOnlyList<Step2ResponseDto> rows)
     {
         var records = new List<Step2OutputRecord>();
-        var issues = new List<StepIssue>();
 
         foreach (var row in rows)
         {
             if (string.IsNullOrWhiteSpace(row.ExternalId2))
             {
-                issues.Add(new StepIssue(
-                    Step2Loader.StepName,
-                    StepIssueSeverity.Warning,
+                reporter.AddIssue(
+                    Subject(input),
                     "Step 2 source row is missing external id 2 and was discarded.",
-                    Context(input)));
+                    Step2Loader.StepName);
                 continue;
             }
 
@@ -33,17 +31,15 @@ public sealed class Step2ResponseMapper
                 row.EffectiveDate));
         }
 
-        return new Step2MappingResult(records, issues);
+        return records;
     }
 
-    public static DiagnosticContext Context(Step1OutputRecord input)
+    internal static object Subject(Step1OutputRecord input)
     {
-        return DiagnosticContext.From(
-            ("internalId", input.InternalId),
-            ("externalId1", input.ExternalId1));
+        return new
+        {
+            internalId = input.InternalId,
+            externalId1 = input.ExternalId1
+        };
     }
 }
-
-public sealed record Step2MappingResult(
-    IReadOnlyList<Step2OutputRecord> Records,
-    IReadOnlyList<StepIssue> Issues);
