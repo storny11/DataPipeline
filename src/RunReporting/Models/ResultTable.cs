@@ -12,24 +12,13 @@ public sealed record ResultTable(
     private static readonly ConcurrentDictionary<Type, Dictionary<string, PropertyInfo>> PropertyCache = new();
 
     /// <summary>Builds a table from rows the way Dapper returns them: dictionary rows (dynamic) or plain objects, one cell per field.</summary>
-    public static ResultTable From(string title, IReadOnlyList<string> fields, IEnumerable<object?> rows)
+    public static ResultTable From(string? title, IReadOnlyList<string>? fields, IEnumerable<object?>? rows)
     {
-        if (title == null)
-        {
-            throw new ArgumentNullException(nameof(title));
-        }
-
-        if (fields == null)
-        {
-            throw new ArgumentNullException(nameof(fields));
-        }
-
-        if (rows == null)
-        {
-            throw new ArgumentNullException(nameof(rows));
-        }
-
-        return new ResultTable(title, fields, rows.Select(row => ToRow(row, fields)).ToList());
+        var safeFields = (fields ?? []).Select(field => field ?? string.Empty).ToList();
+        return new ResultTable(
+            title ?? string.Empty,
+            safeFields,
+            (rows ?? []).Select(row => ToRow(row, safeFields)).ToList());
     }
 
     private static IReadOnlyList<string?> ToRow(object? row, IReadOnlyList<string> fields)
@@ -58,8 +47,21 @@ public sealed record ResultTable(
 
         return fields
             .Select(field => properties.TryGetValue(field, out var property)
-                ? ValueFormatter.Format(property.GetValue(row))
+                ? ReadProperty(property, row)
                 : null)
             .ToList();
+    }
+
+    private static string? ReadProperty(PropertyInfo property, object row)
+    {
+        try
+        {
+            return ValueFormatter.Format(property.GetValue(row));
+        }
+        catch
+        {
+            // A throwing getter costs its cell, never the caller.
+            return null;
+        }
     }
 }

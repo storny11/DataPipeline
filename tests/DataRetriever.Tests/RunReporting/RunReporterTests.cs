@@ -125,6 +125,63 @@ public sealed class RunReporterTests
     }
 
     [Fact]
+    public void AddIssue_WithThrowingSubjectGetter_IsRecordedWithoutThrowing()
+    {
+        var reporter = CreateReporter(out _);
+
+        reporter.AddIssue(new ExplosiveSubject(), "Row rejected.");
+
+        var issue = Assert.Single(reporter.Take().Issues);
+        Assert.Equal("INT-1", issue.Data["Id"]);
+        Assert.Null(issue.Data["Bad"]);
+    }
+
+    [Fact]
+    public void AddTable_WithNullArguments_IsToleratedWithoutThrowing()
+    {
+        var reporter = CreateReporter(out _);
+
+        reporter.AddTable(null!, null!, null!);
+
+        var table = Assert.Single(reporter.Take().Tables);
+        Assert.Equal(string.Empty, table.Title);
+        Assert.Empty(table.Rows);
+    }
+
+    [Fact]
+    public void AddAttribute_WithEmptyName_IsIgnoredWithoutThrowing()
+    {
+        var reporter = CreateReporter(out _);
+
+        reporter.AddAttribute("", "value");
+        reporter.AddAttribute(null!, "value");
+
+        Assert.Empty(reporter.Take().Attributes);
+    }
+
+    [Fact]
+    public void Constructor_WithNullArguments_ProducesUsableReporter()
+    {
+        var reporter = new RunReporter(null, null);
+
+        reporter.AddIssue("Still works.");
+
+        Assert.Single(reporter.Take().Issues);
+    }
+
+    [Fact]
+    public async Task PublishAsync_PublisherInternalTimeout_IsContainedAndOthersStillRun()
+    {
+        var healthy = new CapturingPublisher();
+        var reporter = new RunReporter(new RunReportingOptions(), [new TimingOutPublisher(), healthy]);
+
+        reporter.AddIssue("Row skipped.");
+        await reporter.PublishAsync();
+
+        Assert.Single(healthy.Sent);
+    }
+
+    [Fact]
     public async Task PublishAsync_WhenOnePublisherFails_DoesNotThrowAndStillReachesOthers()
     {
         var failing = new ThrowingPublisher();
@@ -264,5 +321,21 @@ public sealed class RunReporterTests
         {
             throw new InvalidOperationException("SMTP unavailable.");
         }
+    }
+
+    // Simulates a publisher-internal timeout: cancellation NOT requested by the caller's token.
+    private sealed class TimingOutPublisher : IRunReportPublisher
+    {
+        public Task PublishAsync(RunReport report, CancellationToken cancellationToken)
+        {
+            throw new OperationCanceledException("Send timed out.");
+        }
+    }
+
+    private sealed class ExplosiveSubject
+    {
+        public string Id => "INT-1";
+
+        public string Bad => throw new InvalidOperationException("Getter exploded.");
     }
 }

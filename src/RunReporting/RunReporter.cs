@@ -1,7 +1,8 @@
 // Thread-safe reporter, one instance per process. BeginRun sets the ambient run for the
 // current async flow the same way ILogger scopes do; without one, a default run collects.
-// Publishing hands the report to every registered publisher; a publisher failure is logged,
-// never thrown — reporting must not fail the run it reports on.
+// Like a logger, no member throws at runtime: failures are logged and degraded, never
+// propagated to the caller. The one exception is the caller's own cancellation token,
+// which PublishAsync honors.
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -16,19 +17,38 @@ public sealed class RunReporter : IRunReporter
     private readonly ILogger<RunReporter> _logger;
 
     public RunReporter(
-        RunReportingOptions options,
-        IEnumerable<IRunReportPublisher> publishers,
+        RunReportingOptions? options = null,
+        IEnumerable<IRunReportPublisher>? publishers = null,
         ILogger<RunReporter>? logger = null)
     {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
-        _publishers = publishers?.ToList() ?? throw new ArgumentNullException(nameof(publishers));
         _logger = logger ?? NullLogger<RunReporter>.Instance;
+        _options = options ?? new RunReportingOptions();
         _defaultRun = new RunScope(this, RunIssue.EmptyData, previousRun: null);
+
+        try
+        {
+            _publishers = publishers?.ToList() ?? [];
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Run reporting failed to read the publisher list; reports will not be delivered.");
+            _publishers = [];
+        }
     }
 
     public IDisposable BeginRun(IReadOnlyDictionary<string, string?>? attributes = null)
     {
-        var scope = new RunScope(this, attributes ?? RunIssue.EmptyData, _ambientRun.Value);
+        RunScope scope;
+        try
+        {
+            scope = new RunScope(this, attributes ?? RunIssue.EmptyData, _ambientRun.Value);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Run reporting failed to read the run attributes; the run starts without them.");
+            scope = new RunScope(this, RunIssue.EmptyData, _ambientRun.Value);
+        }
+
         _ambientRun.Value = scope;
         return scope;
     }
@@ -36,9 +56,12 @@ public sealed class RunReporter : IRunReporter
     public IDisposable BeginRun(params (string Name, string? Value)[] attributes)
     {
         var dictionary = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (name, value) in attributes)
+        foreach (var (name, value) in attributes ?? [])
         {
-            dictionary[name] = value;
+            if (!string.IsNullOrEmpty(name))
+            {
+                dictionary[name] = value;
+            }
         }
 
         return BeginRun(dictionary);
@@ -46,9 +69,10 @@ public sealed class RunReporter : IRunReporter
 
     public void AddAttribute(string name, string? value)
     {
-        if (name == null)
+        if (string.IsNullOrEmpty(name))
         {
-            throw new ArgumentNullException(nameof(name));
+            _logger.LogError("Run reporting ignored a run attribute without a name.");
+            return;
         }
 
         CurrentRun.SetAttribute(name, value);
@@ -56,17 +80,41 @@ public sealed class RunReporter : IRunReporter
 
     public void AddIssue(string message, IssueSeverity severity = IssueSeverity.Warning)
     {
-        Report(RunIssue.Create(null, severity, message));
+        try
+        {
+            Report(RunIssue.Create(null, severity, message));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Run reporting failed to record an issue; it will be missing from the report.");
+        }
     }
 
     public void AddIssue(object? subject, string message, string? stepName = null, IssueSeverity severity = IssueSeverity.Warning)
     {
-        Report(RunIssue.Create(stepName, severity, message, IssueData.From(subject)));
+        try
+        {
+            Report(RunIssue.Create(stepName, severity, message, IssueData.From(subject)));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Run reporting failed to record an issue; it will be missing from the report.");
+        }
     }
 
     public void AddTable(string title, IReadOnlyList<string> fields, IEnumerable<object?> rows)
     {
-        CurrentRun.Add(ResultTable.From(title, fields, rows));
+        try
+        {
+            CurrentRun.Add(ResultTable.From(title, fields, rows));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Run reporting failed to record table {Title}; it will be missing from the report.",
+                title);
+        }
     }
 
     public RunReport Take()
@@ -90,7 +138,8 @@ public sealed class RunReporter : IRunReporter
     {
         if (report == null)
         {
-            throw new ArgumentNullException(nameof(report));
+            _logger.LogError("Run reporting ignored a publish request for a null report.");
+            return;
         }
 
         if (!report.HasIssues && report.Tables.Count == 0 && !_options.SendWhenNoIssues)
@@ -104,8 +153,9 @@ public sealed class RunReporter : IRunReporter
             {
                 await publisher.PublishAsync(report, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                // The caller asked to cancel; honoring it is the only exception that may leave this method.
                 throw;
             }
             catch (Exception exception)

@@ -14,14 +14,14 @@ public sealed record RunIssue(
     public static RunIssue Create(
         string? stepName,
         IssueSeverity severity,
-        string message,
+        string? message,
         IReadOnlyDictionary<string, string?>? data = null)
     {
-        if (message == null)
-        {
-            throw new ArgumentNullException(nameof(message));
-        }
-
-        return new RunIssue(stepName ?? string.Empty, severity, message, data ?? EmptyData, DateTimeOffset.UtcNow);
+        return new RunIssue(
+            stepName ?? string.Empty,
+            severity,
+            message ?? string.Empty,
+            data ?? EmptyData,
+            DateTimeOffset.UtcNow);
     }
 }

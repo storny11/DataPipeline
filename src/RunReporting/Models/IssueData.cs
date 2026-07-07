@@ -61,10 +61,23 @@ public static class IssueData
         var data = new Dictionary<string, string?>();
         foreach (var property in properties)
         {
-            data[property.Name] = Format(property.GetValue(subject));
+            data[property.Name] = ReadProperty(property, subject);
         }
 
         return data;
+    }
+
+    private static string? ReadProperty(PropertyInfo property, object subject)
+    {
+        try
+        {
+            return Format(property.GetValue(subject));
+        }
+        catch
+        {
+            // A throwing getter costs its value, never the caller.
+            return null;
+        }
     }
 
     private static IReadOnlyDictionary<string, string?> Single(string key, string? value)

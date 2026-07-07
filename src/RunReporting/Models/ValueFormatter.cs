@@ -7,11 +7,19 @@ internal static class ValueFormatter
 {
     public static string? Format(object? value)
     {
-        return value switch
+        try
         {
-            null => null,
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString()
-        };
+            return value switch
+            {
+                null => null,
+                IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+                _ => value.ToString()
+            };
+        }
+        catch
+        {
+            // A throwing ToString/format implementation costs the value, never the caller.
+            return value?.GetType().Name;
+        }
     }
 }
