@@ -13,6 +13,7 @@ public sealed class RazorRunReportFormatter(
     RunReportTemplate? template = null) : IRunReportFormatter
 {
     private readonly Type _templateType = template?.ComponentType ?? typeof(RunReportEmailTemplate);
+    private readonly ILogger _logger = loggerFactory.CreateLogger<RazorRunReportFormatter>();
 
     public async Task<RunReportEmail> FormatAsync(RunReport report, CancellationToken cancellationToken)
     {
@@ -39,6 +40,22 @@ public sealed class RazorRunReportFormatter(
 
     private string BuildSubject(RunReport report)
     {
+        if (options.SubjectBuilder != null)
+        {
+            try
+            {
+                var custom = options.SubjectBuilder(report);
+                if (!string.IsNullOrWhiteSpace(custom))
+                {
+                    return SanitizeSubject(custom);
+                }
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "Custom subject builder failed; using the default subject.");
+            }
+        }
+
         var outcome = report.Outcome switch
         {
             RunOutcome.Failed => $"run failed ({report.ErrorCount} errors, {report.WarningCount} warnings)",
@@ -46,6 +63,12 @@ public sealed class RazorRunReportFormatter(
             _ => "run succeeded"
         };
 
-        return $"{options.SubjectPrefix} {options.ApplicationName} {outcome}";
+        return SanitizeSubject($"{options.SubjectPrefix} {options.ApplicationName} {outcome}");
+    }
+
+    // MailMessage.Subject throws on CR/LF; a multi-line value costs its line breaks, never the email.
+    private static string SanitizeSubject(string subject)
+    {
+        return subject.Replace('\r', ' ').Replace('\n', ' ').Trim();
     }
 }

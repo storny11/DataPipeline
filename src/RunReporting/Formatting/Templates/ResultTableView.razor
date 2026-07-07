@@ -17,21 +17,21 @@ else
     <table width="100%" cellspacing="0" cellpadding="0" border="0" style="@GridStyle">
         <thead>
             <tr>
-                @foreach (var field in Table.Fields)
+                @for (var index = 0; index < Table.Fields.Count; index++)
                 {
-                    <th align="left" bgcolor="#eef4ff" style="@HeaderCellStyle">@field.ToUpperInvariant()</th>
+                    <th align="@Align(index)" bgcolor="#eef4ff" style="@HeaderCellStyle text-align:@Align(index);">@Table.Fields[index]</th>
                 }
             </tr>
         </thead>
         <tbody>
-            @for (var index = 0; index < Table.Rows.Count; index++)
+            @for (var rowIndex = 0; rowIndex < Table.Rows.Count; rowIndex++)
             {
-                var row = Table.Rows[index];
-                var rowBackground = RowBackground(index);
+                var row = Table.Rows[rowIndex];
+                var rowBackground = RowBackground(rowIndex);
                 <tr>
-                    @foreach (var cell in row)
+                    @for (var index = 0; index < row.Count; index++)
                     {
-                        <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@Value(cell)</td>
+                        <td align="@Align(index)" bgcolor="@rowBackground" style="@CellStyle background-color:@rowBackground; text-align:@Align(index);">@Value(row[index])</td>
                     }
                 </tr>
             }
@@ -53,5 +53,14 @@ else
 
     private static string Value(string? cell) => string.IsNullOrWhiteSpace(cell) ? "-" : cell;
 
-    private static string CellStyleFor(string backgroundColor) => $"{CellStyle} background-color:{backgroundColor};";
+    private string Align(int index)
+    {
+        var alignment = index < Table.Alignments.Count ? Table.Alignments[index] : ColumnAlignment.Left;
+        return alignment switch
+        {
+            ColumnAlignment.Right => "right",
+            ColumnAlignment.Center => "center",
+            _ => "left"
+        };
+    }
 }

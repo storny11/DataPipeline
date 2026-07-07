@@ -21,7 +21,10 @@ public sealed class EmailRunReportPublisher(
             return;
         }
 
-        if (options.To.Count == 0 && options.Cc.Count == 0 && options.Bcc.Count == 0)
+        var to = options.ToRecipients;
+        var cc = options.CcRecipients;
+        var bcc = options.BccRecipients;
+        if (to.Count == 0 && cc.Count == 0 && bcc.Count == 0)
         {
             throw new InvalidOperationException(
                 "RunReportingOptions must contain at least one To/Cc/Bcc recipient before a report can be published.");
@@ -37,9 +40,9 @@ public sealed class EmailRunReportPublisher(
             IsBodyHtml = true
         };
 
-        AddRecipients(message.To, options.To);
-        AddRecipients(message.CC, options.Cc);
-        AddRecipients(message.Bcc, options.Bcc);
+        AddRecipients(message.To, to);
+        AddRecipients(message.CC, cc);
+        AddRecipients(message.Bcc, bcc);
 
         using var client = new SmtpClient(options.Host, options.Port)
         {
@@ -57,7 +60,7 @@ public sealed class EmailRunReportPublisher(
         await client.SendMailAsync(message, sendTimeout.Token).ConfigureAwait(false);
     }
 
-    private static void AddRecipients(MailAddressCollection collection, IList<string> recipients)
+    private static void AddRecipients(MailAddressCollection collection, IReadOnlyList<string> recipients)
     {
         foreach (var recipient in recipients)
         {

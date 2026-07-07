@@ -23,6 +23,8 @@ public sealed class RunReportingOptions
 
     public string From { get; set; } = "pipeline@localhost";
 
+    // Whitespace entries are ignored: layered configuration merges arrays index-by-index,
+    // so an override layer can blank out an inherited entry with "".
     public IList<string> To { get; set; } = new List<string>();
 
     public IList<string> Cc { get; set; } = new List<string>();
@@ -34,11 +36,21 @@ public sealed class RunReportingOptions
 
     public string SubjectPrefix { get; set; } = "[Run Report]";
 
+    /// <summary>Overrides the email subject; receives the published report (attributes, outcome, counts, tables).
+    /// Returning null/empty or throwing falls back to the default subject.</summary>
+    public Func<RunReport, string?>? SubjectBuilder { get; set; }
+
     /// <summary>Upper bound for a single SMTP send; an unresponsive server cannot stall the run past this.</summary>
     public TimeSpan SendTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>When false, publishing a run that collected no issues and no tables sends nothing.</summary>
     public bool SendWhenNoIssues { get; set; } = true;
+
+    internal IReadOnlyList<string> ToRecipients => Clean(To);
+
+    internal IReadOnlyList<string> CcRecipients => Clean(Cc);
+
+    internal IReadOnlyList<string> BccRecipients => Clean(Bcc);
 
     /// <summary>Problems that would prevent email publishing; empty when Enabled is false or the configuration is valid.</summary>
     public IReadOnlyList<string> GetValidationErrors()
@@ -67,7 +79,7 @@ public sealed class RunReportingOptions
             yield return $"From '{From}' is not a valid email address";
         }
 
-        var recipients = (To ?? []).Concat(Cc ?? []).Concat(Bcc ?? []).ToList();
+        var recipients = ToRecipients.Concat(CcRecipients).Concat(BccRecipients).ToList();
         if (recipients.Count == 0)
         {
             yield return "at least one To/Cc/Bcc recipient is required";
@@ -82,5 +94,15 @@ public sealed class RunReportingOptions
         {
             yield return "SendTimeout must be positive";
         }
+    }
+
+    private static IReadOnlyList<string> Clean(IList<string>? recipients)
+    {
+        return recipients == null
+            ? []
+            : recipients
+                .Where(recipient => !string.IsNullOrWhiteSpace(recipient))
+                .Select(recipient => recipient.Trim())
+                .ToList();
     }
 }

@@ -1,4 +1,5 @@
 // Verifies ambient run scoping, attribute flow, tables, and publish behavior of the RunReporting package.
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RunReporting;
 
@@ -84,6 +85,63 @@ public sealed class RunReporterTests
     }
 
     [Fact]
+    public async Task Take_ResetsTheStartOfTheNextCollectionWindow()
+    {
+        var reporter = CreateReporter(out _);
+
+        reporter.AddIssue("First cycle.");
+        var first = reporter.Take();
+
+        await Task.Delay(30);
+        reporter.AddIssue("Second cycle.");
+        var second = reporter.Take();
+
+        Assert.True(second.StartedAtUtc > first.StartedAtUtc);
+    }
+
+    [Fact]
+    public void BeginRun_WithCaseCollidingAndEmptyKeys_KeepsTheValidAttributes()
+    {
+        var reporter = CreateReporter(out _);
+
+        var attributes = new Dictionary<string, string?>
+        {
+            ["Env"] = "a",
+            ["env"] = "b",
+            [""] = "ignored",
+            ["runId"] = "run-1"
+        };
+
+        using (reporter.BeginRun(attributes))
+        {
+            var report = reporter.Take();
+            Assert.Equal(2, report.Attributes.Count);
+            Assert.Equal("run-1", report.Attributes["runId"]);
+            Assert.True(report.Attributes.ContainsKey("env"));
+        }
+    }
+
+    [Fact]
+    public async Task RazorFormatter_StripsLineBreaksFromCustomSubject()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRunReporting(options =>
+        {
+            options.Enabled = false;
+            options.SubjectBuilder = _ => "line1\r\nline2";
+        });
+
+        await using var provider = services.BuildServiceProvider();
+        var formatter = provider.GetRequiredService<IRunReportFormatter>();
+
+        var report = new RunReport(new Dictionary<string, string?>(), RunOutcome.Succeeded, DateTimeOffset.UtcNow, [], []);
+        var email = await formatter.FormatAsync(report, CancellationToken.None);
+
+        Assert.Equal("line1  line2", email.Subject);
+    }
+
+    [Fact]
     public void Take_DerivesOutcomeFromIssues()
     {
         var reporter = CreateReporter(out _);
@@ -135,6 +193,92 @@ public sealed class RunReporterTests
         Assert.Contains("not-an-address", exception.Message);
         Assert.Contains("recipient", exception.Message);
     }
+
+    [Fact]
+    public async Task RazorFormatter_UsesCustomSubjectBuilder()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRunReporting(options =>
+        {
+            options.Enabled = false;
+            options.SubjectBuilder = report =>
+                $"MyService {report.Attributes["environment"]}: {report.Outcome} - {report.ErrorCount} errors, {report.WarningCount} warnings";
+        });
+
+        await using var provider = services.BuildServiceProvider();
+        var formatter = provider.GetRequiredService<IRunReportFormatter>();
+
+        var report = new RunReport(
+            new Dictionary<string, string?> { ["environment"] = "prod" },
+            RunOutcome.CompletedWithWarnings,
+            DateTimeOffset.UtcNow,
+            [RunIssue.Create("Step1", IssueSeverity.Warning, "Row skipped.")],
+            []);
+
+        var email = await formatter.FormatAsync(report, CancellationToken.None);
+
+        Assert.Equal("MyService prod: CompletedWithWarnings - 0 errors, 1 warnings", email.Subject);
+    }
+
+    [Fact]
+    public async Task RazorFormatter_WhenCustomSubjectBuilderThrows_FallsBackToDefaultSubject()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRunReporting(options =>
+        {
+            options.ApplicationName = "TestApp";
+            options.Enabled = false;
+            options.SubjectBuilder = _ => throw new InvalidOperationException("Broken builder.");
+        });
+
+        await using var provider = services.BuildServiceProvider();
+        var formatter = provider.GetRequiredService<IRunReportFormatter>();
+
+        var report = new RunReport(
+            new Dictionary<string, string?>(),
+            RunOutcome.Succeeded,
+            DateTimeOffset.UtcNow,
+            [],
+            []);
+
+        var email = await formatter.FormatAsync(report, CancellationToken.None);
+
+        Assert.Contains("TestApp run succeeded", email.Subject);
+    }
+
+    [Fact]
+    public void GetValidationErrors_ValidatesEachRecipient()
+    {
+        var options = new RunReportingOptions
+        {
+            To = ["good@test.local", "bad-address", "another@test.local"]
+        };
+
+        var error = Assert.Single(options.GetValidationErrors());
+        Assert.Contains("bad-address", error);
+    }
+
+    [Fact]
+    public void Recipients_BlankedOutByOverrideLayer_AreIgnored()
+    {
+        // Layered configuration merges arrays index-by-index; an override layer blanks an entry with "".
+        var configuration = new ConfigurationBuilder()
+            .AddJsonStream(Json("""{"EmailReport":{"Enabled":true,"To":["a@test.local","b@test.local"]}}"""))
+            .AddJsonStream(Json("""{"EmailReport":{"To":[""]}}"""))
+            .Build();
+        var services = new ServiceCollection();
+
+        services.AddRunReporting(configuration);
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<RunReportingOptions>();
+        Assert.Equal(["", "b@test.local"], options.To);
+        Assert.Empty(options.GetValidationErrors());
+    }
+
+    private static MemoryStream Json(string json) => new(System.Text.Encoding.UTF8.GetBytes(json));
 
     [Fact]
     public async Task AddRunReporting_WithEmailDisabled_RequiresNoEmailConfiguration()
@@ -264,23 +408,27 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public async Task AddTable_PublishesDictionaryAndObjectRows()
+    public async Task AddTable_PublishesAnonymousAndTypedRows()
     {
         var reporter = CreateReporter(out var sender);
 
+        // Display-cased fields still bind: "CCY" matches the ccy/Ccy property either way.
         reporter.AddTable(
             "Fetched Rates",
-            ["ccy", "rate"],
+            ["CCY", "RATE"],
             [
-                new Dictionary<string, object?> { ["ccy"] = "GBP", ["rate"] = 1.25m },
+                new { ccy = "GBP", rate = 1.25m },
                 new RateRow("EUR", 1.1m)
-            ]);
+            ],
+            [ColumnAlignment.Left, ColumnAlignment.Right]);
         await reporter.PublishAsync();
 
         var table = Assert.Single(Assert.Single(sender.Sent).Tables);
         Assert.Equal("Fetched Rates", table.Title);
+        Assert.Equal(["CCY", "RATE"], table.Fields);
         Assert.Equal(["GBP", "1.25"], table.Rows[0]);
         Assert.Equal(["EUR", "1.1"], table.Rows[1]);
+        Assert.Equal([ColumnAlignment.Left, ColumnAlignment.Right], table.Alignments);
     }
 
     [Fact]

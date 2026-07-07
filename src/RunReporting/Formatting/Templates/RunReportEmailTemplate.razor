@@ -1,5 +1,6 @@
 @* Default email layout: run outcome, errors, warnings, and result tables. *@
 @using System.Globalization
+@using System.Text
 @using Microsoft.AspNetCore.Components
 @namespace RunReporting.Templates
 
@@ -10,6 +11,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 </head>
 <body style="@BodyStyle" bgcolor="#f5f7fb">
+    @* Hidden preheader: inbox preview shows the outcome instead of layout markup. *@
+    <div style="@PreheaderStyle">@StatusHeading — @Report.ErrorCount errors, @Report.WarningCount warnings</div>
     <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f5f7fb" style="@OuterTableStyle">
         <tbody>
             <tr>
@@ -21,11 +24,11 @@
                                     <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="@PanelTableStyle">
                                         <tbody>
                                             <tr>
-                                                <td height="4" bgcolor="#2557a7" style="@HeaderAccentStyle">&nbsp;</td>
+                                                <td height="4" bgcolor="@AccentColor" style="@HeaderAccentStyle">&nbsp;</td>
                                             </tr>
                                             <tr>
                                                 <td style="@HeaderContentStyle">
-                                                    <div style="@EyebrowStyle">@Options.ApplicationName.ToUpperInvariant() RUN REPORT</div>
+                                                    <div style="@EyebrowStyle">RUN REPORT</div>
                                                     <div style="@TitleStyle">@StatusHeading</div>
                                                     <table cellspacing="0" cellpadding="0" border="0" style="@StatusTableStyle">
                                                         <tbody>
@@ -47,20 +50,52 @@
 
                             <tr>
                                 <td>
-                                    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="@SummaryTableStyle">
+                                    <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="@PanelTableStyle">
                                         <tbody>
-                                            <tr>
-                                                @foreach (var pair in Report.Attributes)
-                                                {
-                                                    <td style="@SummaryCellStyle"><strong>@pair.Key</strong><br />@(pair.Value ?? "-")</td>
-                                                }
-                                                <td style="@SummaryCellStyle"><strong>Generated</strong><br />@FormatDate(Report.GeneratedAtUtc)</td>
-                                                <td style="@SummaryCellStyle"><strong>Issues</strong><br />@Report.ErrorCount errors, @Report.WarningCount warnings</td>
-                                            </tr>
+                                            @for (var index = 0; index < SummaryItems.Count; index += 2)
+                                            {
+                                                <tr>
+                                                    <td width="50%" style="@SummaryCellStyle">
+                                                        <div style="@SummaryLabelStyle">@SummaryItems[index].Label</div>
+                                                        <div style="@SummaryValueStyle">@(SummaryItems[index].Value ?? "-")</div>
+                                                    </td>
+                                                    @if (index + 1 < SummaryItems.Count)
+                                                    {
+                                                        <td width="50%" style="@SummaryCellRightStyle">
+                                                            <div style="@SummaryLabelStyle">@SummaryItems[index + 1].Label</div>
+                                                            <div style="@SummaryValueStyle">@(SummaryItems[index + 1].Value ?? "-")</div>
+                                                        </td>
+                                                    }
+                                                    else
+                                                    {
+                                                        <td width="50%" style="@SummaryCellRightStyle">&nbsp;</td>
+                                                    }
+                                                </tr>
+                                            }
                                         </tbody>
                                     </table>
                                 </td>
                             </tr>
+
+                            @if (Report.Issues.Count == 0)
+                            {
+                                <tr><td height="18" style="@SpacerStyle">&nbsp;</td></tr>
+                                <tr>
+                                    <td>
+                                        <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="@PanelTableStyle">
+                                            <tbody>
+                                                <tr>
+                                                    <td width="4" bgcolor="#12b76a" style="@SectionAccentStyle">&nbsp;</td>
+                                                    <td style="@SectionContentStyle">
+                                                        <div style="@SectionHeadingStyle">All clear</div>
+                                                        <div style="@SectionCaptionStyle">No issues were reported during this run.</div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+                            }
 
                             @if (Errors.Count > 0)
                             {
@@ -72,7 +107,7 @@
                                                 <tr>
                                                     <td width="4" bgcolor="#d92d20" style="@SectionAccentStyle">&nbsp;</td>
                                                     <td style="@SectionContentStyle">
-                                                        <div style="@SectionHeadingStyle">Errors</div>
+                                                        <div style="@SectionHeadingStyle">Errors (@Errors.Count)</div>
                                                         <div style="@SectionCaptionStyle">These items need attention before the run can be treated as clean.</div>
                                                         <IssuesTable Issues="Errors" />
                                                     </td>
@@ -93,7 +128,7 @@
                                                 <tr>
                                                     <td width="4" bgcolor="#f79009" style="@SectionAccentStyle">&nbsp;</td>
                                                     <td style="@SectionContentStyle">
-                                                        <div style="@SectionHeadingStyle">Warnings</div>
+                                                        <div style="@SectionHeadingStyle">Warnings (@Warnings.Count)</div>
                                                         <div style="@SectionCaptionStyle">The run completed, but these items should be reviewed.</div>
                                                         <IssuesTable Issues="Warnings" />
                                                     </td>
@@ -124,6 +159,12 @@
                                     </td>
                                 </tr>
                             }
+
+                            <tr>
+                                <td align="center" style="@FooterStyle">
+                                    Generated by @Options.ApplicationName run reporting &middot; @FormatDate(Report.GeneratedAtUtc)
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </td>
@@ -141,11 +182,13 @@
     public RunReportingOptions Options { get; set; } = null!;
 
     private const string BodyStyle = "margin:0; padding:0; background-color:#f5f7fb; color:#101828; font-family:Segoe UI, Arial, sans-serif;";
+    private const string PreheaderStyle = "display:none; font-size:1px; line-height:1px; color:#f5f7fb; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;";
+    private const string FooterStyle = "padding:16px 8px 4px 8px; font-size:12px; line-height:17px; color:#98a2b3; mso-line-height-rule:exactly;";
     private const string OuterTableStyle = "width:100%; background-color:#f5f7fb; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string OuterCellStyle = "padding:28px 14px;";
     private const string ContainerTableStyle = "width:1180px; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string PanelTableStyle = "width:100%; background-color:#ffffff; border:1px solid #d7dde8; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
-    private const string HeaderAccentStyle = "height:4px; font-size:1px; line-height:4px; mso-line-height-rule:exactly; background-color:#2557a7;";
+    private const string HeaderAccentStyle = "height:4px; font-size:1px; line-height:4px; mso-line-height-rule:exactly;";
     private const string HeaderContentStyle = "padding:22px 24px 24px 24px; background-color:#ffffff;";
     private const string EyebrowStyle = "font-size:13px; line-height:18px; color:#52627a; font-weight:700; mso-line-height-rule:exactly;";
     private const string TitleStyle = "padding-top:6px; font-size:25px; line-height:34px; color:#111827; font-weight:700; mso-line-height-rule:exactly;";
@@ -153,8 +196,10 @@
     private const string HeaderMetaTextStyle = "font-size:13px; line-height:20px; color:#667085; mso-line-height-rule:exactly;";
     private const string TinySpacerStyle = "font-size:1px; line-height:1px;";
     private const string SpacerStyle = "font-size:1px; line-height:1px; mso-line-height-rule:exactly;";
-    private const string SummaryTableStyle = "width:100%; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
-    private const string SummaryCellStyle = "border:1px solid #d7dde8; background-color:#ffffff; padding:13px 15px; font-size:13px; line-height:20px; color:#344054; mso-line-height-rule:exactly;";
+    private const string SummaryCellStyle = "padding:14px 18px; vertical-align:top;";
+    private const string SummaryCellRightStyle = SummaryCellStyle + " border-left:1px solid #e4e7ec;";
+    private const string SummaryLabelStyle = "font-size:12px; line-height:17px; color:#344054; font-weight:700; mso-line-height-rule:exactly;";
+    private const string SummaryValueStyle = "padding-top:2px; font-size:14px; line-height:20px; color:#101828; mso-line-height-rule:exactly;";
     private const string SectionAccentStyle = "width:4px; font-size:1px; line-height:1px;";
     private const string SectionContentStyle = "padding:18px; background-color:#ffffff;";
     private const string SectionHeadingStyle = "font-size:18px; line-height:25px; color:#1d2939; font-weight:700; mso-line-height-rule:exactly;";
@@ -162,6 +207,58 @@
 
     private string AttributesLine =>
         string.Join(" · ", Report.Attributes.Select(attribute => $"{attribute.Key}: {attribute.Value}"));
+
+    private static readonly TimeZoneInfo Eastern = ResolveEastern();
+
+    private IReadOnlyList<(string Label, string? Value)>? _summaryItems;
+
+    private IReadOnlyList<(string Label, string? Value)> SummaryItems => _summaryItems ??= BuildSummaryItems();
+
+    private IReadOnlyList<(string Label, string? Value)> BuildSummaryItems()
+    {
+        var items = Report.Attributes
+            .Select(attribute => (ToLabel(attribute.Key), attribute.Value))
+            .ToList();
+        items.Add(($"STARTED ({TimeLabel})", FormatStarted()));
+        return items;
+    }
+
+    private static string TimeLabel => ReferenceEquals(Eastern, TimeZoneInfo.Utc) ? "UTC" : "ET";
+
+    private string FormatStarted()
+    {
+        var started = TimeZoneInfo.ConvertTime(Report.StartedAtUtc, Eastern);
+        return $"{started.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture)} {TimeLabel}";
+    }
+
+    private static TimeZoneInfo ResolveEastern()
+    {
+        if (TimeZoneInfo.TryFindSystemTimeZoneById("America/New_York", out var iana))
+        {
+            return iana;
+        }
+
+        return TimeZoneInfo.TryFindSystemTimeZoneById("Eastern Standard Time", out var windows)
+            ? windows
+            : TimeZoneInfo.Utc;
+    }
+
+    // "runId" -> "RUN ID", "sourceSystem" -> "SOURCE SYSTEM"
+    private static string ToLabel(string key)
+    {
+        var builder = new StringBuilder(key.Length + 4);
+        for (var index = 0; index < key.Length; index++)
+        {
+            if (index > 0 && char.IsUpper(key[index]) && !char.IsUpper(key[index - 1]))
+            {
+                builder.Append(' ');
+            }
+
+            builder.Append(char.ToUpperInvariant(key[index]));
+        }
+
+        return builder.ToString();
+    }
 
     private IReadOnlyList<RunIssue> Warnings =>
         Report.Issues.Where(issue => issue.Severity == IssueSeverity.Warning).ToList();
@@ -198,6 +295,13 @@
         RunOutcome.Failed => "#fee4e2",
         RunOutcome.CompletedWithWarnings => "#fef0c7",
         _ => "#d1fadf"
+    };
+
+    private string AccentColor => Report.Outcome switch
+    {
+        RunOutcome.Failed => "#d92d20",
+        RunOutcome.CompletedWithWarnings => "#f79009",
+        _ => "#12b76a"
     };
 
     private static string FormatDate(DateTimeOffset value) => value.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture);

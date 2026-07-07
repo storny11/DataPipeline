@@ -23,7 +23,7 @@ public sealed class RunReporter : IRunReporter
     {
         _logger = logger ?? NullLogger<RunReporter>.Instance;
         _options = options ?? new RunReportingOptions();
-        _defaultRun = new RunScope(this, RunIssue.EmptyData, previousRun: null);
+        _defaultRun = new RunScope(this, new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase), previousRun: null);
 
         try
         {
@@ -38,33 +38,46 @@ public sealed class RunReporter : IRunReporter
 
     public IDisposable BeginRun(IReadOnlyDictionary<string, string?>? attributes = null)
     {
-        RunScope scope;
-        try
-        {
-            scope = new RunScope(this, attributes ?? RunIssue.EmptyData, _ambientRun.Value);
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Run reporting failed to read the run attributes; the run starts without them.");
-            scope = new RunScope(this, RunIssue.EmptyData, _ambientRun.Value);
-        }
-
-        _ambientRun.Value = scope;
-        return scope;
+        return BeginRun(CopyAttributes(attributes));
     }
 
     public IDisposable BeginRun(params (string Name, string? Value)[] attributes)
     {
-        var dictionary = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (name, value) in attributes ?? [])
+        return BeginRun(CopyAttributes(
+            (attributes ?? []).Select(attribute => new KeyValuePair<string, string?>(attribute.Name, attribute.Value))));
+    }
+
+    private IDisposable BeginRun(Dictionary<string, string?> attributes)
+    {
+        var scope = new RunScope(this, attributes, _ambientRun.Value);
+        _ambientRun.Value = scope;
+        return scope;
+    }
+
+    // Copies entry by entry so one bad attribute (empty name, case-colliding key, a source that
+    // throws mid-enumeration) costs only itself, never the whole set. Last value wins, like config.
+    private Dictionary<string, string?> CopyAttributes(IEnumerable<KeyValuePair<string, string?>>? attributes)
+    {
+        var copy = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        try
         {
-            if (!string.IsNullOrEmpty(name))
+            foreach (var attribute in attributes ?? [])
             {
-                dictionary[name] = value;
+                if (string.IsNullOrEmpty(attribute.Key))
+                {
+                    _logger.LogError("Run reporting ignored a run attribute without a name.");
+                    continue;
+                }
+
+                copy[attribute.Key] = attribute.Value;
             }
         }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Run reporting failed to read all run attributes; the run starts with the ones read so far.");
+        }
 
-        return BeginRun(dictionary);
+        return copy;
     }
 
     public void AddAttribute(string name, string? value)
@@ -102,11 +115,11 @@ public sealed class RunReporter : IRunReporter
         }
     }
 
-    public void AddTable(string title, IReadOnlyList<string> fields, IEnumerable<object?> rows)
+    public void AddTable(string title, IReadOnlyList<string> fields, IEnumerable<object?> rows, IReadOnlyList<ColumnAlignment>? alignments = null)
     {
         try
         {
-            CurrentRun.Add(ResultTable.From(title, fields, rows));
+            CurrentRun.Add(ResultTable.From(title, fields, rows, alignments));
         }
         catch (Exception exception)
         {
@@ -184,13 +197,14 @@ public sealed class RunReporter : IRunReporter
 
     private sealed class RunScope(
         RunReporter reporter,
-        IReadOnlyDictionary<string, string?> attributes,
+        Dictionary<string, string?> attributes,
         RunScope? previousRun) : IDisposable
     {
         private readonly object _gate = new();
-        private readonly Dictionary<string, string?> _attributes = new(attributes, StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string?> _attributes = attributes;
         private readonly List<RunIssue> _issues = [];
         private readonly List<ResultTable> _tables = [];
+        private DateTimeOffset _startedAtUtc = DateTimeOffset.UtcNow;
         private bool _disposed;
 
         public void SetAttribute(string name, string? value)
@@ -222,6 +236,7 @@ public sealed class RunReporter : IRunReporter
             Dictionary<string, string?> attributeSnapshot;
             List<RunIssue> issues;
             List<ResultTable> tables;
+            DateTimeOffset startedAtUtc;
             lock (_gate)
             {
                 // Issues and tables drain; attributes describe the run and survive the Take.
@@ -230,6 +245,11 @@ public sealed class RunReporter : IRunReporter
                 tables = [.. _tables];
                 _issues.Clear();
                 _tables.Clear();
+
+                // The next collection window starts now, so a reused scope (the default run
+                // publishing every cycle) reports the current cycle's start, not a stale one.
+                startedAtUtc = _startedAtUtc;
+                _startedAtUtc = DateTimeOffset.UtcNow;
             }
 
             return new RunReport(
@@ -237,7 +257,10 @@ public sealed class RunReporter : IRunReporter
                 RunReport.DeriveOutcome(issues),
                 DateTimeOffset.UtcNow,
                 issues,
-                tables);
+                tables)
+            {
+                StartedAtUtc = startedAtUtc
+            };
         }
 
         public void Dispose()

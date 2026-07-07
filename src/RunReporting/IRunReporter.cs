@@ -18,8 +18,9 @@ public interface IRunReporter
     /// <summary>Reports an issue about a subject: a scalar id, a list of ids, a dictionary, or an object like new { ccy, id }.</summary>
     void AddIssue(object? subject, string message, string? stepName = null, IssueSeverity severity = IssueSeverity.Warning);
 
-    /// <summary>Adds a result set to the published report; rows can be dictionaries (Dapper dynamic) or plain objects.</summary>
-    void AddTable(string title, IReadOnlyList<string> fields, IEnumerable<object?> rows);
+    /// <summary>Adds a result set to the published report; rows are plain or anonymous objects,
+    /// e.g. new { Name = ..., Email = ... }. Columns align left unless an alignment is given per field.</summary>
+    void AddTable(string title, IReadOnlyList<string> fields, IEnumerable<object?> rows, IReadOnlyList<ColumnAlignment>? alignments = null);
 
     /// <summary>Removes and returns everything collected for the current run, without sending anything. The outcome is derived from the issues.</summary>
     RunReport Take();

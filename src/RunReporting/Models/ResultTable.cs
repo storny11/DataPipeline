@@ -1,67 +1,82 @@
-// A published result set: field names plus formatted rows, built from dictionaries or objects.
+// A published result set: field names plus formatted rows, built from plain or anonymous objects.
+// Fields are the column headers shown verbatim; row values are matched to them ignoring
+// case and spacing, so "INTERNAL ID" finds an InternalId property.
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Text;
 
 namespace RunReporting;
 
 public sealed record ResultTable(
     string Title,
     IReadOnlyList<string> Fields,
+    IReadOnlyList<ColumnAlignment> Alignments,
     IReadOnlyList<IReadOnlyList<string?>> Rows)
 {
     private static readonly ConcurrentDictionary<Type, Dictionary<string, PropertyInfo>> PropertyCache = new();
 
-    /// <summary>Builds a table from rows the way Dapper returns them: dictionary rows (dynamic) or plain objects, one cell per field.</summary>
-    public static ResultTable From(string? title, IReadOnlyList<string>? fields, IEnumerable<object?>? rows)
+    /// <summary>Builds a table from rows: plain or anonymous objects, one cell per field.</summary>
+    public static ResultTable From(
+        string? title,
+        IReadOnlyList<string>? fields,
+        IEnumerable<object?>? rows,
+        IReadOnlyList<ColumnAlignment>? alignments = null)
     {
         var safeFields = (fields ?? []).Select(field => field ?? string.Empty).ToList();
+        var safeAlignments = Enumerable.Range(0, safeFields.Count)
+            .Select(index => alignments != null && index < alignments.Count ? alignments[index] : ColumnAlignment.Left)
+            .ToList();
+        var normalizedFields = safeFields.Select(NormalizeKey).ToList();
+
         return new ResultTable(
             title ?? string.Empty,
             safeFields,
-            (rows ?? []).Select(row => ToRow(row, safeFields)).ToList());
+            safeAlignments,
+            (rows ?? []).Select(row => ToRow(row, normalizedFields)).ToList());
     }
 
-    private static IReadOnlyList<string?> ToRow(object? row, IReadOnlyList<string> fields)
+    private static IReadOnlyList<string?> ToRow(object? row, IReadOnlyList<string> normalizedFields)
     {
-        switch (row)
+        if (row == null)
         {
-            case null:
-                return new string?[fields.Count];
-            case IDictionary<string, object?> map:
-                return fields
-                    .Select(field => map.TryGetValue(field, out var value) ? ValueFormatter.Format(value) : null)
-                    .ToList();
-            default:
-                return FromProperties(row, fields);
+            return new string?[normalizedFields.Count];
         }
-    }
 
-    private static IReadOnlyList<string?> FromProperties(object row, IReadOnlyList<string> fields)
-    {
-        var properties = PropertyCache.GetOrAdd(
-            row.GetType(),
-            type => type
-                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-                .Where(property => property.CanRead && property.GetIndexParameters().Length == 0)
-                .ToDictionary(property => property.Name, property => property, StringComparer.OrdinalIgnoreCase));
+        var properties = PropertyCache.GetOrAdd(row.GetType(), BuildPropertyMap);
 
-        return fields
+        return normalizedFields
             .Select(field => properties.TryGetValue(field, out var property)
-                ? ReadProperty(property, row)
+                ? ValueFormatter.FormatProperty(property, row)
                 : null)
             .ToList();
     }
 
-    private static string? ReadProperty(PropertyInfo property, object row)
+    private static Dictionary<string, PropertyInfo> BuildPropertyMap(Type type)
     {
-        try
+        var map = new Dictionary<string, PropertyInfo>();
+        foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
         {
-            return ValueFormatter.Format(property.GetValue(row));
+            if (property.CanRead && property.GetIndexParameters().Length == 0)
+            {
+                map.TryAdd(NormalizeKey(property.Name), property);
+            }
         }
-        catch
+
+        return map;
+    }
+
+    // "INTERNAL ID" -> "internalid", "InternalId" -> "internalid"
+    private static string NormalizeKey(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value)
         {
-            // A throwing getter costs its cell, never the caller.
-            return null;
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(char.ToLowerInvariant(character));
+            }
         }
+
+        return builder.ToString();
     }
 }

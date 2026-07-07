@@ -61,8 +61,16 @@ public sealed class Step4Persister(
     {
         reporter.AddTable(
             "Persisted Records",
-            ["internalId", "externalId1", "externalId2", "amount1", "amount2", "amount3"],
-            records);
+            ["INTERNAL ID", "EXTERNAL ID 1", "EXTERNAL ID 2", "AMOUNT 1", "AMOUNT 2", "AMOUNT 3"],
+            records,
+            [
+                ColumnAlignment.Left,
+                ColumnAlignment.Left,
+                ColumnAlignment.Left,
+                ColumnAlignment.Right,
+                ColumnAlignment.Right,
+                ColumnAlignment.Right
+            ]);
     }
 
     private static StepCounter[] Counters(

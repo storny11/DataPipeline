@@ -8,6 +8,15 @@ public sealed record RunReport(
     IReadOnlyList<RunIssue> Issues,
     IReadOnlyList<ResultTable> Tables)
 {
+    /// <summary>When the collection window for this report began; defaults to GeneratedAtUtc when not set.</summary>
+    public DateTimeOffset StartedAtUtc
+    {
+        get => _startedAtUtc ?? GeneratedAtUtc;
+        init => _startedAtUtc = value;
+    }
+
+    private readonly DateTimeOffset? _startedAtUtc;
+
     public int ErrorCount => Issues.Count(issue => issue.Severity == IssueSeverity.Error);
 
     public int WarningCount => Issues.Count(issue => issue.Severity == IssueSeverity.Warning);
