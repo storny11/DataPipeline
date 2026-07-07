@@ -1,5 +1,6 @@
 // Registers run reporting as singletons. Extra publishers are plain
 // AddSingleton<IRunReportPublisher, ...> registrations; all of them receive each report.
+// Configuration problems fail fast here, at composition time — never during a run.
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,6 +47,14 @@ public static class ServiceCollectionExtensions
 
         var options = new RunReportingOptions();
         configure?.Invoke(options);
+
+        var errors = options.GetValidationErrors();
+        if (errors.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Run reporting email configuration is invalid: {string.Join("; ", errors)}. " +
+                "Fix the configuration or set Enabled=false to run without email.");
+        }
 
         // The Razor formatter and reporter need logging infrastructure even in hosts that never call AddLogging.
         services.AddLogging();

@@ -125,6 +125,29 @@ public sealed class RunReporterTests
     }
 
     [Fact]
+    public void AddRunReporting_EnabledWithInvalidEmailConfiguration_FailsFastAtComposition()
+    {
+        var services = new ServiceCollection();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            services.AddRunReporting(options => options.From = "not-an-address"));
+
+        Assert.Contains("not-an-address", exception.Message);
+        Assert.Contains("recipient", exception.Message);
+    }
+
+    [Fact]
+    public async Task AddRunReporting_WithEmailDisabled_RequiresNoEmailConfiguration()
+    {
+        var services = new ServiceCollection();
+        services.AddRunReporting(options => options.Enabled = false);
+
+        await using var provider = services.BuildServiceProvider();
+
+        Assert.NotNull(provider.GetRequiredService<IRunReporter>());
+    }
+
+    [Fact]
     public void AddIssue_WithThrowingSubjectGetter_IsRecordedWithoutThrowing()
     {
         var reporter = CreateReporter(out _);
@@ -265,7 +288,11 @@ public sealed class RunReporterTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddRunReporting(options => options.ApplicationName = "TestApp");
+        services.AddRunReporting(options =>
+        {
+            options.ApplicationName = "TestApp";
+            options.Enabled = false;
+        });
 
         await using var provider = services.BuildServiceProvider();
         var formatter = provider.GetRequiredService<IRunReportFormatter>();

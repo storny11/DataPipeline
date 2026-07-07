@@ -1,4 +1,6 @@
 // Configures SMTP delivery and report identity; defaults suit a local smtp4dev container.
+using System.Net.Mail;
+
 namespace RunReporting;
 
 public sealed class RunReportingOptions
@@ -37,4 +39,48 @@ public sealed class RunReportingOptions
 
     /// <summary>When false, publishing a run that collected no issues and no tables sends nothing.</summary>
     public bool SendWhenNoIssues { get; set; } = true;
+
+    /// <summary>Problems that would prevent email publishing; empty when Enabled is false or the configuration is valid.</summary>
+    public IReadOnlyList<string> GetValidationErrors()
+    {
+        return Enabled ? FindEmailConfigurationProblems().ToList() : [];
+    }
+
+    private IEnumerable<string> FindEmailConfigurationProblems()
+    {
+        if (string.IsNullOrWhiteSpace(Host))
+        {
+            yield return "Host is required";
+        }
+
+        if (Port is <= 0 or > 65535)
+        {
+            yield return "Port must be between 1 and 65535";
+        }
+
+        if (string.IsNullOrWhiteSpace(From))
+        {
+            yield return "From is required";
+        }
+        else if (!MailAddress.TryCreate(From, out _))
+        {
+            yield return $"From '{From}' is not a valid email address";
+        }
+
+        var recipients = (To ?? []).Concat(Cc ?? []).Concat(Bcc ?? []).ToList();
+        if (recipients.Count == 0)
+        {
+            yield return "at least one To/Cc/Bcc recipient is required";
+        }
+
+        foreach (var recipient in recipients.Where(recipient => !MailAddress.TryCreate(recipient, out _)))
+        {
+            yield return $"recipient '{recipient}' is not a valid email address";
+        }
+
+        if (SendTimeout <= TimeSpan.Zero)
+        {
+            yield return "SendTimeout must be positive";
+        }
+    }
 }
