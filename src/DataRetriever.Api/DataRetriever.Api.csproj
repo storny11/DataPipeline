@@ -4,7 +4,6 @@
       <ProjectReference Include="..\DataRetriever.Application\DataRetriever.Application.csproj" />
       <ProjectReference Include="..\DataRetriever.Infrastructure\DataRetriever.Infrastructure.csproj" />
       <ProjectReference Include="..\DataRetriever.Simulators\DataRetriever.Simulators.csproj" />
-      <ProjectReference Include="..\DataRetriever.Reporting\DataRetriever.Reporting.csproj" />
       <ProjectReference Include="..\DataRetriever.Monitoring\DataRetriever.Monitoring.csproj" />
     </ItemGroup>
 

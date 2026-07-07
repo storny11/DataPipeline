@@ -1,11 +1,10 @@
-// Coordinates the concrete step sequence and returns the final run report.
+// Coordinates the concrete step sequence and publishes the run report at the end.
 using DataRetriever.Application.Step1Load.Models;
 using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Application.Step4Persist.Models;
 using DataRetriever.Execution;
 using DataRetriever.Monitoring;
-using DataRetriever.Reporting;
 using Microsoft.Extensions.Logging;
 using RunReporting;
 
@@ -20,10 +19,9 @@ public sealed class DataRetrievalOrchestrator(
     StepRunner stepRunner,
     RunInstrumentationWriter instrumentationWriter,
     IRunReporter runReporter,
-    RunReportBuilder reportBuilder,
     ILogger<DataRetrievalOrchestrator> logger)
 {
-    public async Task<DataRetrievalReport> RunAsync(
+    public async Task<DataRetrievalRunResult> RunAsync(
         DataRetrievalRunOptions options,
         CancellationToken cancellationToken)
     {
@@ -32,27 +30,14 @@ public sealed class DataRetrievalOrchestrator(
         var instrumentation = processingTracker.ForRun(context.RunId);
         instrumentationWriter.RecordRunStatus(instrumentation, RunStatus.Running);
 
-        var results = new List<IStepExecutionResult>();
         RunStatus status;
-
         try
         {
-            status = await ExecuteStepsAsync(options, context, instrumentation, results, cancellationToken);
+            status = await ExecuteStepsAsync(options, context, instrumentation, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Unexpected data retrieval run failure for {RunId}", context.RunId);
-            var runFailure = StepExecutionResult<NoOutput>.Failed(
-                "Run",
-                [
-                    new StepIssue(
-                        "Run",
-                        StepIssueSeverity.Error,
-                        $"Unexpected run failure: {exception.Message}",
-                        DiagnosticContext.From(("runId", context.RunId.ToString())))
-                ]);
-
-            results.Add(runFailure);
             runReporter.AddIssue(
                 new { runId = context.RunId.ToString() },
                 $"Unexpected run failure: {exception.Message}",
@@ -62,7 +47,17 @@ public sealed class DataRetrievalOrchestrator(
 
             try
             {
-                instrumentationWriter.RecordStepResult(instrumentation, runFailure);
+                instrumentationWriter.RecordStepResult(
+                    instrumentation,
+                    StepExecutionResult<NoOutput>.Failed(
+                        "Run",
+                        [
+                            new StepIssue(
+                                "Run",
+                                StepIssueSeverity.Error,
+                                $"Unexpected run failure: {exception.Message}",
+                                DiagnosticContext.From(("runId", context.RunId.ToString())))
+                        ]));
             }
             catch (Exception instrumentationException)
             {
@@ -73,27 +68,18 @@ public sealed class DataRetrievalOrchestrator(
             }
         }
 
-        // Finish exactly once: publish drains and delivers everything reported at origin,
-        // and the API response is shaped from the same published report.
         instrumentationWriter.RecordRunStatus(instrumentation, status);
-        var published = await runReporter.PublishAsync(
+        await runReporter.PublishAsync(
             status == RunStatus.Failed ? RunOutcome.Failed : null,
             cancellationToken);
 
-        return reportBuilder.Build(
-            context,
-            DateTimeOffset.UtcNow,
-            status,
-            results,
-            published.Tables.Select(RunReportMapper.ToRunReportTable).ToList(),
-            published.Issues.Select(RunReportMapper.ToRunReportIssue).ToList());
+        return new DataRetrievalRunResult(context.RunId, status);
     }
 
     private async Task<RunStatus> ExecuteStepsAsync(
         DataRetrievalRunOptions options,
         RunContext context,
         IRunInstrumentation instrumentation,
-        List<IStepExecutionResult> results,
         CancellationToken cancellationToken)
     {
         var step1Result = await stepRunner.ExecuteAsync(
@@ -101,7 +87,6 @@ public sealed class DataRetrievalOrchestrator(
             new Step1Input(options),
             context,
             instrumentation,
-            results,
             cancellationToken);
 
         if (!CanContinue(step1Result))
@@ -114,7 +99,6 @@ public sealed class DataRetrievalOrchestrator(
             step1Result.Output!,
             context,
             instrumentation,
-            results,
             cancellationToken);
 
         if (!CanContinue(step2Result))
@@ -127,7 +111,6 @@ public sealed class DataRetrievalOrchestrator(
             step2Result.Output!,
             context,
             instrumentation,
-            results,
             cancellationToken);
 
         if (!CanContinue(step3Result))
@@ -140,7 +123,6 @@ public sealed class DataRetrievalOrchestrator(
             step3Result.Output!,
             context,
             instrumentation,
-            results,
             cancellationToken);
 
         return CanContinue(step4Result) ? RunStatus.Success : RunStatus.Failed;

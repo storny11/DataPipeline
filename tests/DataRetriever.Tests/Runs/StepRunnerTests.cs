@@ -19,18 +19,15 @@ public sealed class StepRunnerTests
             NullLogger<StepRunner>.Instance);
         var context = new RunContext(Guid.NewGuid(), DateTimeOffset.UtcNow);
         var instrumentation = new InMemoryProcessingTracker().ForRun(context.RunId);
-        var results = new List<IStepExecutionResult>();
 
         var result = await runner.ExecuteAsync(
             new FailingStep(),
             NoInput.Value,
             context,
             instrumentation,
-            results,
             CancellationToken.None);
 
         Assert.Equal(StepExecutionStatus.Failed, result.Status);
-        Assert.Same(result, Assert.Single(results));
 
         var bridged = Assert.Single(reporter.Take().Issues);
         Assert.Equal("FailingStep", bridged.StepName);

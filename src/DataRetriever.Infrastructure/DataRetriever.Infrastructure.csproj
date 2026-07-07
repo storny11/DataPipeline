@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DataRetriever.Application\DataRetriever.Application.csproj" />
-    <ProjectReference Include="..\DataRetriever.Reporting\DataRetriever.Reporting.csproj" />
   </ItemGroup>
 
   <ItemGroup>

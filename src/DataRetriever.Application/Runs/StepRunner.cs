@@ -16,13 +16,11 @@ public sealed class StepRunner(
         TInput input,
         RunContext context,
         IRunInstrumentation instrumentation,
-        ICollection<IStepExecutionResult> results,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("Starting {StepName} for run {RunId}", step.Name, context.RunId);
 
         var result = await step.ExecuteAsync(input, context, cancellationToken);
-        results.Add(result);
 
         // Steps report ordinary issues at origin; the fatal errors carried in step results
         // are bridged here so the published report contains everything.

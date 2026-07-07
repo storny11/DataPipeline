@@ -2,7 +2,6 @@
 using DataRetriever.Api.Composition;
 using DataRetriever.Application;
 using DataRetriever.Monitoring;
-using DataRetriever.Reporting;
 using Microsoft.FeatureManagement;
 using RunReporting;
 using System.Text.Json.Serialization;
@@ -31,7 +30,6 @@ public static class ServiceCollectionExtensions
 
         services
             .AddRunReporting(configuration, options => options.ApplicationName = "Data retrieval")
-            .AddDataRetrieverReporting()
             .AddDataRetrieverMonitoring()
             .AddDataRetrieverApplication();
 

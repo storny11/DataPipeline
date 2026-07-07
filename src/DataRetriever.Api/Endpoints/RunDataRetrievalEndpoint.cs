@@ -39,12 +39,12 @@ public static class RunDataRetrievalEndpoint
             });
         }
 
-        var report = await orchestrator.RunAsync(options, cancellationToken);
-        if (report.Status != RunStatus.Success)
+        var result = await orchestrator.RunAsync(options, cancellationToken);
+        if (result.Status != RunStatus.Success)
         {
-            return Results.Json(report, statusCode: StatusCodes.Status500InternalServerError);
+            return Results.Json(result, statusCode: StatusCodes.Status500InternalServerError);
         }
 
-        return Results.Ok(report);
+        return Results.Ok(result);
     }
 }
