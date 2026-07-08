@@ -27,7 +27,7 @@
                                                 <td height="4" bgcolor="@AccentColor" style="@HeaderAccentStyle">&nbsp;</td>
                                             </tr>
                                             <tr>
-                                                <td bgcolor="#1f3a5f" style="@HeaderContentStyle">
+                                                <td bgcolor="#182b49" style="@HeaderContentStyle">
                                                     <div style="@EyebrowStyle">RUN REPORT</div>
                                                     <div style="@TitleStyle">@StatusHeading</div>
                                                     <table cellspacing="0" cellpadding="0" border="0" style="@StatusTableStyle">
@@ -50,7 +50,7 @@
 
                                 <tr>
                                     <td>
-                                        <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="@PanelTableStyle">
+                                        <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f5f7fb" style="@SummaryTableStyle">
                                             <tbody>
                                                 @for (var index = 0; index < SummaryItems.Count; index += 4)
                                                 {
@@ -62,8 +62,16 @@
                                                             <td width="25%" valign="top" style="@cellStyle">
                                                                 @if (itemIndex < SummaryItems.Count)
                                                                 {
-                                                                    <div style="@SummaryLabelStyle">@SummaryItems[itemIndex].Label</div>
-                                                                    <div style="@SummaryValueStyleFor(SummaryItems[itemIndex].IsCopyFriendly)">@(SummaryItems[itemIndex].Value ?? "-")</div>
+                                                                    <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#fbfcfe" style="@SummaryCardStyle">
+                                                                        <tbody>
+                                                                            <tr>
+                                                                                <td style="@SummaryCardCellStyle">
+                                                                                    <div style="@SummaryLabelStyle">@SummaryItems[itemIndex].Label</div>
+                                                                                    <div style="@SummaryValueStyleFor(SummaryItems[itemIndex].IsCopyFriendly)">@(SummaryItems[itemIndex].Value ?? "-")</div>
+                                                                                </td>
+                                                                            </tr>
+                                                                        </tbody>
+                                                                    </table>
                                                                 }
                                                                 else
                                                                 {
@@ -109,7 +117,7 @@
                                                     <td style="@ErrorsSectionContentStyle">
                                                         <div style="@ErrorsHeadingStyle">Errors (@Errors.Count)</div>
                                                         <div style="@SectionCaptionStyle">These items need attention before the run can be treated as clean.</div>
-                                                        <IssuesTable Issues="Errors" HeaderBackground="#fdf3f2" HeaderForeground="#b42318" />
+                                                        <IssuesTable Issues="Errors" HeaderBackground="#f8fafc" HeaderForeground="#7a271a" />
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -129,7 +137,7 @@
                                                     <td style="@WarningsSectionContentStyle">
                                                         <div style="@WarningsHeadingStyle">Warnings (@Warnings.Count)</div>
                                                         <div style="@SectionCaptionStyle">The run completed, but these items should be reviewed.</div>
-                                                        <IssuesTable Issues="Warnings" HeaderBackground="#fefaf0" HeaderForeground="#92620a" />
+                                                        <IssuesTable Issues="Warnings" HeaderBackground="#f8fafc" HeaderForeground="#7a4d00" />
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -186,27 +194,30 @@
     private const string OuterCellStyle = "padding:28px 14px;";
     private const string ContainerTableStyle = "width:1180px; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string PanelTableStyle = "width:100%; background-color:#ffffff; border:1px solid #d7dde8; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string SummaryTableStyle = "width:100%; background-color:#f5f7fb; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string HeaderAccentStyle = "height:4px; font-size:1px; line-height:4px; mso-line-height-rule:exactly;";
-    private const string HeaderContentStyle = "padding:15px 24px 16px 24px; background-color:#1f3a5f;";
-    private const string EyebrowStyle = "font-size:12px; line-height:16px; color:#9db7d9; font-weight:700; letter-spacing:1px; mso-line-height-rule:exactly;";
-    private const string TitleStyle = "padding-top:3px; font-size:21px; line-height:27px; color:#ffffff; font-weight:700; mso-line-height-rule:exactly;";
-    private const string StatusTableStyle = "margin-top:11px; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string HeaderContentStyle = "padding:13px 24px 14px 24px; background-color:#182b49;";
+    private const string EyebrowStyle = "font-size:11px; line-height:15px; color:#adc4e2; font-weight:700; letter-spacing:1px; mso-line-height-rule:exactly;";
+    private const string TitleStyle = "padding-top:4px; font-size:22px; line-height:28px; color:#ffffff; font-weight:700; mso-line-height-rule:exactly;";
+    private const string StatusTableStyle = "margin-top:9px; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string SpacerStyle = "font-size:1px; line-height:1px; mso-line-height-rule:exactly;";
-    private const string SummaryCellStyle = "padding:14px 18px; vertical-align:top;";
-    private const string SummaryCellDividerStyle = SummaryCellStyle + " border-left:1px solid #e4e7ec;";
-    private const string SummaryLabelStyle = "font-size:11px; line-height:16px; color:#2557a7; font-weight:700; letter-spacing:0.5px; mso-line-height-rule:exactly;";
-    private const string SummaryValueStyle = "padding-top:3px; font-size:14px; line-height:20px; color:#101828; mso-line-height-rule:exactly;";
+    private const string SummaryCellStyle = "padding:8px; vertical-align:top;";
+    private const string SummaryCellDividerStyle = SummaryCellStyle;
+    private const string SummaryCardStyle = "width:100%; background-color:#fbfcfe; border:1px solid #e6ebf2; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string SummaryCardCellStyle = "padding:10px 12px; vertical-align:top;";
+    private const string SummaryLabelStyle = "font-size:10px; line-height:14px; color:#667085; font-weight:700; letter-spacing:0.5px; mso-line-height-rule:exactly;";
+    private const string SummaryValueStyle = "padding-top:4px; font-size:14px; line-height:19px; color:#101828; mso-line-height-rule:exactly;";
     private const string SummaryCodeValueStyle = SummaryValueStyle + " font-family:Consolas, 'Courier New', monospace; font-size:13px; word-break:break-all;";
     private const string SectionAccentStyle = "width:4px; font-size:1px; line-height:1px;";
-    private const string SectionContentStyle = "padding:18px; background-color:#ffffff;";
-    private const string ErrorsSectionContentStyle = SectionContentStyle + " border-left:4px solid #d92d20;";
-    private const string WarningsSectionContentStyle = SectionContentStyle + " border-left:4px solid #f79009;";
-    private const string SectionHeadingStyle = "font-size:18px; line-height:25px; color:#1d2939; font-weight:700; mso-line-height-rule:exactly;";
-    private const string ErrorsHeadingStyle = "font-size:18px; line-height:25px; color:#d92d20; font-weight:700; mso-line-height-rule:exactly;";
-    private const string WarningsHeadingStyle = "font-size:18px; line-height:25px; color:#b54708; font-weight:700; mso-line-height-rule:exactly;";
-    private const string TableHeadingStyle = "font-size:18px; line-height:25px; color:#1f3a5f; font-weight:700; mso-line-height-rule:exactly;";
-    private const string SectionCaptionStyle = "padding-top:4px; padding-bottom:14px; font-size:13px; line-height:19px; color:#667085; mso-line-height-rule:exactly;";
-    private const string AllClearContentStyle = "padding:12px 16px; background-color:#ffffff; border-left:4px solid #12b76a;";
+    private const string SectionContentStyle = "padding:16px 18px; background-color:#ffffff;";
+    private const string ErrorsSectionContentStyle = "padding:16px 18px; background-color:#fffafa; border-left:4px solid #d92d20;";
+    private const string WarningsSectionContentStyle = "padding:16px 18px; background-color:#fffdf7; border-left:4px solid #f79009;";
+    private const string SectionHeadingStyle = "font-size:17px; line-height:24px; color:#1d2939; font-weight:700; mso-line-height-rule:exactly;";
+    private const string ErrorsHeadingStyle = "font-size:17px; line-height:24px; color:#b42318; font-weight:700; mso-line-height-rule:exactly;";
+    private const string WarningsHeadingStyle = "font-size:17px; line-height:24px; color:#92620a; font-weight:700; mso-line-height-rule:exactly;";
+    private const string TableHeadingStyle = "font-size:17px; line-height:24px; color:#1f3a5f; font-weight:700; mso-line-height-rule:exactly;";
+    private const string SectionCaptionStyle = "padding-top:3px; padding-bottom:12px; font-size:13px; line-height:18px; color:#667085; mso-line-height-rule:exactly;";
+    private const string AllClearContentStyle = "padding:12px 16px; background-color:#f8fffb; border-left:4px solid #12b76a;";
     private const string AllClearHeadingStyle = "font-size:17px; line-height:23px; color:#067647; font-weight:700; mso-line-height-rule:exactly;";
     private const string AllClearCaptionStyle = "padding-top:2px; font-size:13px; line-height:18px; color:#175d3b; mso-line-height-rule:exactly;";
 
@@ -248,7 +259,7 @@
     private string StatusHeading => Report.Outcome switch
     {
         RunOutcome.Failed => "Run failed",
-        RunOutcome.CompletedWithWarnings => "Run completed with warnings",
+        RunOutcome.CompletedWithWarnings => $"Run completed with {Report.WarningCount} warnings",
         _ => "Run completed successfully"
     };
 

@@ -53,7 +53,7 @@
     private string OutcomeText => Report.Outcome switch
     {
         RunOutcome.Failed => "Run failed",
-        RunOutcome.CompletedWithWarnings => "Run completed with warnings",
+        RunOutcome.CompletedWithWarnings => $"Run completed with {Report.WarningCount} warnings",
         _ => "Run succeeded"
     };
 

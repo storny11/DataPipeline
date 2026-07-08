@@ -303,6 +303,8 @@ public sealed class RunReporterTests
         Assert.DoesNotContain("DURATION", email.HtmlBody);
         Assert.Contains("border-left:4px solid #12b76a", email.HtmlBody);
         Assert.Contains("padding:12px 16px", email.HtmlBody);
+        Assert.Contains("border:1px solid #e6ebf2", email.HtmlBody);
+        Assert.Contains("background-color:#fbfcfe", email.HtmlBody);
     }
 
     [Fact]
@@ -324,7 +326,7 @@ public sealed class RunReporterTests
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
 
-        Assert.Contains("Run completed with warnings", email.HtmlBody);
+        Assert.Contains("Run completed with 1 warnings", email.HtmlBody);
         Assert.Contains(">Warnings</td>", email.HtmlBody);
         Assert.DoesNotContain(">Completed with warnings</td>", email.HtmlBody);
     }
@@ -356,7 +358,7 @@ public sealed class RunReporterTests
         var email = await formatter.FormatCompactAsync(report, CancellationToken.None);
 
         Assert.Contains("TestApp", email.HtmlBody);
-        Assert.Contains("Run completed with warnings", email.HtmlBody);
+        Assert.Contains("Run completed with 12 warnings", email.HtmlBody);
         Assert.Contains("runId: run-1", email.HtmlBody);
         Assert.Contains("Row 1 skipped", email.HtmlBody);
         Assert.Contains("and 2 more issues", email.HtmlBody);
@@ -608,6 +610,8 @@ public sealed class RunReporterTests
         Assert.Contains("border-left:4px solid #d92d20", email.HtmlBody);
         Assert.Contains("border-left:4px solid #f79009", email.HtmlBody);
         Assert.Contains("border:1px solid #b42318", email.HtmlBody);
+        Assert.Contains("background-color:#fffafa", email.HtmlBody);
+        Assert.Contains("background-color:#fffdf7", email.HtmlBody);
         Assert.Contains("INT-1", email.HtmlBody);
     }
 
