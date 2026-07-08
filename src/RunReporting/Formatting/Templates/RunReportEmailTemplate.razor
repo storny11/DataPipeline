@@ -34,8 +34,6 @@
                                                         <tbody>
                                                             <tr>
                                                                 <td bgcolor="@StatusBackground" style="@StatusPillStyle">@OutcomeText</td>
-                                                                <td width="12" style="@TinySpacerStyle">&nbsp;</td>
-                                                                <td style="@HeaderMetaTextStyle">@AttributesLine</td>
                                                             </tr>
                                                         </tbody>
                                                     </table>
@@ -130,7 +128,7 @@
                                                     <td style="@SectionContentStyle">
                                                         <div style="@WarningsHeadingStyle">Warnings (@Warnings.Count)</div>
                                                         <div style="@SectionCaptionStyle">The run completed, but these items should be reviewed.</div>
-                                                        <IssuesTable Issues="Warnings" HeaderBackground="#fef0c7" HeaderForeground="#93370d" />
+                                                        <IssuesTable Issues="Warnings" HeaderBackground="#fffaeb" HeaderForeground="#b54708" />
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -193,8 +191,6 @@
     private const string EyebrowStyle = "font-size:13px; line-height:18px; color:#9db7d9; font-weight:700; letter-spacing:1px; mso-line-height-rule:exactly;";
     private const string TitleStyle = "padding-top:6px; font-size:25px; line-height:34px; color:#ffffff; font-weight:700; mso-line-height-rule:exactly;";
     private const string StatusTableStyle = "margin-top:14px; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
-    private const string HeaderMetaTextStyle = "font-size:13px; line-height:20px; color:#cbd8ea; mso-line-height-rule:exactly;";
-    private const string TinySpacerStyle = "font-size:1px; line-height:1px;";
     private const string SpacerStyle = "font-size:1px; line-height:1px; mso-line-height-rule:exactly;";
     private const string SummaryCellStyle = "padding:14px 18px; vertical-align:top;";
     private const string SummaryCellRightStyle = SummaryCellStyle + " border-left:1px solid #e4e7ec;";
@@ -210,9 +206,6 @@
     private const string AllClearContentStyle = "padding:18px; background-color:#ecfdf3;";
     private const string AllClearHeadingStyle = "font-size:18px; line-height:25px; color:#067647; font-weight:700; mso-line-height-rule:exactly;";
     private const string AllClearCaptionStyle = "padding-top:4px; font-size:13px; line-height:19px; color:#175d3b; mso-line-height-rule:exactly;";
-
-    private string AttributesLine =>
-        string.Join(" · ", Report.Attributes.Select(attribute => $"{attribute.Key}: {attribute.Value}"));
 
     private static readonly TimeZoneInfo Eastern = ResolveEastern();
 

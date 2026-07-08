@@ -5,6 +5,7 @@ using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Application.Step4Persist.Models;
 using DataRetriever.Execution;
 using DataRetriever.Monitoring;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RunReporting;
 
@@ -19,7 +20,8 @@ public sealed class DataRetrievalOrchestrator(
     StepRunner stepRunner,
     RunInstrumentationWriter instrumentationWriter,
     IRunReporter runReporter,
-    ILogger<DataRetrievalOrchestrator> logger)
+    ILogger<DataRetrievalOrchestrator> logger,
+    IHostEnvironment? hostEnvironment = null)
 {
     public async Task<DataRetrievalRunResult> RunAsync(
         DataRetrievalRunOptions options,
@@ -27,6 +29,11 @@ public sealed class DataRetrievalOrchestrator(
     {
         var context = new RunContext(Guid.NewGuid(), DateTimeOffset.UtcNow);
         using var run = runReporter.BeginRun(("runId", context.RunId.ToString()));
+        if (hostEnvironment != null)
+        {
+            runReporter.AddAttribute("environment", hostEnvironment.EnvironmentName);
+        }
+
         var instrumentation = processingTracker.ForRun(context.RunId);
         instrumentationWriter.RecordRunStatus(instrumentation, RunStatus.Running);
 

@@ -518,7 +518,7 @@ public sealed class RunReporterTests
         Assert.Contains("Persisted &lt;Rows&gt;", email.HtmlBody);
         Assert.Contains("Run failed", email.HtmlBody);
         Assert.Contains("run-1", email.HtmlBody);
-        Assert.Contains("environment", email.HtmlBody);
+        Assert.Contains("ENVIRONMENT", email.HtmlBody);
         Assert.Contains("INT-1", email.HtmlBody);
     }
 
