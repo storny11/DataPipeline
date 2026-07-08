@@ -82,8 +82,8 @@ HTML email report when the run finishes. Built to be dropped into many company s
     Attribute labels in the summary panel are still auto-humanized
     (`ValueFormatter.ToHeader`: `runId` → "RUN ID").
 14. **Issue subjects are flexible:** scalar (→ `id=5`), list (→ `ids=a, b`), dictionary
-    (as-is), or object/anonymous (`new { ccy, id }` → one entry per property). Conversion
-    lives in `IssueData`; formatting is culture-invariant (`ValueFormatter`).
+    (snapshotted), or object/anonymous (`new { ccy, id }` → one entry per property).
+    Conversion lives in `IssueData`; formatting is culture-invariant (`ValueFormatter`).
 15. **Outcome** (`Succeeded` / `CompletedWithWarnings` / `Failed`) is derived from collected
     issues; callers may override at publish (`PublishAsync(RunOutcome.Failed)`).
     `PublishAsync` returns the published `RunReport` so callers can shape API responses
@@ -112,8 +112,9 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
 - Attribute copying (`CopyAttributes`) is entry-by-entry: empty names logged+skipped,
   case-colliding keys last-wins, a throwing source keeps what was read — one bad attribute
   never costs the set.
-- DI (`AddRunReporting`): options instance singleton, `AddLogging()` (so bare hosts work),
-  `TryAddSingleton` formatter + reporter, `TryAddEnumerable` email publisher (idempotent).
+- DI (`AddRunReporting`): configured options replace any pre-registered `RunReportingOptions`,
+  `AddLogging()` makes bare hosts work, `TryAddSingleton` registers formatter + reporter, and
+  `TryAddEnumerable` registers the email publisher idempotently.
 - SMTP send is bounded by `Options.SendTimeout` via a linked CTS
   (`SmtpClient.Timeout` does not apply to `SendMailAsync`).
 
