@@ -19,15 +19,11 @@ public static class IssueData
                 return data;
             case string id:
                 return Single("id", id);
-            case IDictionary<string, object?> objectData:
-                return objectData.ToDictionary(pair => pair.Key, pair => Format(pair.Value));
-            case IDictionary dictionary:
-                return FromDictionary(dictionary);
             case IEnumerable enumerable:
-                return Single("ids", string.Join(", ", enumerable.Cast<object?>().Select(Format)));
+                return Single("ids", string.Join(", ", enumerable.Cast<object?>().Select(ValueFormatter.Format)));
             default:
                 return IsScalar(subject)
-                    ? Single("id", Format(subject))
+                    ? Single("id", ValueFormatter.Format(subject))
                     : FromProperties(subject);
         }
     }
@@ -36,17 +32,6 @@ public static class IssueData
     {
         var type = subject.GetType();
         return type.IsPrimitive || type.IsEnum || subject is IFormattable;
-    }
-
-    private static IReadOnlyDictionary<string, string?> FromDictionary(IDictionary dictionary)
-    {
-        var data = new Dictionary<string, string?>();
-        foreach (DictionaryEntry entry in dictionary)
-        {
-            data[entry.Key?.ToString() ?? string.Empty] = Format(entry.Value);
-        }
-
-        return data;
     }
 
     private static IReadOnlyDictionary<string, string?> FromProperties(object subject)
@@ -70,10 +55,5 @@ public static class IssueData
     private static IReadOnlyDictionary<string, string?> Single(string key, string? value)
     {
         return new Dictionary<string, string?> { [key] = value };
-    }
-
-    private static string? Format(object? value)
-    {
-        return ValueFormatter.Format(value);
     }
 }

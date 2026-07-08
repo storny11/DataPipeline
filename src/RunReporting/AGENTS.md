@@ -54,17 +54,17 @@ HTML email report when the run finishes. Built to be dropped into many company s
 11. **Time zone is fixed to US Eastern** ("STARTED (ET)"), resolving `America/New_York`
     then `Eastern Standard Time`, degrading to UTC (with a "UTC" label) if neither exists.
     Not configurable — this was made configurable once and the owner removed it.
-12. **Result tables from plain or anonymous objects; columns derive from the rows.**
-    `AddTable(title, rows, alignments?)`: no field list — columns come from the first
-    non-null row's public properties in declaration order, headers humanized to spaced
-    uppercase (`InternalId` → "INTERNAL ID", same rule as attribute labels). To choose,
-    reorder, or rename columns, project rows into anonymous objects
-    (`records.Select(r => new { r.Name, r.Email })`). Rows of a different type than the
-    first still fill matching cells (property-name match ignoring case/spacing).
-    Earlier iterations had an explicit fields array and dictionary/dynamic-row support —
-    both were deliberately removed for minimalism; do not reintroduce without the owner.
-    Alignment is explicit per column (`ColumnAlignment`, positional, default Left) —
-    no type-based auto-alignment.
+12. **Result tables: explicit headers, rows as plain or anonymous objects.**
+    `AddTable(title, headers, rows, alignments?)`: headers are strings shown **verbatim**
+    (the owner wants to reword headers without touching row types); each header is matched
+    to a row property ignoring case and spacing ("INTERNAL ID" reads `InternalId`).
+    An unmatched header renders `-` cells. Rows may be typed objects or anonymous
+    projections (`new { Name = ..., Email = ... }`); mixed row types fill what they can.
+    Earlier iterations tried dictionary/dynamic-row support and header derivation from
+    properties — both were deliberately removed (owner prefers explicit headers); do not
+    reintroduce without the owner. Alignment is explicit per column (`ColumnAlignment`,
+    positional, default Left) — no type-based auto-alignment. Attribute labels in the
+    summary panel are still auto-humanized (`ValueFormatter.ToHeader`: `runId` → "RUN ID").
 13. **Issue subjects are flexible:** scalar (→ `id=5`), list (→ `ids=a, b`), dictionary
     (as-is), or object/anonymous (`new { ccy, id }` → one entry per property). Conversion
     lives in `IssueData`; formatting is culture-invariant (`ValueFormatter`).

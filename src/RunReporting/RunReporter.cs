@@ -115,11 +115,11 @@ public sealed class RunReporter : IRunReporter
         }
     }
 
-    public void AddTable(string title, IEnumerable<object?> rows, IReadOnlyList<ColumnAlignment>? alignments = null)
+    public void AddTable(string title, IReadOnlyList<string> headers, IEnumerable<object?> rows, IReadOnlyList<ColumnAlignment>? alignments = null)
     {
         try
         {
-            CurrentRun.Add(ResultTable.From(title, rows, alignments));
+            CurrentRun.Add(ResultTable.From(title, headers, rows, alignments));
         }
         catch (Exception exception)
         {

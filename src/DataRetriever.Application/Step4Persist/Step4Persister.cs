@@ -59,9 +59,9 @@ public sealed class Step4Persister(
 
     private void AddPersistedRecordsTable(IReadOnlyList<Step3OutputRecord> records)
     {
-        // Columns derive from Step3OutputRecord: INTERNAL ID, EXTERNAL ID 1/2, AMOUNT 1/2/3.
         reporter.AddTable(
             "Persisted Records",
+            ["INTERNAL ID", "EXTERNAL ID 1", "EXTERNAL ID 2", "AMOUNT 1", "AMOUNT 2", "AMOUNT 3"],
             records,
             [
                 ColumnAlignment.Left,

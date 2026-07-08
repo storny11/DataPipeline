@@ -17,9 +17,9 @@ else
     <table width="100%" cellspacing="0" cellpadding="0" border="0" style="@GridStyle">
         <thead>
             <tr>
-                @for (var index = 0; index < Table.Fields.Count; index++)
+                @for (var index = 0; index < Table.Headers.Count; index++)
                 {
-                    <th align="@Align(index)" bgcolor="#eef4ff" style="@HeaderCellStyle text-align:@Align(index);">@Table.Fields[index]</th>
+                    <th align="@Align(index)" bgcolor="#eef4ff" style="@HeaderCellStyle text-align:@Align(index);">@Table.Headers[index]</th>
                 }
             </tr>
         </thead>

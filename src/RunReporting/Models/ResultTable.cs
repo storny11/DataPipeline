@@ -1,7 +1,6 @@
-// A published result set built from plain or anonymous row objects. Columns come from the
-// first row's public properties in declaration order; headers are the property names
-// humanized to spaced uppercase ("InternalId" -> "INTERNAL ID"). To choose or rename
-// columns, project the rows into anonymous objects.
+// A published result set: column headers plus formatted rows built from plain or anonymous
+// objects. Headers are shown verbatim; each header is matched to a row property ignoring
+// case and spacing, so "INTERNAL ID" reads an InternalId property.
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text;
@@ -10,7 +9,7 @@ namespace RunReporting;
 
 public sealed record ResultTable(
     string Title,
-    IReadOnlyList<string> Fields,
+    IReadOnlyList<string> Headers,
     IReadOnlyList<ColumnAlignment> Alignments,
     IReadOnlyList<IReadOnlyList<string?>> Rows)
 {
@@ -18,42 +17,36 @@ public sealed record ResultTable(
 
     public static ResultTable From(
         string? title,
+        IReadOnlyList<string>? headers,
         IEnumerable<object?>? rows,
         IReadOnlyList<ColumnAlignment>? alignments = null)
     {
-        var rowList = (rows ?? []).ToList();
-        var columns = rowList.FirstOrDefault(row => row != null) is { } first
-            ? PropertiesOf(first.GetType())
-            : [];
-
-        var fields = columns.Select(column => ValueFormatter.ToHeader(column.Property.Name)).ToList();
-        var normalizedFields = columns.Select(column => column.Key).ToList();
-        var safeAlignments = Enumerable.Range(0, fields.Count)
+        var safeHeaders = (headers ?? []).Select(header => header ?? string.Empty).ToList();
+        var normalizedHeaders = safeHeaders.Select(NormalizeKey).ToList();
+        var safeAlignments = Enumerable.Range(0, safeHeaders.Count)
             .Select(index => alignments != null && index < alignments.Count ? alignments[index] : ColumnAlignment.Left)
             .ToList();
 
         return new ResultTable(
             title ?? string.Empty,
-            fields,
+            safeHeaders,
             safeAlignments,
-            rowList.Select(row => ToRow(row, normalizedFields)).ToList());
+            (rows ?? []).Select(row => ToRow(row, normalizedHeaders)).ToList());
     }
 
-    private static IReadOnlyList<string?> ToRow(object? row, IReadOnlyList<string> normalizedFields)
+    private static IReadOnlyList<string?> ToRow(object? row, IReadOnlyList<string> normalizedHeaders)
     {
         if (row == null)
         {
-            return new string?[normalizedFields.Count];
+            return new string?[normalizedHeaders.Count];
         }
 
-        // Rows of a different type than the first still fill the cells they can,
-        // matched by property name ignoring case.
         var properties = PropertiesOf(row.GetType());
 
-        return normalizedFields
-            .Select(field =>
+        return normalizedHeaders
+            .Select(header =>
             {
-                var match = Array.Find(properties, column => column.Key == field);
+                var match = Array.Find(properties, column => column.Key == header);
                 return match.Property != null ? ValueFormatter.FormatProperty(match.Property, row) : null;
             })
             .ToList();
@@ -68,7 +61,7 @@ public sealed record ResultTable(
             .ToArray());
     }
 
-    // "InternalId" -> "internalid"
+    // "INTERNAL ID" -> "internalid", "InternalId" -> "internalid"
     private static string NormalizeKey(string value)
     {
         var builder = new StringBuilder(value.Length);

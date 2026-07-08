@@ -308,7 +308,7 @@ public sealed class RunReporterTests
     {
         var reporter = CreateReporter(out _);
 
-        reporter.AddTable(null!, null!);
+        reporter.AddTable(null!, null!, null!);
 
         var table = Assert.Single(reporter.Take().Tables);
         Assert.Equal(string.Empty, table.Title);
@@ -378,7 +378,7 @@ public sealed class RunReporterTests
         var sender = new CapturingPublisher();
         var reporter = new RunReporter(new RunReportingOptions { SendWhenNoIssues = false }, [sender]);
 
-        reporter.AddTable("Persisted", [new { id = "INT-1" }]);
+        reporter.AddTable("Persisted", ["ID"], [new { id = "INT-1" }]);
         await reporter.PublishAsync();
 
         Assert.Single(sender.Sent);
@@ -412,10 +412,10 @@ public sealed class RunReporterTests
     {
         var reporter = CreateReporter(out var sender);
 
-        // Columns derive from the first row's properties; a differently-typed row (RateRow)
-        // still fills its cells, matched by property name ignoring case.
+        // Headers are verbatim; each matches a property ignoring case ("CCY" reads ccy or Ccy).
         reporter.AddTable(
             "Fetched Rates",
+            ["CCY", "RATE"],
             [
                 new { ccy = "GBP", rate = 1.25m },
                 new RateRow("EUR", 1.1m)
@@ -425,7 +425,7 @@ public sealed class RunReporterTests
 
         var table = Assert.Single(Assert.Single(sender.Sent).Tables);
         Assert.Equal("Fetched Rates", table.Title);
-        Assert.Equal(["CCY", "RATE"], table.Fields);
+        Assert.Equal(["CCY", "RATE"], table.Headers);
         Assert.Equal(["GBP", "1.25"], table.Rows[0]);
         Assert.Equal(["EUR", "1.1"], table.Rows[1]);
         Assert.Equal([ColumnAlignment.Left, ColumnAlignment.Right], table.Alignments);
@@ -450,7 +450,7 @@ public sealed class RunReporterTests
             RunOutcome.Failed,
             DateTimeOffset.UtcNow,
             [RunIssue.Create("Step<1>", IssueSeverity.Error, "<script>alert(1)</script>")],
-            [ResultTable.From("Persisted <Rows>", [new { id = "INT-1" }])]);
+            [ResultTable.From("Persisted <Rows>", ["ID"], [new { id = "INT-1" }])]);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
 

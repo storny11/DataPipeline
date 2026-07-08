@@ -40,7 +40,7 @@ public sealed class DataRetrievalOrchestratorTests
         Assert.True(report.WarningCount > 0);
 
         var persistedTable = Assert.Single(report.Tables, table => table.Title == "Persisted Records");
-        Assert.Equal("INTERNAL ID", persistedTable.Fields[0]);
+        Assert.Equal("INTERNAL ID", persistedTable.Headers[0]);
         Assert.NotEmpty(persistedTable.Rows);
         Assert.All(persistedTable.Rows, row => Assert.False(string.IsNullOrWhiteSpace(row[0])));
 

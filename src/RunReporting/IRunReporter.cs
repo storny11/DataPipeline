@@ -18,10 +18,10 @@ public interface IRunReporter
     /// <summary>Reports an issue about a subject: a scalar id, a list of ids, a dictionary, or an object like new { ccy, id }.</summary>
     void AddIssue(object? subject, string message, string? stepName = null, IssueSeverity severity = IssueSeverity.Warning);
 
-    /// <summary>Adds a result set to the published report. Rows are plain or anonymous objects; columns come
-    /// from the first row's properties with headers like "INTERNAL ID". Project into anonymous objects to
-    /// choose or rename columns. Columns align left unless an alignment is given per column.</summary>
-    void AddTable(string title, IEnumerable<object?> rows, IReadOnlyList<ColumnAlignment>? alignments = null);
+    /// <summary>Adds a result set to the published report. Headers are shown verbatim; each header is matched
+    /// to a property of the row objects ignoring case and spacing ("INTERNAL ID" reads InternalId). Rows are
+    /// plain or anonymous objects. Columns align left unless an alignment is given per column.</summary>
+    void AddTable(string title, IReadOnlyList<string> headers, IEnumerable<object?> rows, IReadOnlyList<ColumnAlignment>? alignments = null);
 
     /// <summary>Removes and returns everything collected for the current run, without sending anything. The outcome is derived from the issues.</summary>
     RunReport Take();
