@@ -612,6 +612,8 @@ public sealed class RunReporterTests
         Assert.Contains("border:1px solid #b42318", email.HtmlBody);
         Assert.Contains("background-color:#fffafa", email.HtmlBody);
         Assert.Contains("background-color:#fffdf7", email.HtmlBody);
+        Assert.Contains("background-color:#2557a7", email.HtmlBody);
+        Assert.Contains("padding:9px 12px; font-size:14px", email.HtmlBody);
         Assert.Contains("INT-1", email.HtmlBody);
     }
 
