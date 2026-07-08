@@ -23,13 +23,14 @@ public sealed class RunReportingOptions
 
     public string From { get; set; } = "pipeline@localhost";
 
-    // Whitespace entries are ignored: layered configuration merges arrays index-by-index,
-    // so an override layer can blank out an inherited entry with "".
-    public IList<string> To { get; set; } = new List<string>();
+    // Recipients are ';'-separated strings, not arrays: layered configuration merges arrays
+    // index-by-index (an override can never shorten or clear one), while a scalar is replaced
+    // wholesale by the last layer that sets it. "To": "" in an override clears the list.
+    public string To { get; set; } = "";
 
-    public IList<string> Cc { get; set; } = new List<string>();
+    public string Cc { get; set; } = "";
 
-    public IList<string> Bcc { get; set; } = new List<string>();
+    public string Bcc { get; set; } = "";
 
     /// <summary>Shown in the subject and heading to identify which service the report came from.</summary>
     public string ApplicationName { get; set; } = "Pipeline";
@@ -46,11 +47,11 @@ public sealed class RunReportingOptions
     /// <summary>When false, publishing a run that collected no issues and no tables sends nothing.</summary>
     public bool SendWhenNoIssues { get; set; } = true;
 
-    internal IReadOnlyList<string> ToRecipients => Clean(To);
+    internal IReadOnlyList<string> ToRecipients => Split(To);
 
-    internal IReadOnlyList<string> CcRecipients => Clean(Cc);
+    internal IReadOnlyList<string> CcRecipients => Split(Cc);
 
-    internal IReadOnlyList<string> BccRecipients => Clean(Bcc);
+    internal IReadOnlyList<string> BccRecipients => Split(Bcc);
 
     /// <summary>Problems that would prevent email publishing; empty when Enabled is false or the configuration is valid.</summary>
     public IReadOnlyList<string> GetValidationErrors()
@@ -96,13 +97,10 @@ public sealed class RunReportingOptions
         }
     }
 
-    private static IReadOnlyList<string> Clean(IList<string>? recipients)
+    private static IReadOnlyList<string> Split(string? recipients)
     {
-        return recipients == null
+        return string.IsNullOrWhiteSpace(recipients)
             ? []
-            : recipients
-                .Where(recipient => !string.IsNullOrWhiteSpace(recipient))
-                .Select(recipient => recipient.Trim())
-                .ToList();
+            : recipients.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 }

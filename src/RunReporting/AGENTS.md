@@ -27,11 +27,12 @@ HTML email report when the run finishes. Built to be dropped into many company s
    From and recipients, at least one recipient, positive SendTimeout) — all problems
    aggregated in one `InvalidOperationException`. Validation is skipped when
    `Enabled = false`. Rules live on `RunReportingOptions.GetValidationErrors()`.
-7. **Recipients are arrays** (`To`/`Cc`/`Bcc`), matching the owner's config conventions.
-   Layered .NET config merges arrays index-by-index, so an override layer blanks an
-   inherited entry with `""` — whitespace entries are always ignored (`Clean`). Do NOT
-   reintroduce delimited-string recipients or provider-walking "last layer wins" logic;
-   both were tried and explicitly rejected as too complex / wrong shape.
+7. **Recipients are `';'`-separated strings** (`To`/`Cc`/`Bcc`), e.g.
+   `"To": "team@x; ops@x"`. Chosen (after trying arrays) because layered .NET config merges
+   arrays index-by-index — an override can never shorten or clear one — while a scalar is
+   replaced wholesale by the last layer, so `"To": ""` genuinely clears. Entries are
+   trimmed and empties ignored. Do NOT reintroduce array recipients or provider-walking
+   "last layer wins" logic; both were tried and rejected by the owner.
 8. **Publishers are a list.** `IRunReportPublisher` is the delivery seam;
    `EmailRunReportPublisher` (SMTP via `System.Net.Mail`, no third-party deps) is the only
    built-in. Extra publishers (a Teams webhook one is anticipated) are plain

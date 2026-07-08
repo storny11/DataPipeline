@@ -249,11 +249,11 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void GetValidationErrors_ValidatesEachRecipient()
+    public void GetValidationErrors_ValidatesEachRecipientAndIgnoresEmptyEntries()
     {
         var options = new RunReportingOptions
         {
-            To = ["good@test.local", "bad-address", "another@test.local"]
+            To = "good@test.local; bad-address; ; another@test.local"
         };
 
         var error = Assert.Single(options.GetValidationErrors());
@@ -261,21 +261,19 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void Recipients_BlankedOutByOverrideLayer_AreIgnored()
+    public void Recipients_OverrideLayerReplacesWholesale()
     {
-        // Layered configuration merges arrays index-by-index; an override layer blanks an entry with "".
+        // Recipients are a scalar precisely so a later configuration layer replaces the whole list.
         var configuration = new ConfigurationBuilder()
-            .AddJsonStream(Json("""{"EmailReport":{"Enabled":true,"To":["a@test.local","b@test.local"]}}"""))
-            .AddJsonStream(Json("""{"EmailReport":{"To":[""]}}"""))
+            .AddJsonStream(Json("""{"EmailReport":{"Enabled":true,"To":"a@test.local;b@test.local"}}"""))
+            .AddJsonStream(Json("""{"EmailReport":{"To":"c@test.local"}}"""))
             .Build();
         var services = new ServiceCollection();
 
         services.AddRunReporting(configuration);
 
         using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<RunReportingOptions>();
-        Assert.Equal(["", "b@test.local"], options.To);
-        Assert.Empty(options.GetValidationErrors());
+        Assert.Equal("c@test.local", provider.GetRequiredService<RunReportingOptions>().To);
     }
 
     private static MemoryStream Json(string json) => new(System.Text.Encoding.UTF8.GetBytes(json));
