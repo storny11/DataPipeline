@@ -20,8 +20,9 @@ public interface IRunReporter
 
     /// <summary>Adds a result set to the published report. Headers are shown verbatim; each header is matched
     /// to a property of the row objects ignoring case and spacing ("INTERNAL ID" reads InternalId). Rows are
-    /// plain or anonymous objects. Columns align left unless an alignment is given per column.</summary>
-    void AddTable(string title, IReadOnlyList<string> headers, IEnumerable<object?> rows, IReadOnlyList<ColumnAlignment>? alignments = null);
+    /// plain or anonymous objects. Columns default to left-aligned and unformatted; pass a Column per header
+    /// to change alignment or apply a format string, e.g. Column.Number("N4").</summary>
+    void AddTable(string title, IReadOnlyList<string> headers, IEnumerable<object?> rows, IReadOnlyList<Column>? columns = null);
 
     /// <summary>Removes and returns everything collected for the current run, without sending anything. The outcome is derived from the issues.</summary>
     RunReport Take();

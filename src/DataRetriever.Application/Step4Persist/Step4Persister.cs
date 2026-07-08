@@ -64,12 +64,12 @@ public sealed class Step4Persister(
             ["INTERNAL ID", "EXTERNAL ID 1", "EXTERNAL ID 2", "AMOUNT 1", "AMOUNT 2", "AMOUNT 3"],
             records,
             [
-                ColumnAlignment.Left,
-                ColumnAlignment.Left,
-                ColumnAlignment.Left,
-                ColumnAlignment.Right,
-                ColumnAlignment.Right,
-                ColumnAlignment.Right
+                Column.Left,
+                Column.Left,
+                Column.Left,
+                Column.Number("N4"),
+                Column.Number("N4"),
+                Column.Number("N4")
             ]);
     }
 

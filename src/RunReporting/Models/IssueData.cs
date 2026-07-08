@@ -20,7 +20,7 @@ public static class IssueData
             case string id:
                 return Single("id", id);
             case IEnumerable enumerable:
-                return Single("ids", string.Join(", ", enumerable.Cast<object?>().Select(ValueFormatter.Format)));
+                return Single("ids", string.Join(", ", enumerable.Cast<object?>().Select(value => ValueFormatter.Format(value))));
             default:
                 return IsScalar(subject)
                     ? Single("id", ValueFormatter.Format(subject))

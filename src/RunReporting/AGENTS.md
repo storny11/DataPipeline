@@ -69,9 +69,13 @@ HTML email report when the run finishes. Built to be dropped into many company s
     projections (`new { Name = ..., Email = ... }`); mixed row types fill what they can.
     Earlier iterations tried dictionary/dynamic-row support and header derivation from
     properties — both were deliberately removed (owner prefers explicit headers); do not
-    reintroduce without the owner. Alignment is explicit per column (`ColumnAlignment`,
-    positional, default Left) — no type-based auto-alignment. Attribute labels in the
-    summary panel are still auto-humanized (`ValueFormatter.ToHeader`: `runId` → "RUN ID").
+    reintroduce without the owner. Alignment and value formatting are explicit per column
+    via one positional `Column` spec (`Column.Left`/`Right`/`Center`, `Column.Number("N4")`
+    = right-aligned + .NET format string, invariant culture; bad format degrades to the
+    unformatted value) — no type-based magic, and no implicit `ColumnAlignment → Column`
+    conversion (owner removed it; write `Column.Left`, not the enum, at call sites).
+    Attribute labels in the summary panel are still auto-humanized
+    (`ValueFormatter.ToHeader`: `runId` → "RUN ID").
 14. **Issue subjects are flexible:** scalar (→ `id=5`), list (→ `ids=a, b`), dictionary
     (as-is), or object/anonymous (`new { ccy, id }` → one entry per property). Conversion
     lives in `IssueData`; formatting is culture-invariant (`ValueFormatter`).

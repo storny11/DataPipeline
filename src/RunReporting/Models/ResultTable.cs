@@ -19,22 +19,25 @@ public sealed record ResultTable(
         string? title,
         IReadOnlyList<string>? headers,
         IEnumerable<object?>? rows,
-        IReadOnlyList<ColumnAlignment>? alignments = null)
+        IReadOnlyList<Column>? columns = null)
     {
         var safeHeaders = (headers ?? []).Select(header => header ?? string.Empty).ToList();
         var normalizedHeaders = safeHeaders.Select(NormalizeKey).ToList();
-        var safeAlignments = Enumerable.Range(0, safeHeaders.Count)
-            .Select(index => alignments != null && index < alignments.Count ? alignments[index] : ColumnAlignment.Left)
+        var safeColumns = Enumerable.Range(0, safeHeaders.Count)
+            .Select(index => columns != null && index < columns.Count ? columns[index] ?? Column.Left : Column.Left)
             .ToList();
 
         return new ResultTable(
             title ?? string.Empty,
             safeHeaders,
-            safeAlignments,
-            (rows ?? []).Select(row => ToRow(row, normalizedHeaders)).ToList());
+            safeColumns.Select(column => column.Alignment).ToList(),
+            (rows ?? []).Select(row => ToRow(row, normalizedHeaders, safeColumns)).ToList());
     }
 
-    private static IReadOnlyList<string?> ToRow(object? row, IReadOnlyList<string> normalizedHeaders)
+    private static IReadOnlyList<string?> ToRow(
+        object? row,
+        IReadOnlyList<string> normalizedHeaders,
+        IReadOnlyList<Column> columns)
     {
         if (row == null)
         {
@@ -44,10 +47,12 @@ public sealed record ResultTable(
         var properties = PropertiesOf(row.GetType());
 
         return normalizedHeaders
-            .Select(header =>
+            .Select((header, index) =>
             {
                 var match = Array.Find(properties, column => column.Key == header);
-                return match.Property != null ? ValueFormatter.FormatProperty(match.Property, row) : null;
+                return match.Property != null
+                    ? ValueFormatter.FormatProperty(match.Property, row, columns[index].Format)
+                    : null;
             })
             .ToList();
     }

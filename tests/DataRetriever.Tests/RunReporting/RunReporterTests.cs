@@ -349,6 +349,18 @@ public sealed class RunReporterTests
     }
 
     [Fact]
+    public void AddTable_WithThrowingFormatString_FallsBackToUnformattedValue()
+    {
+        var reporter = CreateReporter(out _);
+
+        // "Z" is an invalid standard numeric specifier and makes decimal.ToString throw.
+        reporter.AddTable("Rates", ["RATE"], [new { rate = 1.25m }], [Column.Number("Z")]);
+
+        var table = Assert.Single(reporter.Take().Tables);
+        Assert.Equal("1.25", Assert.Single(table.Rows)[0]);
+    }
+
+    [Fact]
     public void AddTable_WithNullArguments_IsToleratedWithoutThrowing()
     {
         var reporter = CreateReporter(out _);
@@ -465,14 +477,14 @@ public sealed class RunReporterTests
                 new { ccy = "GBP", rate = 1.25m },
                 new RateRow("EUR", 1.1m)
             ],
-            [ColumnAlignment.Left, ColumnAlignment.Right]);
+            [Column.Left, Column.Number("N2")]);
         await reporter.PublishAsync();
 
         var table = Assert.Single(Assert.Single(sender.Sent).Tables);
         Assert.Equal("Fetched Rates", table.Title);
         Assert.Equal(["CCY", "RATE"], table.Headers);
         Assert.Equal(["GBP", "1.25"], table.Rows[0]);
-        Assert.Equal(["EUR", "1.1"], table.Rows[1]);
+        Assert.Equal(["EUR", "1.10"], table.Rows[1]);
         Assert.Equal([ColumnAlignment.Left, ColumnAlignment.Right], table.Alignments);
     }
 

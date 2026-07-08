@@ -30,11 +30,11 @@ internal static class ValueFormatter
             (char.IsLetter(current) && char.IsDigit(previous));
     }
 
-    public static string? FormatProperty(PropertyInfo property, object instance)
+    public static string? FormatProperty(PropertyInfo property, object instance, string? format = null)
     {
         try
         {
-            return Format(property.GetValue(instance));
+            return Format(property.GetValue(instance), format);
         }
         catch
         {
@@ -43,21 +43,45 @@ internal static class ValueFormatter
         }
     }
 
-    public static string? Format(object? value)
+    public static string? Format(object? value, string? format = null)
     {
+        if (value == null)
+        {
+            return null;
+        }
+
+        if (value is IFormattable formattable)
+        {
+            if (format != null)
+            {
+                try
+                {
+                    return formattable.ToString(format, CultureInfo.InvariantCulture);
+                }
+                catch
+                {
+                    // A bad format string costs the formatting, never the value.
+                }
+            }
+
+            try
+            {
+                return formattable.ToString(null, CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                return value.GetType().Name;
+            }
+        }
+
         try
         {
-            return value switch
-            {
-                null => null,
-                IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-                _ => value.ToString()
-            };
+            return value.ToString();
         }
         catch
         {
-            // A throwing ToString/format implementation costs the value, never the caller.
-            return value?.GetType().Name;
+            // A throwing ToString implementation costs the value, never the caller.
+            return value.GetType().Name;
         }
     }
 }
