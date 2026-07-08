@@ -6,6 +6,30 @@ namespace RunReporting;
 
 internal static class ValueFormatter
 {
+    // "runId" -> "RUN ID", "ExternalId1" -> "EXTERNAL ID 1"
+    public static string ToHeader(string name)
+    {
+        var builder = new System.Text.StringBuilder(name.Length + 4);
+        for (var index = 0; index < name.Length; index++)
+        {
+            if (index > 0 && ShouldSeparate(name[index - 1], name[index]))
+            {
+                builder.Append(' ');
+            }
+
+            builder.Append(char.ToUpperInvariant(name[index]));
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool ShouldSeparate(char previous, char current)
+    {
+        return (char.IsUpper(current) && char.IsLower(previous)) ||
+            (char.IsDigit(current) && !char.IsDigit(previous)) ||
+            (char.IsLetter(current) && char.IsDigit(previous));
+    }
+
     public static string? FormatProperty(PropertyInfo property, object instance)
     {
         try

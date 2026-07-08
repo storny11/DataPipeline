@@ -1,6 +1,7 @@
-// A published result set: field names plus formatted rows, built from plain or anonymous objects.
-// Fields are the column headers shown verbatim; row values are matched to them ignoring
-// case and spacing, so "INTERNAL ID" finds an InternalId property.
+// A published result set built from plain or anonymous row objects. Columns come from the
+// first row's public properties in declaration order; headers are the property names
+// humanized to spaced uppercase ("InternalId" -> "INTERNAL ID"). To choose or rename
+// columns, project the rows into anonymous objects.
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text;
@@ -13,26 +14,29 @@ public sealed record ResultTable(
     IReadOnlyList<ColumnAlignment> Alignments,
     IReadOnlyList<IReadOnlyList<string?>> Rows)
 {
-    private static readonly ConcurrentDictionary<Type, Dictionary<string, PropertyInfo>> PropertyCache = new();
+    private static readonly ConcurrentDictionary<Type, (PropertyInfo Property, string Key)[]> PropertyCache = new();
 
-    /// <summary>Builds a table from rows: plain or anonymous objects, one cell per field.</summary>
     public static ResultTable From(
         string? title,
-        IReadOnlyList<string>? fields,
         IEnumerable<object?>? rows,
         IReadOnlyList<ColumnAlignment>? alignments = null)
     {
-        var safeFields = (fields ?? []).Select(field => field ?? string.Empty).ToList();
-        var safeAlignments = Enumerable.Range(0, safeFields.Count)
+        var rowList = (rows ?? []).ToList();
+        var columns = rowList.FirstOrDefault(row => row != null) is { } first
+            ? PropertiesOf(first.GetType())
+            : [];
+
+        var fields = columns.Select(column => ValueFormatter.ToHeader(column.Property.Name)).ToList();
+        var normalizedFields = columns.Select(column => column.Key).ToList();
+        var safeAlignments = Enumerable.Range(0, fields.Count)
             .Select(index => alignments != null && index < alignments.Count ? alignments[index] : ColumnAlignment.Left)
             .ToList();
-        var normalizedFields = safeFields.Select(NormalizeKey).ToList();
 
         return new ResultTable(
             title ?? string.Empty,
-            safeFields,
+            fields,
             safeAlignments,
-            (rows ?? []).Select(row => ToRow(row, normalizedFields)).ToList());
+            rowList.Select(row => ToRow(row, normalizedFields)).ToList());
     }
 
     private static IReadOnlyList<string?> ToRow(object? row, IReadOnlyList<string> normalizedFields)
@@ -42,30 +46,29 @@ public sealed record ResultTable(
             return new string?[normalizedFields.Count];
         }
 
-        var properties = PropertyCache.GetOrAdd(row.GetType(), BuildPropertyMap);
+        // Rows of a different type than the first still fill the cells they can,
+        // matched by property name ignoring case.
+        var properties = PropertiesOf(row.GetType());
 
         return normalizedFields
-            .Select(field => properties.TryGetValue(field, out var property)
-                ? ValueFormatter.FormatProperty(property, row)
-                : null)
+            .Select(field =>
+            {
+                var match = Array.Find(properties, column => column.Key == field);
+                return match.Property != null ? ValueFormatter.FormatProperty(match.Property, row) : null;
+            })
             .ToList();
     }
 
-    private static Dictionary<string, PropertyInfo> BuildPropertyMap(Type type)
+    private static (PropertyInfo Property, string Key)[] PropertiesOf(Type type)
     {
-        var map = new Dictionary<string, PropertyInfo>();
-        foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
-        {
-            if (property.CanRead && property.GetIndexParameters().Length == 0)
-            {
-                map.TryAdd(NormalizeKey(property.Name), property);
-            }
-        }
-
-        return map;
+        return PropertyCache.GetOrAdd(type, static rowType => rowType
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(property => property.CanRead && property.GetIndexParameters().Length == 0)
+            .Select(property => (property, NormalizeKey(property.Name)))
+            .ToArray());
     }
 
-    // "INTERNAL ID" -> "internalid", "InternalId" -> "internalid"
+    // "InternalId" -> "internalid"
     private static string NormalizeKey(string value)
     {
         var builder = new StringBuilder(value.Length);

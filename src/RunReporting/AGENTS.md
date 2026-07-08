@@ -54,14 +54,17 @@ HTML email report when the run finishes. Built to be dropped into many company s
 11. **Time zone is fixed to US Eastern** ("STARTED (ET)"), resolving `America/New_York`
     then `Eastern Standard Time`, degrading to UTC (with a "UTC" label) if neither exists.
     Not configurable — this was made configurable once and the owner removed it.
-12. **Result tables, Dapper-friendly, no reflection magic for presentation.**
-    `AddTable(title, fields, rows, alignments?)`: fields are the column headers **verbatim**
-    (caller controls casing/spacing); values are matched to fields leniently (letters+digits,
-    case-insensitive — "INTERNAL ID" binds `InternalId` property or `internalId` dictionary
-    key); an ambiguously-matched field renders `-` rather than guessing. Rows may be
-    `IDictionary<string, object?>` (Dapper dynamic) or POCOs (cached reflection lookup).
-    Alignment is explicit per column (`ColumnAlignment`, default Left) — no type-based
-    auto-alignment.
+12. **Result tables from plain or anonymous objects; columns derive from the rows.**
+    `AddTable(title, rows, alignments?)`: no field list — columns come from the first
+    non-null row's public properties in declaration order, headers humanized to spaced
+    uppercase (`InternalId` → "INTERNAL ID", same rule as attribute labels). To choose,
+    reorder, or rename columns, project rows into anonymous objects
+    (`records.Select(r => new { r.Name, r.Email })`). Rows of a different type than the
+    first still fill matching cells (property-name match ignoring case/spacing).
+    Earlier iterations had an explicit fields array and dictionary/dynamic-row support —
+    both were deliberately removed for minimalism; do not reintroduce without the owner.
+    Alignment is explicit per column (`ColumnAlignment`, positional, default Left) —
+    no type-based auto-alignment.
 13. **Issue subjects are flexible:** scalar (→ `id=5`), list (→ `ids=a, b`), dictionary
     (as-is), or object/anonymous (`new { ccy, id }` → one entry per property). Conversion
     lives in `IssueData`; formatting is culture-invariant (`ValueFormatter`).
@@ -139,5 +142,5 @@ All package tests live in `tests/DataRetriever.Tests/RunReporting/RunReporterTes
 outputs). Coverage includes: ambient nesting/isolation across async, default-run mode,
 attribute salvage on collisions, `""` recipient blanking, never-throw guarantees (throwing
 getters, null args, publisher failures, internal-timeout OCE containment), subject builder
-(custom/fallback/CRLF), ambiguous-key tables, alignment flow, Razor rendering + HTML
+(custom/fallback/CRLF), anonymous+typed table rows, alignment flow, Razor rendering + HTML
 encoding, and composition-time validation failures.

@@ -217,7 +217,7 @@
     private IReadOnlyList<(string Label, string? Value)> BuildSummaryItems()
     {
         var items = Report.Attributes
-            .Select(attribute => (ToLabel(attribute.Key), attribute.Value))
+            .Select(attribute => (ValueFormatter.ToHeader(attribute.Key), attribute.Value))
             .ToList();
         items.Add(($"STARTED ({TimeLabel})", FormatStarted()));
         return items;
@@ -241,23 +241,6 @@
         return TimeZoneInfo.TryFindSystemTimeZoneById("Eastern Standard Time", out var windows)
             ? windows
             : TimeZoneInfo.Utc;
-    }
-
-    // "runId" -> "RUN ID", "sourceSystem" -> "SOURCE SYSTEM"
-    private static string ToLabel(string key)
-    {
-        var builder = new StringBuilder(key.Length + 4);
-        for (var index = 0; index < key.Length; index++)
-        {
-            if (index > 0 && char.IsUpper(key[index]) && !char.IsUpper(key[index - 1]))
-            {
-                builder.Append(' ');
-            }
-
-            builder.Append(char.ToUpperInvariant(key[index]));
-        }
-
-        return builder.ToString();
     }
 
     private IReadOnlyList<RunIssue> Warnings =>
