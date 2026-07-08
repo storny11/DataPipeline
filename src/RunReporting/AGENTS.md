@@ -67,7 +67,7 @@ HTML email report when the run finishes. Built to be dropped into many company s
     as run attributes from the host/application code. The DataRetriever host supplies
     `started (ET)` at run start and `completed (ET)` immediately before publish.
 13. **Result tables: explicit headers, rows as plain or anonymous objects.**
-    `AddTable(title, headers, rows, alignments?)`: headers are strings shown **verbatim**
+    `AddTable(title, headers, rows, columns?)`: headers are strings shown **verbatim**
     (the owner wants to reword headers without touching row types); each header is matched
     to a row property ignoring case and spacing ("INTERNAL ID" reads `InternalId`).
     An unmatched header renders `-` cells. Rows may be typed objects or anonymous
@@ -122,13 +122,13 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
 ```csharp
 services.AddRunReporting(configuration);            // requires "EmailReport" section
 // appsettings: { "EmailReport": { "Enabled": true, "Host": "...", "Port": 25,
-//                "From": "svc@x", "To": [ "team@x" ], "ServiceName": "My Service" } }
+//                "From": "svc@x", "To": "team@x; ops@x", "ServiceName": "My Service" } }
 
 using var run = reporter.BeginRun(("runId", id), ("environment", env));
 reporter.AddIssue(new { ccy, id }, "Rate missing", "Step3");        // Warning by default
 reporter.AddIssue("fatal", severity: IssueSeverity.Error);
 reporter.AddTable("Persisted Records", ["INTERNAL ID", "AMOUNT"], rows,
-    [ColumnAlignment.Left, ColumnAlignment.Right]);
+    [Column.Left, Column.Number("N2")]);
 await reporter.PublishAsync(failed ? RunOutcome.Failed : null);
 ```
 
@@ -154,9 +154,9 @@ await reporter.PublishAsync(failed ? RunOutcome.Failed : null);
 
 ## Testing
 
-All package tests live in `tests/DataRetriever.Tests/RunReporting/RunReporterTests.cs`
-(52 total in the suite; run `dotnet test`, use `-c Release` if a debugger holds Debug
-outputs). Coverage includes: ambient nesting/isolation across async, default-run mode,
+Package-focused tests live in `tests/DataRetriever.Tests/RunReporting/RunReporterTests.cs`
+(run `dotnet test`, use `-c Release` if a debugger holds Debug outputs). Coverage includes:
+ambient nesting/isolation across async, default-run mode,
 attribute salvage on collisions, `""` recipient blanking, never-throw guarantees (throwing
 getters, null args, publisher failures, internal-timeout OCE containment), subject builder
 (custom/fallback/CRLF), anonymous+typed table rows, alignment flow, Razor rendering + HTML

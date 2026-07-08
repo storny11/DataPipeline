@@ -59,7 +59,8 @@ public static class ServiceCollectionExtensions
         // The Razor formatter and reporter need logging infrastructure even in hosts that never call AddLogging.
         services.AddLogging();
 
-        services.TryAddSingleton(options);
+        services.RemoveAll<RunReportingOptions>();
+        services.AddSingleton(options);
         services.TryAddSingleton<IRunReportFormatter, RazorRunReportFormatter>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IRunReportPublisher, EmailRunReportPublisher>());
         services.TryAddSingleton<IRunReporter, RunReporter>();
