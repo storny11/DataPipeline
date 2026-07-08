@@ -19,7 +19,7 @@ else
             <tr>
                 @for (var index = 0; index < Table.Headers.Count; index++)
                 {
-                    <th align="@Align(index)" bgcolor="#eef4ff" style="@HeaderCellStyle text-align:@Align(index);">@Table.Headers[index]</th>
+                    <th align="@Align(index)" bgcolor="#2557a7" style="@HeaderCellStyle text-align:@Align(index);">@Table.Headers[index]</th>
                 }
             </tr>
         </thead>
@@ -44,7 +44,7 @@ else
     public ResultTable Table { get; set; } = null!;
 
     private const string GridStyle = "border-collapse:collapse; width:100%; background-color:#ffffff; border:1px solid #d7dde8; mso-table-lspace:0pt; mso-table-rspace:0pt;";
-    private const string HeaderCellStyle = "background-color:#eef4ff; border:1px solid #d7dde8; padding:10px 12px; font-size:12px; line-height:17px; color:#1f3a5f; font-weight:700; mso-line-height-rule:exactly;";
+    private const string HeaderCellStyle = "background-color:#2557a7; border:1px solid #1f3a5f; padding:10px 12px; font-size:12px; line-height:17px; color:#ffffff; font-weight:700; mso-line-height-rule:exactly;";
     private const string CellStyle = "border:1px solid #e4e7ec; padding:10px 12px; font-size:13px; line-height:19px; color:#344054; vertical-align:top; mso-line-height-rule:exactly;";
     private const string EmptyStateTableStyle = "width:100%; border-collapse:collapse; border:1px solid #d7dde8; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string EmptyStateCellStyle = "padding:12px 14px; background-color:#f8fafc; color:#475467; font-size:13px; line-height:19px; mso-line-height-rule:exactly;";
