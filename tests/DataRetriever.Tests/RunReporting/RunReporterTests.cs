@@ -249,6 +249,53 @@ public sealed class RunReporterTests
     }
 
     [Fact]
+    public async Task RazorFormatter_CompactVariant_RendersSummaryTopIssuesAndTableCounts()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRunReporting(options =>
+        {
+            options.ApplicationName = "TestApp";
+            options.Enabled = false;
+        });
+
+        await using var provider = services.BuildServiceProvider();
+        var formatter = provider.GetRequiredService<IRunReportFormatter>();
+
+        var issues = Enumerable.Range(1, 12)
+            .Select(index => RunIssue.Create("Step1", IssueSeverity.Warning, $"Row {index} skipped <b>."))
+            .ToList();
+        var report = new RunReport(
+            new Dictionary<string, string?> { ["runId"] = "run-1" },
+            RunOutcome.CompletedWithWarnings,
+            DateTimeOffset.UtcNow,
+            issues,
+            [ResultTable.From("Persisted Records", ["ID"], [new { id = "INT-1" }])]);
+
+        var email = await formatter.FormatCompactAsync(report, CancellationToken.None);
+
+        Assert.Contains("TestApp — run completed with warnings", email.HtmlBody);
+        Assert.Contains("runId: run-1", email.HtmlBody);
+        Assert.Contains("Row 1 skipped", email.HtmlBody);
+        Assert.Contains("and 2 more issues", email.HtmlBody);
+        Assert.Contains("Persisted Records", email.HtmlBody);
+        Assert.Contains("1 rows", email.HtmlBody);
+        Assert.DoesNotContain("<b>", email.HtmlBody);
+        Assert.Contains("TestApp run completed with 12 warnings", email.Subject);
+    }
+
+    [Fact]
+    public void AddRunReporting_CompactRecipientsAlone_SatisfyTheRecipientRequirement()
+    {
+        var services = new ServiceCollection();
+
+        services.AddRunReporting(options => options.CompactTo = "channel@apac.teams.ms");
+
+        using var provider = services.BuildServiceProvider();
+        Assert.NotNull(provider.GetRequiredService<IRunReporter>());
+    }
+
+    [Fact]
     public void GetValidationErrors_ValidatesEachRecipientAndIgnoresEmptyEntries()
     {
         var options = new RunReportingOptions

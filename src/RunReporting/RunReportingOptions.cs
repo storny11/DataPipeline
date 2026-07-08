@@ -32,6 +32,10 @@ public sealed class RunReportingOptions
 
     public string Bcc { get; set; } = "";
 
+    /// <summary>Recipients that receive a compact variant of the report instead of the full one —
+    /// minimal markup suited to clients that mangle rich HTML, e.g. Teams channel email addresses.</summary>
+    public string CompactTo { get; set; } = "";
+
     /// <summary>Shown in the subject and heading to identify which service the report came from.</summary>
     public string ApplicationName { get; set; } = "Pipeline";
 
@@ -52,6 +56,8 @@ public sealed class RunReportingOptions
     internal IReadOnlyList<string> CcRecipients => Split(Cc);
 
     internal IReadOnlyList<string> BccRecipients => Split(Bcc);
+
+    internal IReadOnlyList<string> CompactToRecipients => Split(CompactTo);
 
     /// <summary>Problems that would prevent email publishing; empty when Enabled is false or the configuration is valid.</summary>
     public IReadOnlyList<string> GetValidationErrors()
@@ -80,10 +86,10 @@ public sealed class RunReportingOptions
             yield return $"From '{From}' is not a valid email address";
         }
 
-        var recipients = ToRecipients.Concat(CcRecipients).Concat(BccRecipients).ToList();
+        var recipients = ToRecipients.Concat(CcRecipients).Concat(BccRecipients).Concat(CompactToRecipients).ToList();
         if (recipients.Count == 0)
         {
-            yield return "at least one To/Cc/Bcc recipient is required";
+            yield return "at least one To/Cc/Bcc/CompactTo recipient is required";
         }
 
         foreach (var recipient in recipients.Where(recipient => !MailAddress.TryCreate(recipient, out _)))

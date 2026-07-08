@@ -33,29 +33,35 @@ HTML email report when the run finishes. Built to be dropped into many company s
    replaced wholesale by the last layer, so `"To": ""` genuinely clears. Entries are
    trimmed and empties ignored. Do NOT reintroduce array recipients or provider-walking
    "last layer wins" logic; both were tried and rejected by the owner.
-8. **Publishers are a list.** `IRunReportPublisher` is the delivery seam;
+8. **Compact variant for Teams.** The org has no Teams webhooks; reports reach Teams via a
+   channel's email address, and Teams mangles rich table-HTML. `Options.CompactTo` recipients
+   receive a slim rendering (`CompactRunReportEmailTemplate`: outcome, counts, top 10 issues,
+   table row counts, no nested layout tables) as a second email with the same subject, while
+   To/Cc/Bcc get the full report. `IRunReportFormatter.FormatCompactAsync` is the seam.
+   `CompactTo` alone satisfies the recipient requirement.
+9. **Publishers are a list.** `IRunReportPublisher` is the delivery seam;
    `EmailRunReportPublisher` (SMTP via `System.Net.Mail`, no third-party deps) is the only
    built-in. Extra publishers (a Teams webhook one is anticipated) are plain
    `AddSingleton<IRunReportPublisher, ...>` registrations; every publisher receives every
    report; one failing publisher is logged and never blocks the others.
    `Options.Enabled = false` silences only the email publisher.
-9. **Formatting seam.** `IRunReportFormatter` (default `RazorRunReportFormatter`) turns a
+10. **Formatting seam.** `IRunReportFormatter` (default `RazorRunReportFormatter`) turns a
    `RunReport` into subject + HTML. Services override the look by supplying their own Razor
    component via `UseRunReportTemplate<T>()` (receives `Report` and `Options` parameters).
    Subject is overridable per service via `Options.SubjectBuilder`
    (`Func<RunReport, string?>`); null/empty/throwing falls back to the default subject, and
    CR/LF are always stripped (raw newlines make `MailMessage.Subject` throw).
-10. **Email template must render in Outlook** (Word engine): nested tables, inline styles,
+11. **Email template must render in Outlook** (Word engine): nested tables, inline styles,
     `bgcolor` attributes, `mso-` hints only. No flexbox/grid/border-radius/web fonts/margins.
     Layout: hidden preheader, outcome-colored top accent (green/amber/red), "RUN REPORT"
     eyebrow, title + outcome pill, two-column summary panel (uppercase humanized attribute
     labels — `runId` → "RUN ID" — plus "STARTED (ET)"), Errors/Warnings panels with counts,
     an "All clear" panel for clean runs, result tables, muted footer. No plain-text body
     (removed on request).
-11. **Time zone is fixed to US Eastern** ("STARTED (ET)"), resolving `America/New_York`
+12. **Time zone is fixed to US Eastern** ("STARTED (ET)"), resolving `America/New_York`
     then `Eastern Standard Time`, degrading to UTC (with a "UTC" label) if neither exists.
     Not configurable — this was made configurable once and the owner removed it.
-12. **Result tables: explicit headers, rows as plain or anonymous objects.**
+13. **Result tables: explicit headers, rows as plain or anonymous objects.**
     `AddTable(title, headers, rows, alignments?)`: headers are strings shown **verbatim**
     (the owner wants to reword headers without touching row types); each header is matched
     to a row property ignoring case and spacing ("INTERNAL ID" reads `InternalId`).
@@ -66,10 +72,10 @@ HTML email report when the run finishes. Built to be dropped into many company s
     reintroduce without the owner. Alignment is explicit per column (`ColumnAlignment`,
     positional, default Left) — no type-based auto-alignment. Attribute labels in the
     summary panel are still auto-humanized (`ValueFormatter.ToHeader`: `runId` → "RUN ID").
-13. **Issue subjects are flexible:** scalar (→ `id=5`), list (→ `ids=a, b`), dictionary
+14. **Issue subjects are flexible:** scalar (→ `id=5`), list (→ `ids=a, b`), dictionary
     (as-is), or object/anonymous (`new { ccy, id }` → one entry per property). Conversion
     lives in `IssueData`; formatting is culture-invariant (`ValueFormatter`).
-14. **Outcome** (`Succeeded` / `CompletedWithWarnings` / `Failed`) is derived from collected
+15. **Outcome** (`Succeeded` / `CompletedWithWarnings` / `Failed`) is derived from collected
     issues; callers may override at publish (`PublishAsync(RunOutcome.Failed)`).
     `PublishAsync` returns the published `RunReport` so callers can shape API responses
     from exactly what was sent. `Take()` drains issues/tables (attributes survive; the
@@ -86,7 +92,8 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
 ├── Models/       RunReport, RunIssue, ResultTable, RunOutcome, IssueSeverity,
 │                 ColumnAlignment, IssueData, ValueFormatter
 ├── Formatting/   IRunReportFormatter, RazorRunReportFormatter (HtmlRenderer),
-│   └── Templates/  RunReportEmailTemplate.razor, IssuesTable.razor, ResultTableView.razor
+│   └── Templates/  RunReportEmailTemplate.razor, CompactRunReportEmailTemplate.razor,
+│                   IssuesTable.razor, ResultTableView.razor
 └── Publishing/   IRunReportPublisher, EmailRunReportPublisher
 ```
 

@@ -1,0 +1,61 @@
+@* Compact variant for clients that mangle rich HTML, e.g. Teams channel email addresses:
+   outcome, counts, top issues, and table row counts — no nested layout tables. *@
+@using Microsoft.AspNetCore.Components
+@namespace RunReporting.Templates
+
+<div style="font-family:Segoe UI, Arial, sans-serif; font-size:14px; color:#101828;">
+    <p style="margin:0 0 6px 0;">
+        <strong>@Options.ApplicationName — @OutcomeText</strong><br />
+        @Report.ErrorCount errors, @Report.WarningCount warnings
+    </p>
+
+    @if (AttributesLine.Length > 0)
+    {
+        <p style="margin:0 0 10px 0; font-size:13px; color:#475467;">@AttributesLine</p>
+    }
+
+    @if (TopIssues.Count > 0)
+    {
+        <ul style="margin:0 0 10px 18px; padding:0;">
+            @foreach (var issue in TopIssues)
+            {
+                <li style="margin:0 0 4px 0;">@StepName(issue): @issue.Message</li>
+            }
+        </ul>
+
+        @if (Report.Issues.Count > MaxIssues)
+        {
+            <p style="margin:0 0 10px 0; font-size:13px; color:#475467;">&hellip;and @(Report.Issues.Count - MaxIssues) more issues in the full report.</p>
+        }
+    }
+
+    @foreach (var table in Report.Tables)
+    {
+        <p style="margin:0 0 2px 0; font-size:13px; color:#475467;">@table.Title &mdash; @table.Rows.Count rows</p>
+    }
+</div>
+
+@code {
+    private const int MaxIssues = 10;
+
+    [Parameter, EditorRequired]
+    public RunReport Report { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public RunReportingOptions Options { get; set; } = null!;
+
+    private IReadOnlyList<RunIssue> TopIssues => Report.Issues.Take(MaxIssues).ToList();
+
+    private string OutcomeText => Report.Outcome switch
+    {
+        RunOutcome.Failed => "run failed",
+        RunOutcome.CompletedWithWarnings => "run completed with warnings",
+        _ => "run succeeded"
+    };
+
+    private string AttributesLine =>
+        string.Join(" · ", Report.Attributes.Select(attribute => $"{attribute.Key}: {attribute.Value}"));
+
+    private static string StepName(RunIssue issue) =>
+        string.IsNullOrEmpty(issue.StepName) ? "General" : issue.StepName;
+}

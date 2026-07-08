@@ -1,5 +1,6 @@
 // Built-in publisher: formats the report and delivers it over SMTP (works with smtp4dev).
-// Options.Enabled turns just this publisher off, leaving any others registered active.
+// To/Cc/Bcc receive the full report; CompactTo recipients (e.g. Teams channel email
+// addresses) receive the compact variant. Options.Enabled turns just this publisher off.
 using System.Net;
 using System.Net.Mail;
 
@@ -24,14 +25,33 @@ public sealed class EmailRunReportPublisher(
         var to = options.ToRecipients;
         var cc = options.CcRecipients;
         var bcc = options.BccRecipients;
-        if (to.Count == 0 && cc.Count == 0 && bcc.Count == 0)
+        var compactTo = options.CompactToRecipients;
+        if (to.Count + cc.Count + bcc.Count + compactTo.Count == 0)
         {
             throw new InvalidOperationException(
-                "RunReportingOptions must contain at least one To/Cc/Bcc recipient before a report can be published.");
+                "RunReportingOptions must contain at least one To/Cc/Bcc/CompactTo recipient before a report can be published.");
         }
 
-        var email = await formatter.FormatAsync(report, cancellationToken);
+        if (to.Count + cc.Count + bcc.Count > 0)
+        {
+            var email = await formatter.FormatAsync(report, cancellationToken);
+            await SendAsync(email, to, cc, bcc, cancellationToken).ConfigureAwait(false);
+        }
 
+        if (compactTo.Count > 0)
+        {
+            var email = await formatter.FormatCompactAsync(report, cancellationToken);
+            await SendAsync(email, compactTo, [], [], cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task SendAsync(
+        RunReportEmail email,
+        IReadOnlyList<string> to,
+        IReadOnlyList<string> cc,
+        IReadOnlyList<string> bcc,
+        CancellationToken cancellationToken)
+    {
         using var message = new MailMessage
         {
             From = new MailAddress(options.From),

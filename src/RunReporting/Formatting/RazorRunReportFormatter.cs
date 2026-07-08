@@ -1,4 +1,4 @@
-// Default formatter: renders the run report through a Razor component template.
+// Default formatter: renders the run report through Razor component templates.
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Logging;
@@ -15,7 +15,17 @@ public sealed class RazorRunReportFormatter(
     private readonly Type _templateType = template?.ComponentType ?? typeof(RunReportEmailTemplate);
     private readonly ILogger _logger = loggerFactory.CreateLogger<RazorRunReportFormatter>();
 
-    public async Task<RunReportEmail> FormatAsync(RunReport report, CancellationToken cancellationToken)
+    public Task<RunReportEmail> FormatAsync(RunReport report, CancellationToken cancellationToken)
+    {
+        return FormatAsync(report, _templateType, cancellationToken);
+    }
+
+    public Task<RunReportEmail> FormatCompactAsync(RunReport report, CancellationToken cancellationToken)
+    {
+        return FormatAsync(report, typeof(CompactRunReportEmailTemplate), cancellationToken);
+    }
+
+    private async Task<RunReportEmail> FormatAsync(RunReport report, Type templateType, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -29,7 +39,7 @@ public sealed class RazorRunReportFormatter(
 
         var htmlBody = await renderer.Dispatcher.InvokeAsync(async () =>
         {
-            var component = await renderer.RenderComponentAsync(_templateType, parameters);
+            var component = await renderer.RenderComponentAsync(templateType, parameters);
             return component.ToHtmlString();
         });
 
