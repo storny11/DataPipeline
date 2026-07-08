@@ -24,7 +24,7 @@
                                     <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="@PanelTableStyle">
                                         <tbody>
                                             <tr>
-                                                <td height="4" bgcolor="@AccentColor" style="@HeaderAccentStyle">&nbsp;</td>
+                                                <td height="3" bgcolor="@AccentColor" style="@HeaderAccentStyle">&nbsp;</td>
                                             </tr>
                                             <tr>
                                                 <td bgcolor="#182b49" style="@HeaderContentStyle">
@@ -117,7 +117,7 @@
                                                     <td style="@ErrorsSectionContentStyle">
                                                         <div style="@ErrorsHeadingStyle">Errors (@Errors.Count)</div>
                                                         <div style="@SectionCaptionStyle">These items need attention before the run can be treated as clean.</div>
-                                                        <IssuesTable Issues="Errors" HeaderBackground="#2557a7" HeaderForeground="#ffffff" />
+                                                        <IssuesTable Issues="Errors" HeaderBackground="#fef3f2" HeaderForeground="#b42318" />
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -137,7 +137,7 @@
                                                     <td style="@WarningsSectionContentStyle">
                                                         <div style="@WarningsHeadingStyle">Warnings (@Warnings.Count)</div>
                                                         <div style="@SectionCaptionStyle">The run completed, but these items should be reviewed.</div>
-                                                        <IssuesTable Issues="Warnings" HeaderBackground="#2557a7" HeaderForeground="#ffffff" />
+                                                        <IssuesTable Issues="Warnings" HeaderBackground="#fffaeb" HeaderForeground="#92620a" />
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -154,7 +154,6 @@
                                         <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#ffffff" style="@PanelTableStyle">
                                             <tbody>
                                                 <tr>
-                                                    <td width="4" bgcolor="#2557a7" style="@SectionAccentStyle">&nbsp;</td>
                                                     <td style="@SectionContentStyle">
                                                         <div style="@TableHeadingStyle">@table.Title (@table.Rows.Count)</div>
                                                         <ResultTableView Table="table" />
@@ -188,18 +187,18 @@
     public RunReportingOptions Options { get; set; } = null!;
 
     private const string BodyStyle = "margin:0; padding:0; background-color:#f5f7fb; color:#101828; font-family:Segoe UI, Arial, sans-serif;";
-    private const string PreheaderStyle = "display:none; font-size:1px; line-height:1px; color:#f5f7fb; max-height:0; max-width:0; opacity:0; overflow:hidden; mso-hide:all;";
+    private const string PreheaderStyle = "display:none; visibility:hidden; font-size:1px; line-height:1px; color:#f5f7fb; max-height:0; max-width:0; mso-hide:all;";
     private const string FooterStyle = "padding:16px 8px 4px 8px; font-size:12px; line-height:17px; color:#98a2b3; mso-line-height-rule:exactly;";
     private const string OuterTableStyle = "width:100%; background-color:#f5f7fb; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string OuterCellStyle = "padding:28px 14px;";
     private const string ContainerTableStyle = "width:1180px; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string PanelTableStyle = "width:100%; background-color:#ffffff; border:1px solid #d7dde8; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string SummaryTableStyle = "width:100%; background-color:#f5f7fb; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
-    private const string HeaderAccentStyle = "height:4px; font-size:1px; line-height:4px; mso-line-height-rule:exactly;";
-    private const string HeaderContentStyle = "padding:18px 26px 20px 26px; background-color:#182b49;";
+    private const string HeaderAccentStyle = "height:3px; font-size:1px; line-height:3px; mso-line-height-rule:exactly;";
+    private const string HeaderContentStyle = "padding:21px 28px 23px 28px; background-color:#182b49;";
     private const string EyebrowStyle = "font-size:11px; line-height:15px; color:#adc4e2; font-weight:700; letter-spacing:1px; mso-line-height-rule:exactly;";
-    private const string TitleStyle = "padding-top:5px; font-size:22px; line-height:28px; color:#ffffff; font-weight:700; mso-line-height-rule:exactly;";
-    private const string StatusTableStyle = "margin-top:12px; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
+    private const string TitleStyle = "padding-top:6px; font-size:22px; line-height:28px; color:#ffffff; font-weight:700; mso-line-height-rule:exactly;";
+    private const string StatusTableStyle = "margin-top:14px; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string SpacerStyle = "font-size:1px; line-height:1px; mso-line-height-rule:exactly;";
     private const string SummaryCellStyle = "padding:8px; vertical-align:top;";
     private const string SummaryCellDividerStyle = SummaryCellStyle;
@@ -207,17 +206,16 @@
     private const string SummaryCardCellStyle = "padding:10px 12px; vertical-align:top;";
     private const string SummaryLabelStyle = "font-size:10px; line-height:14px; color:#667085; font-weight:700; letter-spacing:0.5px; mso-line-height-rule:exactly;";
     private const string SummaryValueStyle = "padding-top:4px; font-size:14px; line-height:19px; color:#101828; mso-line-height-rule:exactly;";
-    private const string SummaryCodeValueStyle = SummaryValueStyle + " font-family:Consolas, 'Courier New', monospace; font-size:13px; word-break:break-all;";
-    private const string SectionAccentStyle = "width:4px; font-size:1px; line-height:1px;";
-    private const string SectionContentStyle = "padding:16px 18px; background-color:#ffffff;";
-    private const string ErrorsSectionContentStyle = "padding:16px 18px; background-color:#fffafa; border-left:4px solid #d92d20;";
-    private const string WarningsSectionContentStyle = "padding:16px 18px; background-color:#fffdf7; border-left:4px solid #f79009;";
-    private const string SectionHeadingStyle = "font-size:17px; line-height:24px; color:#1d2939; font-weight:700; mso-line-height-rule:exactly;";
-    private const string ErrorsHeadingStyle = "font-size:17px; line-height:24px; color:#b42318; font-weight:700; mso-line-height-rule:exactly;";
-    private const string WarningsHeadingStyle = "font-size:17px; line-height:24px; color:#92620a; font-weight:700; mso-line-height-rule:exactly;";
-    private const string TableHeadingStyle = "font-size:17px; line-height:24px; color:#1f3a5f; font-weight:700; mso-line-height-rule:exactly;";
-    private const string SectionCaptionStyle = "padding-top:3px; padding-bottom:12px; font-size:13px; line-height:18px; color:#667085; mso-line-height-rule:exactly;";
-    private const string AllClearContentStyle = "padding:12px 16px; background-color:#f8fffb; border-left:4px solid #12b76a;";
+    private const string SummaryCodeValueStyle = SummaryValueStyle + " font-family:Consolas, 'Courier New', monospace; font-size:13px; word-wrap:break-word;";
+    private const string SectionContentStyle = "padding:18px 20px; background-color:#ffffff; border-left:4px solid #2557a7;";
+    private const string ErrorsSectionContentStyle = "padding:18px 20px; background-color:#fffafa; border-left:4px solid #d92d20;";
+    private const string WarningsSectionContentStyle = "padding:18px 20px; background-color:#fffdf7; border-left:4px solid #f79009;";
+    private const string SectionHeadingStyle = "font-size:18px; line-height:25px; color:#1d2939; font-weight:700; mso-line-height-rule:exactly;";
+    private const string ErrorsHeadingStyle = "font-size:19px; line-height:26px; color:#b42318; font-weight:700; mso-line-height-rule:exactly;";
+    private const string WarningsHeadingStyle = "font-size:19px; line-height:26px; color:#92620a; font-weight:700; mso-line-height-rule:exactly;";
+    private const string TableHeadingStyle = "font-size:18px; line-height:25px; color:#1f3a5f; font-weight:700; mso-line-height-rule:exactly;";
+    private const string SectionCaptionStyle = "padding-top:4px; padding-bottom:14px; font-size:13px; line-height:18px; color:#667085; mso-line-height-rule:exactly;";
+    private const string AllClearContentStyle = "padding:14px 18px; background-color:#f8fffb; border-left:4px solid #12b76a;";
     private const string AllClearHeadingStyle = "font-size:17px; line-height:23px; color:#067647; font-weight:700; mso-line-height-rule:exactly;";
     private const string AllClearCaptionStyle = "padding-top:2px; font-size:13px; line-height:18px; color:#175d3b; mso-line-height-rule:exactly;";
 

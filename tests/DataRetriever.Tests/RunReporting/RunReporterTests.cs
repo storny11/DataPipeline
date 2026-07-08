@@ -302,7 +302,7 @@ public sealed class RunReporterTests
         Assert.Contains("2026-07-08 10:15:00 -04:00", email.HtmlBody);
         Assert.DoesNotContain("DURATION", email.HtmlBody);
         Assert.Contains("border-left:4px solid #12b76a", email.HtmlBody);
-        Assert.Contains("padding:12px 16px", email.HtmlBody);
+        Assert.Contains("padding:14px 18px", email.HtmlBody);
         Assert.Contains("border:1px solid #e6ebf2", email.HtmlBody);
         Assert.Contains("background-color:#fbfcfe", email.HtmlBody);
     }
@@ -605,13 +605,22 @@ public sealed class RunReporterTests
         Assert.Contains("Run failed", email.HtmlBody);
         Assert.Contains("run-1", email.HtmlBody);
         Assert.Contains("font-family:Consolas", email.HtmlBody);
-        Assert.Contains("word-break:break-all", email.HtmlBody);
+        Assert.Contains("word-wrap:break-word", email.HtmlBody);
+        Assert.DoesNotContain("word-break:break-all", email.HtmlBody);
+        Assert.DoesNotContain("opacity:0", email.HtmlBody);
+        Assert.DoesNotContain("overflow:hidden", email.HtmlBody);
+        Assert.Contains("height:3px", email.HtmlBody);
         Assert.Contains("ENVIRONMENT", email.HtmlBody);
         Assert.Contains("border-left:4px solid #d92d20", email.HtmlBody);
         Assert.Contains("border-left:4px solid #f79009", email.HtmlBody);
+        Assert.Contains("border-left:4px solid #2557a7", email.HtmlBody);
+        Assert.Contains("font-size:19px; line-height:26px; color:#b42318; font-weight:700", email.HtmlBody);
+        Assert.Contains("font-size:19px; line-height:26px; color:#92620a; font-weight:700", email.HtmlBody);
         Assert.Contains("border:1px solid #b42318", email.HtmlBody);
         Assert.Contains("background-color:#fffafa", email.HtmlBody);
         Assert.Contains("background-color:#fffdf7", email.HtmlBody);
+        Assert.Contains("background-color:#fef3f2", email.HtmlBody);
+        Assert.Contains("background-color:#fffaeb", email.HtmlBody);
         Assert.Contains("background-color:#2557a7", email.HtmlBody);
         Assert.Contains("padding:9px 12px; font-size:14px", email.HtmlBody);
         Assert.Contains("INT-1", email.HtmlBody);
