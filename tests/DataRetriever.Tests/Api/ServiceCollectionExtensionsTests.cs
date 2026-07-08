@@ -34,6 +34,7 @@ public sealed class ServiceCollectionExtensionsTests
                 ["EmailReport:Host"] = "localhost",
                 ["EmailReport:Port"] = "2525",
                 ["EmailReport:From"] = "dataretriever@test.local",
+                ["EmailReport:ServiceName"] = "Configured data service",
                 ["EmailReport:To"] = "elena@test.local; ops@test.local"
             })
             .Build();
@@ -45,6 +46,7 @@ public sealed class ServiceCollectionExtensionsTests
 
         Assert.True(options.Enabled);
         Assert.Equal(2525, options.Port);
+        Assert.Equal("Configured data service", options.ServiceName);
         Assert.Equal("elena@test.local; ops@test.local", options.To);
     }
 

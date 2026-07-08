@@ -1,4 +1,5 @@
 // Coordinates the concrete step sequence and publishes the run report at the end.
+using System.Globalization;
 using DataRetriever.Application.Step1Load.Models;
 using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Application.Step3Load.Models;
@@ -28,7 +29,9 @@ public sealed class DataRetrievalOrchestrator(
         CancellationToken cancellationToken)
     {
         var context = new RunContext(Guid.NewGuid(), DateTimeOffset.UtcNow);
-        using var run = runReporter.BeginRun(("runId", context.RunId.ToString()));
+        using var run = runReporter.BeginRun(
+            ("runId", context.RunId.ToString()),
+            ($"started ({TimeLabel})", FormatRunTimestamp(context.StartedAt)));
         if (hostEnvironment != null)
         {
             runReporter.AddAttribute("environment", hostEnvironment.EnvironmentName);
@@ -76,6 +79,7 @@ public sealed class DataRetrievalOrchestrator(
         }
 
         instrumentationWriter.RecordRunStatus(instrumentation, status);
+        runReporter.AddAttribute($"completed ({TimeLabel})", FormatRunTimestamp(DateTimeOffset.UtcNow));
         await runReporter.PublishAsync(
             status == RunStatus.Failed ? RunOutcome.Failed : null,
             cancellationToken);
@@ -138,5 +142,27 @@ public sealed class DataRetrievalOrchestrator(
     private static bool CanContinue<TOutput>(StepExecutionResult<TOutput> result)
     {
         return !result.HasErrors && result.HasUsableOutput;
+    }
+
+    private static readonly TimeZoneInfo Eastern = ResolveEastern();
+
+    private static string TimeLabel => ReferenceEquals(Eastern, TimeZoneInfo.Utc) ? "UTC" : "ET";
+
+    private static string FormatRunTimestamp(DateTimeOffset value)
+    {
+        var timestamp = TimeZoneInfo.ConvertTime(value, Eastern);
+        return timestamp.ToString("yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture);
+    }
+
+    private static TimeZoneInfo ResolveEastern()
+    {
+        if (TimeZoneInfo.TryFindSystemTimeZoneById("America/New_York", out var iana))
+        {
+            return iana;
+        }
+
+        return TimeZoneInfo.TryFindSystemTimeZoneById("Eastern Standard Time", out var windows)
+            ? windows
+            : TimeZoneInfo.Utc;
     }
 }

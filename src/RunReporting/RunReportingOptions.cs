@@ -36,10 +36,9 @@ public sealed class RunReportingOptions
     /// minimal markup suited to clients that mangle rich HTML, e.g. Teams channel email addresses.</summary>
     public string CompactTo { get; set; } = "";
 
-    /// <summary>Shown in the subject and heading to identify which service the report came from.</summary>
-    public string ApplicationName { get; set; } = "Pipeline";
-
-    public string SubjectPrefix { get; set; } = "[Run Report]";
+    /// <summary>Identifies the service in generated subjects, the report footer, and the compact heading.
+    /// Generated subjects bracket this value, e.g. ServiceName "MyService" becomes "[MyService] Run failed (...)".</summary>
+    public string ServiceName { get; set; } = "";
 
     /// <summary>Overrides the email subject; receives the published report (attributes, outcome, counts, tables).
     /// Returning null/empty or throwing falls back to the default subject.</summary>

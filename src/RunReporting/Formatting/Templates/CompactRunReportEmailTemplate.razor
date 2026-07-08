@@ -5,7 +5,7 @@
 
 <div style="font-family:Segoe UI, Arial, sans-serif; font-size:14px; color:#101828;">
     <p style="margin:0 0 6px 0;">
-        <strong>@Options.ApplicationName — @OutcomeText</strong><br />
+        <strong>@Heading</strong><br />
         @Report.ErrorCount errors, @Report.WarningCount warnings
     </p>
 
@@ -31,7 +31,7 @@
 
     @foreach (var table in Report.Tables)
     {
-        <p style="margin:0 0 2px 0; font-size:13px; color:#475467;">@table.Title &mdash; @table.Rows.Count rows</p>
+        <p style="margin:0 0 2px 0; font-size:13px; color:#475467;">@table.Title (@table.Rows.Count)</p>
     }
 </div>
 
@@ -46,11 +46,15 @@
 
     private IReadOnlyList<RunIssue> TopIssues => Report.Issues.Take(MaxIssues).ToList();
 
+    private string Heading => string.IsNullOrWhiteSpace(Options.ServiceName)
+        ? OutcomeText
+        : $"{Options.ServiceName} — {OutcomeText}";
+
     private string OutcomeText => Report.Outcome switch
     {
-        RunOutcome.Failed => "run failed",
-        RunOutcome.CompletedWithWarnings => "run completed with warnings",
-        _ => "run succeeded"
+        RunOutcome.Failed => "Run failed",
+        RunOutcome.CompletedWithWarnings => "Run completed with warnings",
+        _ => "Run succeeded"
     };
 
     private string AttributesLine =>

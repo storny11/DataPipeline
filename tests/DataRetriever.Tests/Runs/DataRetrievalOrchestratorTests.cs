@@ -36,6 +36,8 @@ public sealed class DataRetrievalOrchestratorTests
 
         var report = Assert.Single(publisher.Published);
         Assert.Equal(result.RunId.ToString(), report.Attributes["runId"]);
+        Assert.Contains(report.Attributes.Keys, key => key.Equals("started (ET)", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(report.Attributes.Keys, key => key.Equals("completed (ET)", StringComparison.OrdinalIgnoreCase));
         Assert.Equal(RunOutcome.CompletedWithWarnings, report.Outcome);
         Assert.True(report.WarningCount > 0);
 

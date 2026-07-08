@@ -29,7 +29,13 @@ public static class ServiceCollectionExtensions
         });
 
         services
-            .AddRunReporting(configuration, options => options.ApplicationName = "Data retrieval")
+            .AddRunReporting(configuration, options =>
+            {
+                if (string.IsNullOrWhiteSpace(options.ServiceName))
+                {
+                    options.ServiceName = "Data retrieval";
+                }
+            })
             .AddDataRetrieverMonitoring()
             .AddDataRetrieverApplication();
 

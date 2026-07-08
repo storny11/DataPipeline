@@ -228,7 +228,7 @@ public sealed class RunReporterTests
         services.AddLogging();
         services.AddRunReporting(options =>
         {
-            options.ApplicationName = "TestApp";
+            options.ServiceName = "TestApp";
             options.Enabled = false;
             options.SubjectBuilder = _ => throw new InvalidOperationException("Broken builder.");
         });
@@ -245,7 +245,62 @@ public sealed class RunReporterTests
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
 
-        Assert.Contains("TestApp run succeeded", email.Subject);
+        Assert.Contains("[TestApp] Run succeeded", email.Subject);
+    }
+
+    [Fact]
+    public async Task RazorFormatter_WithoutServiceName_OmitsSubjectPrefix()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRunReporting(options => options.Enabled = false);
+
+        await using var provider = services.BuildServiceProvider();
+        var formatter = provider.GetRequiredService<IRunReportFormatter>();
+
+        var report = new RunReport(
+            new Dictionary<string, string?>(),
+            RunOutcome.Failed,
+            DateTimeOffset.UtcNow,
+            [RunIssue.Create("Step1", IssueSeverity.Error, "Boom.")],
+            []);
+
+        var email = await formatter.FormatAsync(report, CancellationToken.None);
+
+        Assert.Equal("Run failed (1 errors, 0 warnings)", email.Subject);
+    }
+
+    [Fact]
+    public async Task RazorFormatter_MetadataRendersOnlySuppliedAttributes()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRunReporting(options => options.Enabled = false);
+
+        await using var provider = services.BuildServiceProvider();
+        var formatter = provider.GetRequiredService<IRunReportFormatter>();
+
+        var report = new RunReport(
+            new Dictionary<string, string?>
+            {
+                ["runId"] = "run-1",
+                ["started (ET)"] = "2026-07-08 10:08:00 -04:00",
+                ["completed (ET)"] = "2026-07-08 10:15:00 -04:00"
+            },
+            RunOutcome.Succeeded,
+            DateTimeOffset.UtcNow,
+            [],
+            []);
+
+        var email = await formatter.FormatAsync(report, CancellationToken.None);
+
+        Assert.Contains("RUN ID", email.HtmlBody);
+        Assert.Contains("run-1", email.HtmlBody);
+        Assert.Contains("STARTED (ET)", email.HtmlBody);
+        Assert.Contains("2026-07-08 10:08:00 -04:00", email.HtmlBody);
+        Assert.Contains("COMPLETED (ET)", email.HtmlBody);
+        Assert.Contains("2026-07-08 10:15:00 -04:00", email.HtmlBody);
+        Assert.DoesNotContain("DURATION", email.HtmlBody);
     }
 
     [Fact]
@@ -255,7 +310,7 @@ public sealed class RunReporterTests
         services.AddLogging();
         services.AddRunReporting(options =>
         {
-            options.ApplicationName = "TestApp";
+            options.ServiceName = "TestApp";
             options.Enabled = false;
         });
 
@@ -274,14 +329,14 @@ public sealed class RunReporterTests
 
         var email = await formatter.FormatCompactAsync(report, CancellationToken.None);
 
-        Assert.Contains("TestApp — run completed with warnings", email.HtmlBody);
+        Assert.Contains("TestApp", email.HtmlBody);
+        Assert.Contains("Run completed with warnings", email.HtmlBody);
         Assert.Contains("runId: run-1", email.HtmlBody);
         Assert.Contains("Row 1 skipped", email.HtmlBody);
         Assert.Contains("and 2 more issues", email.HtmlBody);
-        Assert.Contains("Persisted Records", email.HtmlBody);
-        Assert.Contains("1 rows", email.HtmlBody);
+        Assert.Contains("Persisted Records (1)", email.HtmlBody);
         Assert.DoesNotContain("<b>", email.HtmlBody);
-        Assert.Contains("TestApp run completed with 12 warnings", email.Subject);
+        Assert.Contains("[TestApp] Run completed with 12 warnings", email.Subject);
     }
 
     [Fact]
@@ -495,7 +550,7 @@ public sealed class RunReporterTests
         services.AddLogging();
         services.AddRunReporting(options =>
         {
-            options.ApplicationName = "TestApp";
+            options.ServiceName = "TestApp";
             options.Enabled = false;
         });
 
@@ -511,11 +566,11 @@ public sealed class RunReporterTests
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
 
-        Assert.Contains("TestApp run failed", email.Subject);
+        Assert.Contains("[TestApp] Run failed", email.Subject);
         Assert.DoesNotContain("<script>", email.HtmlBody);
         Assert.Contains("&lt;script&gt;", email.HtmlBody);
         Assert.Contains("Step&lt;1&gt;", email.HtmlBody);
-        Assert.Contains("Persisted &lt;Rows&gt;", email.HtmlBody);
+        Assert.Contains("Persisted &lt;Rows&gt; (1)", email.HtmlBody);
         Assert.Contains("Run failed", email.HtmlBody);
         Assert.Contains("run-1", email.HtmlBody);
         Assert.Contains("ENVIRONMENT", email.HtmlBody);

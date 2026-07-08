@@ -66,14 +66,19 @@ public sealed class RazorRunReportFormatter(
             }
         }
 
-        var outcome = report.Outcome switch
+        var phrase = report.Outcome switch
         {
-            RunOutcome.Failed => $"run failed ({report.ErrorCount} errors, {report.WarningCount} warnings)",
-            RunOutcome.CompletedWithWarnings => $"run completed with {report.WarningCount} warnings",
-            _ => "run succeeded"
+            RunOutcome.Failed => $"Run failed ({report.ErrorCount} errors, {report.WarningCount} warnings)",
+            RunOutcome.CompletedWithWarnings => $"Run completed with {report.WarningCount} warnings",
+            _ => "Run succeeded"
         };
 
-        return SanitizeSubject($"{options.SubjectPrefix} {options.ApplicationName} {outcome}");
+        var serviceName = options.ServiceName?.Trim();
+        var subject = string.IsNullOrWhiteSpace(serviceName)
+            ? phrase
+            : $"[{serviceName}] {phrase}";
+
+        return SanitizeSubject(subject);
     }
 
     // MailMessage.Subject throws on CR/LF; a multi-line value costs its line breaks, never the email.

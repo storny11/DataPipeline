@@ -48,19 +48,24 @@ HTML email report when the run finishes. Built to be dropped into many company s
 10. **Formatting seam.** `IRunReportFormatter` (default `RazorRunReportFormatter`) turns a
    `RunReport` into subject + HTML. Services override the look by supplying their own Razor
    component via `UseRunReportTemplate<T>()` (receives `Report` and `Options` parameters).
-   Subject is overridable per service via `Options.SubjectBuilder`
-   (`Func<RunReport, string?>`); null/empty/throwing falls back to the default subject, and
-   CR/LF are always stripped (raw newlines make `MailMessage.Subject` throw).
+   Default subject is `[{ServiceName}] Run {failed (N errors, M warnings) | completed
+   with M warnings | succeeded}`; the service prefix is omitted when `ServiceName` is empty.
+   `Options.SubjectBuilder` (`Func<RunReport, string?>`) is the full-subject override;
+   null/empty/throwing falls back to the generated subject, and CR/LF are always stripped
+   (raw newlines make `MailMessage.Subject` throw).
 11. **Email template must render in Outlook** (Word engine): nested tables, inline styles,
     `bgcolor` attributes, `mso-` hints only. No flexbox/grid/border-radius/web fonts/margins.
-    Layout: hidden preheader, outcome-colored top accent (green/amber/red), "RUN REPORT"
-    eyebrow, title + outcome pill, two-column summary panel (uppercase humanized attribute
-    labels — `runId` → "RUN ID" — plus "STARTED (ET)"), Errors/Warnings panels with counts,
-    an "All clear" panel for clean runs, result tables, muted footer. No plain-text body
-    (removed on request).
-12. **Time zone is fixed to US Eastern** ("STARTED (ET)"), resolving `America/New_York`
-    then `Eastern Standard Time`, degrading to UTC (with a "UTC" label) if neither exists.
-    Not configurable — this was made configurable once and the owner removed it.
+    Layout: hidden preheader, compact navy header band (outcome-colored top accent, "RUN
+    REPORT" eyebrow, title, outcome badge — green/amber/red, soft fills with darker text),
+    a metadata panel of equal 25%-width columns containing only caller-supplied attributes
+    (humanized labels — `runId` → "RUN ID" — four per row), Errors/Warnings panels (white
+    background, colored left border, very pale table header), an "All clear" panel for
+    clean runs, result tables (navy header), muted footer. No plain-text body (removed on
+    request).
+12. **Metadata is caller-owned.** Do not append internal timing fields to the template.
+    If a consumer wants Started, Completed, Duration, Environment, etc., they pass those
+    as run attributes from the host/application code. The DataRetriever host supplies
+    `started (ET)` at run start and `completed (ET)` immediately before publish.
 13. **Result tables: explicit headers, rows as plain or anonymous objects.**
     `AddTable(title, headers, rows, alignments?)`: headers are strings shown **verbatim**
     (the owner wants to reword headers without touching row types); each header is matched
@@ -117,7 +122,7 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
 ```csharp
 services.AddRunReporting(configuration);            // requires "EmailReport" section
 // appsettings: { "EmailReport": { "Enabled": true, "Host": "...", "Port": 25,
-//                "From": "svc@x", "To": [ "team@x" ], "ApplicationName": "My Service" } }
+//                "From": "svc@x", "To": [ "team@x" ], "ServiceName": "My Service" } }
 
 using var run = reporter.BeginRun(("runId", id), ("environment", env));
 reporter.AddIssue(new { ccy, id }, "Rate missing", "Step3");        // Warning by default
