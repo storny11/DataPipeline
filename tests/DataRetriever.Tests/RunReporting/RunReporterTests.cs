@@ -301,6 +301,32 @@ public sealed class RunReporterTests
         Assert.Contains("COMPLETED (ET)", email.HtmlBody);
         Assert.Contains("2026-07-08 10:15:00 -04:00", email.HtmlBody);
         Assert.DoesNotContain("DURATION", email.HtmlBody);
+        Assert.Contains("border-left:4px solid #12b76a", email.HtmlBody);
+        Assert.Contains("padding:12px 16px", email.HtmlBody);
+    }
+
+    [Fact]
+    public async Task RazorFormatter_WarningOutcome_UsesShortWarningBadge()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRunReporting(options => options.Enabled = false);
+
+        await using var provider = services.BuildServiceProvider();
+        var formatter = provider.GetRequiredService<IRunReportFormatter>();
+
+        var report = new RunReport(
+            new Dictionary<string, string?>(),
+            RunOutcome.CompletedWithWarnings,
+            DateTimeOffset.UtcNow,
+            [RunIssue.Create("Step1", IssueSeverity.Warning, "Review this row.")],
+            []);
+
+        var email = await formatter.FormatAsync(report, CancellationToken.None);
+
+        Assert.Contains("Run completed with warnings", email.HtmlBody);
+        Assert.Contains(">Warnings</td>", email.HtmlBody);
+        Assert.DoesNotContain(">Completed with warnings</td>", email.HtmlBody);
     }
 
     [Fact]
@@ -561,7 +587,10 @@ public sealed class RunReporterTests
             new Dictionary<string, string?> { ["runId"] = "run-1", ["environment"] = "test" },
             RunOutcome.Failed,
             DateTimeOffset.UtcNow,
-            [RunIssue.Create("Step<1>", IssueSeverity.Error, "<script>alert(1)</script>")],
+            [
+                RunIssue.Create("Step<1>", IssueSeverity.Error, "<script>alert(1)</script>"),
+                RunIssue.Create("Step<2>", IssueSeverity.Warning, "Review this row.")
+            ],
             [ResultTable.From("Persisted <Rows>", ["ID"], [new { id = "INT-1" }])]);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
@@ -573,7 +602,12 @@ public sealed class RunReporterTests
         Assert.Contains("Persisted &lt;Rows&gt; (1)", email.HtmlBody);
         Assert.Contains("Run failed", email.HtmlBody);
         Assert.Contains("run-1", email.HtmlBody);
+        Assert.Contains("font-family:Consolas", email.HtmlBody);
+        Assert.Contains("word-break:break-all", email.HtmlBody);
         Assert.Contains("ENVIRONMENT", email.HtmlBody);
+        Assert.Contains("border-left:4px solid #d92d20", email.HtmlBody);
+        Assert.Contains("border-left:4px solid #f79009", email.HtmlBody);
+        Assert.Contains("border:1px solid #b42318", email.HtmlBody);
         Assert.Contains("INT-1", email.HtmlBody);
     }
 
