@@ -609,6 +609,7 @@ public sealed class RunReporterTests
         Assert.DoesNotContain("word-break:break-all", email.HtmlBody);
         Assert.DoesNotContain("opacity:0", email.HtmlBody);
         Assert.DoesNotContain("overflow:hidden", email.HtmlBody);
+        Assert.DoesNotContain("visibility:hidden", email.HtmlBody);
         Assert.Contains("height:3px", email.HtmlBody);
         Assert.Contains("ENVIRONMENT", email.HtmlBody);
         Assert.Contains("border-left:4px solid #d92d20", email.HtmlBody);
