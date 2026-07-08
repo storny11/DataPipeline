@@ -32,15 +32,21 @@ public sealed class EmailRunReportPublisher(
                 "RunReportingOptions must contain at least one To/Cc/Bcc/CompactTo recipient before a report can be published.");
         }
 
+        RunReportEmail? fullEmail = null;
         if (to.Count + cc.Count + bcc.Count > 0)
         {
-            var email = await formatter.FormatAsync(report, cancellationToken);
-            await SendAsync(email, to, cc, bcc, cancellationToken).ConfigureAwait(false);
+            fullEmail = await formatter.FormatAsync(report, cancellationToken);
+            await SendAsync(fullEmail, to, cc, bcc, cancellationToken).ConfigureAwait(false);
         }
 
         if (compactTo.Count > 0)
         {
             var email = await formatter.FormatCompactAsync(report, cancellationToken);
+            if (fullEmail != null)
+            {
+                email = email with { Subject = fullEmail.Subject };
+            }
+
             await SendAsync(email, compactTo, [], [], cancellationToken).ConfigureAwait(false);
         }
     }

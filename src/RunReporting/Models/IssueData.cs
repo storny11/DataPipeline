@@ -16,7 +16,7 @@ public static class IssueData
             case null:
                 return RunIssue.EmptyData;
             case IReadOnlyDictionary<string, string?> data:
-                return data;
+                return new Dictionary<string, string?>(data);
             case string id:
                 return Single("id", id);
             case IEnumerable enumerable:

@@ -195,6 +195,29 @@ public sealed class RunReporterTests
     }
 
     [Fact]
+    public void AddRunReporting_ReplacesPreRegisteredOptionsWithConfiguredOptions()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(new RunReportingOptions
+        {
+            Enabled = false,
+            To = "old@test.local",
+            ServiceName = "OldService"
+        });
+
+        services.AddRunReporting(options =>
+        {
+            options.To = "new@test.local";
+            options.ServiceName = "NewService";
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<RunReportingOptions>();
+        Assert.Equal("new@test.local", options.To);
+        Assert.Equal("NewService", options.ServiceName);
+    }
+
+    [Fact]
     public async Task RazorFormatter_UsesCustomSubjectBuilder()
     {
         var services = new ServiceCollection();
@@ -545,6 +568,19 @@ public sealed class RunReporterTests
 
         var issue = Assert.Single(reporter.Take().Issues);
         Assert.Equal("GBP, INT-1", issue.Data["ids"]);
+    }
+
+    [Fact]
+    public void AddIssue_WithDictionarySubject_SnapshotsData()
+    {
+        var reporter = CreateReporter(out _);
+        var data = new Dictionary<string, string?> { ["id"] = "before" };
+
+        reporter.AddIssue(data, "Row rejected.");
+        data["id"] = "after";
+
+        var issue = Assert.Single(reporter.Take().Issues);
+        Assert.Equal("before", issue.Data["id"]);
     }
 
     [Fact]
