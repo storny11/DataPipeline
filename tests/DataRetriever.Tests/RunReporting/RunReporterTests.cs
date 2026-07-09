@@ -635,11 +635,11 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public async Task PublishAsync_WithoutIssues_SkipsSendWhenConfiguredOff()
+    public async Task PublishAsync_EmptyReport_SkipsSendWhenConfiguredOff()
     {
         var sender = new CapturingPublisher();
         var reporter = new RunReporter(
-            new RunReportingOptions { SendWhenNoIssues = false },
+            new RunReportingOptions { SendEmptyReports = false },
             [sender],
             NullLogger<RunReporter>.Instance);
 
@@ -649,11 +649,11 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public async Task PublishAsync_WithOnlyTables_SendsEvenWhenNoIssueSendIsOff()
+    public async Task PublishAsync_WithOnlyTables_SendsWhenEmptyReportSendIsOff()
     {
         var sender = new CapturingPublisher();
         var reporter = new RunReporter(
-            new RunReportingOptions { SendWhenNoIssues = false },
+            new RunReportingOptions { SendEmptyReports = false },
             [sender],
             NullLogger<RunReporter>.Instance);
 

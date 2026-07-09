@@ -164,7 +164,7 @@ public sealed class RunReporter : IRunReporter
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!report.HasIssues && report.Tables.Count == 0 && !_options.SendWhenNoIssues)
+        if (report.Issues.Count == 0 && report.Tables.Count == 0 && !_options.SendEmptyReports)
         {
             return;
         }

@@ -48,7 +48,7 @@ public sealed class RunReportingOptions
     public TimeSpan SendTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>When false, publishing a run that collected no issues and no tables sends nothing.</summary>
-    public bool SendWhenNoIssues { get; set; } = true;
+    public bool SendEmptyReports { get; set; } = true;
 
     internal IReadOnlyList<string> ToRecipients => Split(To);
 

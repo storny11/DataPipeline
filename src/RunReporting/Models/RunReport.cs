@@ -12,8 +12,6 @@ public sealed record RunReport(
 
     public int WarningCount => Issues.Count(issue => issue.Severity == IssueSeverity.Warning);
 
-    public bool HasIssues => Issues.Count > 0;
-
     internal static RunOutcome DeriveOutcome(IReadOnlyList<RunIssue> issues)
     {
         if (issues.Any(issue => issue.Severity == IssueSeverity.Error))
