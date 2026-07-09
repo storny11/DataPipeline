@@ -561,25 +561,6 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public async Task PublishAsync_ComposedReportHonorsCancellationBeforeAnEarlyReturn()
-    {
-        var reporter = new RunReporter(
-            new RunReportingOptions { SendWhenNoIssues = false },
-            []);
-        var report = new RunReport(
-            new Dictionary<string, string?>(),
-            RunOutcome.Succeeded,
-            DateTimeOffset.UtcNow,
-            [],
-            []);
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            reporter.PublishAsync(report, cancellation.Token));
-    }
-
-    [Fact]
     public async Task PublishAsync_WhenCallerCancelsBetweenPublishers_StopsFanOut()
     {
         using var cancellation = new CancellationTokenSource();

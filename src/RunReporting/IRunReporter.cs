@@ -35,7 +35,4 @@ public interface IRunReporter
 
     /// <summary>Removes everything collected for the current run, sends the report, and returns it; pass an outcome to override the derived one.</summary>
     Task<RunReport> PublishAsync(RunOutcome? outcome = null, CancellationToken cancellationToken = default);
-
-    /// <summary>Sends an already-composed report through the configured sender.</summary>
-    Task PublishAsync(RunReport report, CancellationToken cancellationToken = default);
 }

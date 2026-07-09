@@ -23,8 +23,8 @@ HTML email report when the run finishes. Built to be dropped into many company s
    args). The single
    exception: `PublishAsync` honors the *caller's own* `CancellationToken`. A reporting
    failure must never fail the pipeline it reports on. Cancellation is checked before
-   `Take()` (so a pre-cancelled publish does not drain the run), at the report-overload
-   boundary, between publishers, and before a successfully published call returns.
+   `Take()` (so a pre-cancelled publish does not drain the run), between publishers, and
+   before a successfully published call returns.
 6. **Composition time fails fast.** `AddRunReporting(IConfiguration)` requires an
    `EmailReport` config section and validates email settings (host, port 1–65535, parseable
    From and recipients, at least one recipient, positive SendTimeout) — all problems

@@ -154,19 +154,13 @@ public sealed class RunReporter : IRunReporter
             report = report with { Outcome = outcome.Value };
         }
 
-        await PublishAsync(report, cancellationToken).ConfigureAwait(false);
+        await PublishReportAsync(report, cancellationToken).ConfigureAwait(false);
         return report;
     }
 
-    public async Task PublishAsync(RunReport report, CancellationToken cancellationToken = default)
+    private async Task PublishReportAsync(RunReport report, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        if (report == null)
-        {
-            _logger.LogError("Run reporting ignored a publish request for a null report.");
-            return;
-        }
 
         if (!report.HasIssues && report.Tables.Count == 0 && !_options.SendWhenNoIssues)
         {
