@@ -20,7 +20,7 @@ public interface IRunReporter
         string stepName,
         string key,
         string message,
-        object? data = null,
+        IReadOnlyDictionary<string, string?>? data = null,
         IssueSeverity severity = IssueSeverity.Warning);
 
     /// <summary>Removes all issues from the current run whose step and key match exactly; returns the number removed.</summary>

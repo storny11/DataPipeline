@@ -22,12 +22,10 @@ public sealed class Step4RequestMapper(IRunReporter reporter)
                     Step4Persister.StepName,
                     IssueKey(record),
                     "Persistence request row is missing an identifier and was discarded.",
-                    new
-                    {
-                        internalId = record.InternalId,
-                        externalId1 = record.ExternalId1,
-                        externalId2 = record.ExternalId2
-                    });
+                    IssueData.From(
+                        ("internalId", record.InternalId),
+                        ("externalId1", record.ExternalId1),
+                        ("externalId2", record.ExternalId2)));
                 continue;
             }
 

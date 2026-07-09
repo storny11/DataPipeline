@@ -41,7 +41,7 @@ public sealed class Step2Loader(
                     Name,
                     row.InternalId,
                     $"Step 2 source call failed for external id 1 '{row.ExternalId1}': {exception.Message}",
-                    Step2ResponseMapper.Subject(row));
+                    Step2ResponseMapper.Data(row));
                 continue;
             }
 
@@ -51,7 +51,7 @@ public sealed class Step2Loader(
                     Name,
                     row.InternalId,
                     $"Step 2 source returned no rows for external id 1 '{row.ExternalId1}'.",
-                    Step2ResponseMapper.Subject(row));
+                    Step2ResponseMapper.Data(row));
                 continue;
             }
 
@@ -65,7 +65,7 @@ public sealed class Step2Loader(
                     Name,
                     row.InternalId,
                     $"Step 2 source returned {selected.Count} valid rows for external id 1 '{row.ExternalId1}', fewer than requested {row.Step2RecordsToKeep}.",
-                    Step2ResponseMapper.Subject(row));
+                    Step2ResponseMapper.Data(row));
             }
 
             outputRecords.AddRange(selected);

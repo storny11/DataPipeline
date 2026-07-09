@@ -22,7 +22,7 @@ public sealed class Step3ResponseMapperTests
 
             var amounts = mapper.Map(
                 [new Step3ResponseItemDto("EXT2-A", "1.25", "2.50", "3.75")],
-                new Dictionary<NormalizedExternalId2, object>());
+                new Dictionary<NormalizedExternalId2, IReadOnlyDictionary<string, string?>>());
 
             Assert.True(amounts.TryGetValue(normalized, out var mapped));
             Assert.Equal(1.25m, mapped.Amount1);
@@ -48,9 +48,11 @@ public sealed class Step3ResponseMapperTests
                 new Step3ResponseItemDto("EXT2-A", "1.25", "2.50", "3.75"),
                 new Step3ResponseItemDto("EXT2-A", "9.99", "8.88", "7.77")
             ],
-            new Dictionary<NormalizedExternalId2, object>
+            new Dictionary<NormalizedExternalId2, IReadOnlyDictionary<string, string?>>
             {
-                [normalized] = new { internalId = "INT-1", externalId2 = "EXT2-A" }
+                [normalized] = IssueData.From(
+                    ("internalId", "INT-1"),
+                    ("externalId2", "EXT2-A"))
             });
 
         Assert.True(amounts.TryGetValue(normalized, out var mapped));

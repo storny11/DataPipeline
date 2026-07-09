@@ -12,7 +12,11 @@ public sealed class RunReporterTests
     {
         var reporter = CreateReporter(out _);
 
-        reporter.AddIssue("Step1Load", "row-7", "Invalid source row skipped.", new { row = 7 });
+        reporter.AddIssue(
+            "Step1Load",
+            "row-7",
+            "Invalid source row skipped.",
+            IssueData.From(("row", "7")));
 
         var report = reporter.Take();
         var issue = Assert.Single(report.Issues);
@@ -160,8 +164,13 @@ public sealed class RunReporterTests
     public void RemoveIssues_RemovesEveryExactStepAndKeyMatch()
     {
         var reporter = CreateReporter(out _);
-        reporter.AddIssue("Step1", "row-1", "First warning.", new { value = 1 });
-        reporter.AddIssue("Step1", "row-1", "Error for the same identity.", new { value = 2 }, IssueSeverity.Error);
+        reporter.AddIssue("Step1", "row-1", "First warning.", IssueData.From(("value", "1")));
+        reporter.AddIssue(
+            "Step1",
+            "row-1",
+            "Error for the same identity.",
+            IssueData.From(("value", "2")),
+            IssueSeverity.Error);
         reporter.AddIssue("Step2", "row-1", "Different step.");
         reporter.AddIssue("Step1", "ROW-1", "Different key casing.");
 
@@ -498,15 +507,19 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void AddIssue_WithThrowingSubjectGetter_IsRecordedWithoutThrowing()
+    public void IssueData_FromNamedValues_IgnoresEmptyNamesAndUsesLastCaseInsensitiveValue()
     {
         var reporter = CreateReporter(out _);
+        var data = IssueData.From(
+            ("Id", "before"),
+            ("", "ignored"),
+            ("id", "after"));
 
-        reporter.AddIssue("Step1", "INT-1", "Row rejected.", new ExplosiveSubject());
+        reporter.AddIssue("Step1", "INT-1", "Row rejected.", data);
 
         var issue = Assert.Single(reporter.Take().Issues);
-        Assert.Equal("INT-1", issue.Data["Id"]);
-        Assert.Null(issue.Data["Bad"]);
+        Assert.Single(issue.Data);
+        Assert.Equal("after", issue.Data["ID"]);
     }
 
     [Fact]
@@ -677,30 +690,25 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void AddIssue_WithScalarSubject_CapturesItAsId()
-    {
-        var reporter = CreateReporter(out _);
-        var i = 2 + 3;
-
-        reporter.AddIssue("Step1", "5", "i should be lower than 1", i);
-
-        var issue = Assert.Single(reporter.Take().Issues);
-        Assert.Equal("5", issue.Data["id"]);
-    }
-
-    [Fact]
-    public void AddIssue_WithListSubject_JoinsIdsIntoData()
+    public void AddIssue_WithExplicitNamedData_PreservesValues()
     {
         var reporter = CreateReporter(out _);
 
-        reporter.AddIssue("Step1", "GBP:INT-1", "Combination rejected.", new[] { "GBP", "INT-1" });
+        reporter.AddIssue(
+            "Step1",
+            "GBP:INT-1",
+            "Combination rejected.",
+            IssueData.From(
+                ("currency", "GBP"),
+                ("internalId", "INT-1")));
 
         var issue = Assert.Single(reporter.Take().Issues);
-        Assert.Equal("GBP, INT-1", issue.Data["ids"]);
+        Assert.Equal("GBP", issue.Data["currency"]);
+        Assert.Equal("INT-1", issue.Data["internalId"]);
     }
 
     [Fact]
-    public void AddIssue_WithDictionarySubject_SnapshotsData()
+    public void AddIssue_WithExplicitData_SnapshotsData()
     {
         var reporter = CreateReporter(out _);
         var data = new Dictionary<string, string?> { ["id"] = "before" };
@@ -801,7 +809,7 @@ public sealed class RunReporterTests
     private static async Task AddFromNestedAsyncCall(IRunReporter reporter)
     {
         await Task.Yield();
-        reporter.AddIssue("Nested", "42", "Subject message.", 42);
+        reporter.AddIssue("Nested", "42", "Subject message.", IssueData.From(("id", "42")));
     }
 
     private static RunReporter CreateReporter(out CapturingPublisher sender)

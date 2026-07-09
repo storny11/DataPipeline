@@ -52,7 +52,7 @@ public sealed class DataRetrievalOrchestrator(
                 "Run",
                 context.RunId.ToString(),
                 $"Unexpected run failure: {exception.Message}",
-                new { runId = context.RunId.ToString() },
+                IssueData.From(("runId", context.RunId.ToString())),
                 IssueSeverity.Error);
             status = RunStatus.Failed;
 

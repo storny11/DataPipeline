@@ -19,7 +19,8 @@ HTML email report when the run finishes. Built to be dropped into many company s
 4. **Report at origin.** Issues/tables/attributes are reported where they happen
    (validators, mappers, persisters), not accumulated in lists and merged at the end.
 5. **Runtime never throws.** Every `IRunReporter` member logs-and-degrades on any failure
-   (bad subjects, throwing getters, hostile enumerables, dead SMTP, null args). The single
+   (invalid explicit data, throwing table selectors, hostile enumerables, dead SMTP, null
+   args). The single
    exception: `PublishAsync` honors the *caller's own* `CancellationToken`. A reporting
    failure must never fail the pipeline it reports on. Cancellation is checked before
    `Take()` (so a pre-cancelled publish does not drain the run), at the report-overload
@@ -84,9 +85,12 @@ HTML email report when the run finishes. Built to be dropped into many company s
     `AddIssue(stepName, key, message, data?, severity?)`; its identity is the exact ordinal
     `(StepName, Key)` pair. `RemoveIssues(stepName, key)` removes every matching issue from
     the current run and returns the count. General message-only issues have empty identity
-    and are not targetable. `Data` is display-only diagnostic context: it may be a scalar,
-    list, dictionary, or object/anonymous projection. Conversion lives in `IssueData` and
-    formatting is culture-invariant (`ValueFormatter`); data never participates in removal.
+    and are not targetable. `Data` is display-only diagnostic context with one explicit
+    shape: `IReadOnlyDictionary<string, string?>`. `IssueData.From(("name", value), ...)`
+    is only a named-string-pair convenience; it performs no scalar/list classification,
+    reflection, property discovery, or value formatting. Names are case-insensitive,
+    blank names are ignored, and the last duplicate wins. `RunReporter` snapshots data on
+    receipt, and data never participates in removal.
 15. **Outcome** (`Succeeded` / `CompletedWithWarnings` / `Failed`) is derived from collected
     issues; callers may override at publish (`PublishAsync(RunOutcome.Failed)`).
     `PublishAsync` returns the published `RunReport` so callers can shape API responses
@@ -129,7 +133,8 @@ services.AddRunReporting(configuration);            // requires "EmailReport" se
 //                "From": "svc@x", "To": "team@x; ops@x", "ServiceName": "My Service" } }
 
 using var run = reporter.BeginRun(("runId", id), ("environment", env));
-reporter.AddIssue("Step3", id, "Rate missing", new { ccy, id });   // Warning by default
+reporter.AddIssue("Step3", id, "Rate missing",
+    IssueData.From(("currency", ccy), ("id", id)));                // Warning by default
 reporter.RemoveIssues("Step3", id);                                // Removes every exact match
 reporter.AddIssue("fatal", severity: IssueSeverity.Error);
 reporter.AddTable("Persisted Records", rows,
@@ -166,7 +171,8 @@ Package-focused tests live in `tests/DataRetriever.Tests/RunReporting/RunReporte
 (run `dotnet test`, use `-c Release` if a debugger holds Debug outputs). Coverage includes:
 ambient nesting/isolation across async, default-run mode,
 attribute salvage on collisions, `""` recipient blanking, never-throw guarantees (throwing
-getters, null args, publisher failures, internal-timeout OCE containment), caller
+table selectors, null args, publisher failures, internal-timeout OCE containment), explicit
+named issue data and snapshotting, caller
 cancellation without pre-draining and between-publisher cancellation, exact step+key issue
 removal, subject builder (custom/fallback/CRLF), explicit typed table selectors, alignment
 flow, Razor rendering + HTML

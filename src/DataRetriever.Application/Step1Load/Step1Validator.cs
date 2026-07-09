@@ -15,37 +15,35 @@ public sealed class Step1Validator(IRunReporter reporter)
     private bool IsValid(Step1SourceRow row)
     {
         var key = IssueKey(row);
-        var subject = new
-        {
-            internalId = row.InternalId,
-            externalId1 = row.ExternalId1,
-            currency = row.Currency,
-            step2RecordsToKeep = row.Step2RecordsToKeep
-        };
+        var data = IssueData.From(
+            ("internalId", row.InternalId),
+            ("externalId1", row.ExternalId1),
+            ("currency", row.Currency),
+            ("step2RecordsToKeep", row.Step2RecordsToKeep));
 
         var valid = true;
 
         if (string.IsNullOrWhiteSpace(row.InternalId))
         {
-            reporter.AddIssue(Step1Loader.StepName, key, "Configured row is missing internal id.", subject);
+            reporter.AddIssue(Step1Loader.StepName, key, "Configured row is missing internal id.", data);
             valid = false;
         }
 
         if (string.IsNullOrWhiteSpace(row.ExternalId1))
         {
-            reporter.AddIssue(Step1Loader.StepName, key, "Configured row is missing external id 1.", subject);
+            reporter.AddIssue(Step1Loader.StepName, key, "Configured row is missing external id 1.", data);
             valid = false;
         }
 
         if (string.IsNullOrWhiteSpace(row.Currency))
         {
-            reporter.AddIssue(Step1Loader.StepName, key, "Configured row is missing currency.", subject);
+            reporter.AddIssue(Step1Loader.StepName, key, "Configured row is missing currency.", data);
             valid = false;
         }
 
         if (!TryParsePositiveStep2RecordsToKeep(row.Step2RecordsToKeep, out _))
         {
-            reporter.AddIssue(Step1Loader.StepName, key, "Configured row has invalid Step 2 records-to-keep value.", subject);
+            reporter.AddIssue(Step1Loader.StepName, key, "Configured row has invalid Step 2 records-to-keep value.", data);
             valid = false;
         }
 

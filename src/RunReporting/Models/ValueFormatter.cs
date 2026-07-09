@@ -1,6 +1,5 @@
-// Formats values culture-invariantly for issue data and result table cells.
+// Formats values culture-invariantly for result table cells and humanizes attribute labels.
 using System.Globalization;
-using System.Reflection;
 
 namespace RunReporting;
 
@@ -28,19 +27,6 @@ internal static class ValueFormatter
         return (char.IsUpper(current) && char.IsLower(previous)) ||
             (char.IsDigit(current) && !char.IsDigit(previous)) ||
             (char.IsLetter(current) && char.IsDigit(previous));
-    }
-
-    public static string? FormatProperty(PropertyInfo property, object instance, string? format = null)
-    {
-        try
-        {
-            return Format(property.GetValue(instance), format);
-        }
-        catch
-        {
-            // A throwing getter costs its value, never the caller.
-            return null;
-        }
     }
 
     public static string? Format(object? value, string? format = null)

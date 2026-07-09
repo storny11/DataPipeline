@@ -107,17 +107,47 @@ public sealed class RunReporter : IRunReporter
         string stepName,
         string key,
         string message,
-        object? data = null,
+        IReadOnlyDictionary<string, string?>? data = null,
         IssueSeverity severity = IssueSeverity.Warning)
     {
         try
         {
-            Report(RunIssue.Create(stepName, key, severity, message, IssueData.From(data)));
+            Report(RunIssue.Create(stepName, key, severity, message, CopyIssueData(data)));
         }
         catch (Exception exception)
         {
             _logger.LogError(exception, "Run reporting failed to record an issue; it will be missing from the report.");
         }
+    }
+
+    private IReadOnlyDictionary<string, string?> CopyIssueData(
+        IReadOnlyDictionary<string, string?>? data)
+    {
+        if (data == null)
+        {
+            return RunIssue.EmptyData;
+        }
+
+        var copy = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            foreach (var item in data)
+            {
+                if (string.IsNullOrWhiteSpace(item.Key))
+                {
+                    _logger.LogError("Run reporting ignored issue data without a name.");
+                    continue;
+                }
+
+                copy[item.Key] = item.Value;
+            }
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Run reporting failed to read all issue data; the issue keeps the values read so far.");
+        }
+
+        return copy.Count == 0 ? RunIssue.EmptyData : copy;
     }
 
     public int RemoveIssues(string stepName, string key)

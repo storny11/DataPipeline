@@ -46,8 +46,8 @@ public sealed class Step3Loader(
         }
 
         responseValidator.ValidateRequestedRowsReturned(input, response);
-        var subjectByExternalId2 = BuildSubjectByExternalId2(input);
-        var amounts = responseMapper.Map(response.Items, subjectByExternalId2);
+        var dataByExternalId2 = BuildDataByExternalId2(input);
+        var amounts = responseMapper.Map(response.Items, dataByExternalId2);
 
         var output = new List<Step3OutputRecord>();
         foreach (var row in input.Records)
@@ -85,17 +85,18 @@ public sealed class Step3Loader(
             counters);
     }
 
-    private IReadOnlyDictionary<NormalizedExternalId2, object> BuildSubjectByExternalId2(Step2Output input)
+    private IReadOnlyDictionary<NormalizedExternalId2, IReadOnlyDictionary<string, string?>> BuildDataByExternalId2(
+        Step2Output input)
     {
-        var subjects = new Dictionary<NormalizedExternalId2, object>();
+        var dataByExternalId2 = new Dictionary<NormalizedExternalId2, IReadOnlyDictionary<string, string?>>();
         foreach (var row in input.Records)
         {
             if (normalizer.TryNormalize(row.ExternalId2, out var normalized))
             {
-                subjects[normalized] = Step3RequestMapper.Subject(row);
+                dataByExternalId2[normalized] = Step3RequestMapper.Data(row);
             }
         }
 
-        return subjects;
+        return dataByExternalId2;
     }
 }

@@ -21,7 +21,7 @@ public sealed class Step2ResponseMapper(IRunReporter reporter)
                     Step2Loader.StepName,
                     input.InternalId,
                     "Step 2 source row is missing external id 2 and was discarded.",
-                    Subject(input));
+                    Data(input));
                 continue;
             }
 
@@ -35,12 +35,10 @@ public sealed class Step2ResponseMapper(IRunReporter reporter)
         return records;
     }
 
-    internal static object Subject(Step1OutputRecord input)
+    internal static IReadOnlyDictionary<string, string?> Data(Step1OutputRecord input)
     {
-        return new
-        {
-            internalId = input.InternalId,
-            externalId1 = input.ExternalId1
-        };
+        return IssueData.From(
+            ("internalId", input.InternalId),
+            ("externalId1", input.ExternalId1));
     }
 }
