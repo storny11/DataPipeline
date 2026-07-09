@@ -78,9 +78,13 @@ HTML email report when the run finishes. Built to be dropped into many company s
     value. Do not reintroduce inferred property binding without the owner.
     Attribute labels in the summary panel are still auto-humanized
     (`ValueFormatter.ToHeader`: `runId` → "RUN ID").
-14. **Issue subjects are flexible:** scalar (→ `id=5`), list (→ `ids=a, b`), dictionary
-    (snapshotted), or object/anonymous (`new { ccy, id }` → one entry per property).
-    Conversion lives in `IssueData`; formatting is culture-invariant (`ValueFormatter`).
+14. **Issue identity is explicit.** A keyed issue is reported with
+    `AddIssue(stepName, key, message, data?, severity?)`; its identity is the exact ordinal
+    `(StepName, Key)` pair. `RemoveIssues(stepName, key)` removes every matching issue from
+    the current run and returns the count. General message-only issues have empty identity
+    and are not targetable. `Data` is display-only diagnostic context: it may be a scalar,
+    list, dictionary, or object/anonymous projection. Conversion lives in `IssueData` and
+    formatting is culture-invariant (`ValueFormatter`); data never participates in removal.
 15. **Outcome** (`Succeeded` / `CompletedWithWarnings` / `Failed`) is derived from collected
     issues; callers may override at publish (`PublishAsync(RunOutcome.Failed)`).
     `PublishAsync` returns the published `RunReport` so callers can shape API responses
@@ -123,7 +127,8 @@ services.AddRunReporting(configuration);            // requires "EmailReport" se
 //                "From": "svc@x", "To": "team@x; ops@x", "ServiceName": "My Service" } }
 
 using var run = reporter.BeginRun(("runId", id), ("environment", env));
-reporter.AddIssue(new { ccy, id }, "Rate missing", "Step3");        // Warning by default
+reporter.AddIssue("Step3", id, "Rate missing", new { ccy, id });   // Warning by default
+reporter.RemoveIssues("Step3", id);                                // Removes every exact match
 reporter.AddIssue("fatal", severity: IssueSeverity.Error);
 reporter.AddTable("Persisted Records", rows,
     [
@@ -138,7 +143,7 @@ await reporter.PublishAsync(failed ? RunOutcome.Failed : null);
 - `DataRetrievalOrchestrator`: `BeginRun(("runId", ...))` at the top, one
   `PublishAsync(status == Failed ? RunOutcome.Failed : null)` at the bottom; API returns
   only `{ runId, status }` (`DataRetrievalRunResult`) — the email *is* the report.
-- `StepRunner` bridges fatal errors carried in `StepExecutionResult.Issues` into the
+- `StepRunner` bridges keyed fatal errors carried in `StepExecutionResult.Issues` into the
   reporter (ordinary warnings are origin-reported by validators/mappers directly).
 - `Step4Persister` adds the "Persisted Records" table at origin.
 - Simulator/dev mode: `EmailReport.Enabled` drives whether email actually sends
@@ -159,6 +164,7 @@ Package-focused tests live in `tests/DataRetriever.Tests/RunReporting/RunReporte
 (run `dotnet test`, use `-c Release` if a debugger holds Debug outputs). Coverage includes:
 ambient nesting/isolation across async, default-run mode,
 attribute salvage on collisions, `""` recipient blanking, never-throw guarantees (throwing
-getters, null args, publisher failures, internal-timeout OCE containment), subject builder
-(custom/fallback/CRLF), explicit typed table selectors, alignment flow, Razor rendering + HTML
+getters, null args, publisher failures, internal-timeout OCE containment), exact step+key
+issue removal, subject builder (custom/fallback/CRLF), explicit typed table selectors,
+alignment flow, Razor rendering + HTML
 encoding, and composition-time validation failures.

@@ -35,6 +35,7 @@ public sealed class Step3Loader(
                 [
                     new StepIssue(
                         Name,
+                        "source-request",
                         StepIssueSeverity.Error,
                         $"Step 3 source request failed: {exception.Message}",
                         DiagnosticContext.From(("requestedExternalId2Count", requestMapping.Request.ExternalId2Values.Count.ToString())))

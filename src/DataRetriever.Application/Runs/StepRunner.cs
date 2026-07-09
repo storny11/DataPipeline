@@ -27,9 +27,10 @@ public sealed class StepRunner(
         foreach (var issue in result.Issues)
         {
             runReporter.AddIssue(
-                issue.Context.Values,
-                issue.Message,
                 issue.StepName,
+                issue.Key,
+                issue.Message,
+                issue.Context.Values,
                 issue.Severity == StepIssueSeverity.Error ? IssueSeverity.Error : IssueSeverity.Warning);
         }
 

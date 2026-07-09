@@ -95,7 +95,7 @@ public sealed class RunReporter : IRunReporter
     {
         try
         {
-            Report(RunIssue.Create(null, severity, message));
+            Report(RunIssue.Create(null, null, severity, message));
         }
         catch (Exception exception)
         {
@@ -103,15 +103,39 @@ public sealed class RunReporter : IRunReporter
         }
     }
 
-    public void AddIssue(object? subject, string message, string? stepName = null, IssueSeverity severity = IssueSeverity.Warning)
+    public void AddIssue(
+        string stepName,
+        string key,
+        string message,
+        object? data = null,
+        IssueSeverity severity = IssueSeverity.Warning)
     {
         try
         {
-            Report(RunIssue.Create(stepName, severity, message, IssueData.From(subject)));
+            Report(RunIssue.Create(stepName, key, severity, message, IssueData.From(data)));
         }
         catch (Exception exception)
         {
             _logger.LogError(exception, "Run reporting failed to record an issue; it will be missing from the report.");
+        }
+    }
+
+    public int RemoveIssues(string stepName, string key)
+    {
+        if (string.IsNullOrWhiteSpace(stepName) || string.IsNullOrWhiteSpace(key))
+        {
+            _logger.LogError("Run reporting ignored an issue-removal request without both a step name and key.");
+            return 0;
+        }
+
+        try
+        {
+            return CurrentRun.RemoveIssues(stepName, key);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Run reporting failed to remove issues for step {StepName} and key {Key}.", stepName, key);
+            return 0;
         }
     }
 
@@ -189,10 +213,11 @@ public sealed class RunReporter : IRunReporter
         CurrentRun.Add(issue);
         _logger.Log(
             issue.Severity == IssueSeverity.Error ? LogLevel.Error : LogLevel.Warning,
-            "{StepName} {Severity}: {Message}. Data: {@Data}",
-            string.IsNullOrEmpty(issue.StepName) ? "General" : issue.StepName,
+            "{StepName} {Severity}: {Message}. Key: {Key}. Data: {@Data}",
+            string.IsNullOrWhiteSpace(issue.StepName) ? "General" : issue.StepName,
             issue.Severity,
             issue.Message,
+            issue.Key,
             issue.Data);
     }
 
@@ -223,6 +248,16 @@ public sealed class RunReporter : IRunReporter
             lock (_gate)
             {
                 _issues.Add(issue);
+            }
+        }
+
+        public int RemoveIssues(string stepName, string key)
+        {
+            lock (_gate)
+            {
+                return _issues.RemoveAll(issue =>
+                    string.Equals(issue.StepName, stepName, StringComparison.Ordinal) &&
+                    string.Equals(issue.Key, key, StringComparison.Ordinal));
             }
         }
 

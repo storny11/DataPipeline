@@ -19,14 +19,15 @@ public sealed class Step4RequestMapper(IRunReporter reporter)
                 string.IsNullOrWhiteSpace(record.ExternalId2))
             {
                 reporter.AddIssue(
+                    Step4Persister.StepName,
+                    IssueKey(record),
+                    "Persistence request row is missing an identifier and was discarded.",
                     new
                     {
                         internalId = record.InternalId,
                         externalId1 = record.ExternalId1,
                         externalId2 = record.ExternalId2
-                    },
-                    "Persistence request row is missing an identifier and was discarded.",
-                    Step4Persister.StepName);
+                    });
                 continue;
             }
 
@@ -41,6 +42,23 @@ public sealed class Step4RequestMapper(IRunReporter reporter)
         }
 
         return new Step4RequestMappingResult(request, sourceRecords);
+    }
+
+    private static string IssueKey(Step3OutputRecord record)
+    {
+        if (!string.IsNullOrWhiteSpace(record.InternalId))
+        {
+            return record.InternalId.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(record.ExternalId1))
+        {
+            return record.ExternalId1.Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(record.ExternalId2)
+            ? "missing-identifiers"
+            : record.ExternalId2.Trim();
     }
 }
 

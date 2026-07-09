@@ -14,6 +14,7 @@ public sealed class Step1Validator(IRunReporter reporter)
 
     private bool IsValid(Step1SourceRow row)
     {
+        var key = IssueKey(row);
         var subject = new
         {
             internalId = row.InternalId,
@@ -26,29 +27,44 @@ public sealed class Step1Validator(IRunReporter reporter)
 
         if (string.IsNullOrWhiteSpace(row.InternalId))
         {
-            reporter.AddIssue(subject, "Configured row is missing internal id.", Step1Loader.StepName);
+            reporter.AddIssue(Step1Loader.StepName, key, "Configured row is missing internal id.", subject);
             valid = false;
         }
 
         if (string.IsNullOrWhiteSpace(row.ExternalId1))
         {
-            reporter.AddIssue(subject, "Configured row is missing external id 1.", Step1Loader.StepName);
+            reporter.AddIssue(Step1Loader.StepName, key, "Configured row is missing external id 1.", subject);
             valid = false;
         }
 
         if (string.IsNullOrWhiteSpace(row.Currency))
         {
-            reporter.AddIssue(subject, "Configured row is missing currency.", Step1Loader.StepName);
+            reporter.AddIssue(Step1Loader.StepName, key, "Configured row is missing currency.", subject);
             valid = false;
         }
 
         if (!TryParsePositiveStep2RecordsToKeep(row.Step2RecordsToKeep, out _))
         {
-            reporter.AddIssue(subject, "Configured row has invalid Step 2 records-to-keep value.", Step1Loader.StepName);
+            reporter.AddIssue(Step1Loader.StepName, key, "Configured row has invalid Step 2 records-to-keep value.", subject);
             valid = false;
         }
 
         return valid;
+    }
+
+    private static string IssueKey(Step1SourceRow row)
+    {
+        if (!string.IsNullOrWhiteSpace(row.InternalId))
+        {
+            return row.InternalId.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.ExternalId1))
+        {
+            return row.ExternalId1.Trim();
+        }
+
+        return $"configured-row:{row.Currency?.Trim()}:{row.Step2RecordsToKeep?.Trim()}";
     }
 
     private static bool TryParsePositiveStep2RecordsToKeep(string? value, out int recordsToKeep)

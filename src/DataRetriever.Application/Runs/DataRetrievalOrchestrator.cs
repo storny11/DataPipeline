@@ -49,9 +49,10 @@ public sealed class DataRetrievalOrchestrator(
         {
             logger.LogError(exception, "Unexpected data retrieval run failure for {RunId}", context.RunId);
             runReporter.AddIssue(
-                new { runId = context.RunId.ToString() },
-                $"Unexpected run failure: {exception.Message}",
                 "Run",
+                context.RunId.ToString(),
+                $"Unexpected run failure: {exception.Message}",
+                new { runId = context.RunId.ToString() },
                 IssueSeverity.Error);
             status = RunStatus.Failed;
 
@@ -64,6 +65,7 @@ public sealed class DataRetrievalOrchestrator(
                         [
                             new StepIssue(
                                 "Run",
+                                context.RunId.ToString(),
                                 StepIssueSeverity.Error,
                                 $"Unexpected run failure: {exception.Message}",
                                 DiagnosticContext.From(("runId", context.RunId.ToString())))

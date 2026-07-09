@@ -35,6 +35,8 @@ public sealed class Step1LoaderTests
         Assert.Contains(issues, issue => issue.Message.Contains("currency", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(issues, issue => issue.Message.Contains("records-to-keep", StringComparison.OrdinalIgnoreCase));
         Assert.All(issues, issue => Assert.Equal(Step1Loader.StepName, issue.StepName));
+        Assert.Contains(issues, issue => issue.Key == "INT-002");
+        Assert.Contains(issues, issue => issue.Key == "INT-003");
     }
 
     [Fact]

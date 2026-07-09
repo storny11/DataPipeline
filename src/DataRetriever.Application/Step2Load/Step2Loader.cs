@@ -38,18 +38,20 @@ public sealed class Step2Loader(
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
                 reporter.AddIssue(
-                    Step2ResponseMapper.Subject(row),
+                    Name,
+                    row.InternalId,
                     $"Step 2 source call failed for external id 1 '{row.ExternalId1}': {exception.Message}",
-                    Name);
+                    Step2ResponseMapper.Subject(row));
                 continue;
             }
 
             if (sourceRows.Count == 0)
             {
                 reporter.AddIssue(
-                    Step2ResponseMapper.Subject(row),
+                    Name,
+                    row.InternalId,
                     $"Step 2 source returned no rows for external id 1 '{row.ExternalId1}'.",
-                    Name);
+                    Step2ResponseMapper.Subject(row));
                 continue;
             }
 
@@ -60,9 +62,10 @@ public sealed class Step2Loader(
             if (selected.Count < row.Step2RecordsToKeep)
             {
                 reporter.AddIssue(
-                    Step2ResponseMapper.Subject(row),
+                    Name,
+                    row.InternalId,
                     $"Step 2 source returned {selected.Count} valid rows for external id 1 '{row.ExternalId1}', fewer than requested {row.Step2RecordsToKeep}.",
-                    Name);
+                    Step2ResponseMapper.Subject(row));
             }
 
             outputRecords.AddRange(selected);

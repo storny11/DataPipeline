@@ -22,9 +22,10 @@ public sealed class Step3RequestMapper(ExternalId2Normalizer normalizer, IRunRep
 
             invalidRows++;
             reporter.AddIssue(
-                Subject(row),
+                Step3Loader.StepName,
+                IssueKey(row.ExternalId2),
                 "Step 3 request could not be built because external id 2 is missing or invalid.",
-                Step3Loader.StepName);
+                Subject(row));
         }
 
         return new Step3RequestMappingResult(
@@ -40,6 +41,13 @@ public sealed class Step3RequestMapper(ExternalId2Normalizer normalizer, IRunRep
             externalId1 = row.ExternalId1,
             externalId2 = row.ExternalId2
         };
+    }
+
+    internal static string IssueKey(string? externalId2)
+    {
+        return string.IsNullOrWhiteSpace(externalId2)
+            ? "missing-external-id-2"
+            : externalId2.Trim();
     }
 }
 

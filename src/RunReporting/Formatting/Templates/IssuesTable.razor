@@ -18,6 +18,7 @@ else
         <thead>
             <tr>
                 <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">STEP</th>
+                <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">KEY</th>
                 <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">DETAILS</th>
                 <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">MESSAGE</th>
             </tr>
@@ -29,6 +30,7 @@ else
                 var rowBackground = RowBackground(index);
                 <tr>
                     <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@StepName(issue)</td>
+                    <td bgcolor="@rowBackground" style="@MonoCellStyleFor(rowBackground)">@IssueKey(issue)</td>
                     <td bgcolor="@rowBackground" style="@MonoCellStyleFor(rowBackground)">@FormatData(issue)</td>
                     <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@issue.Message</td>
                 </tr>
@@ -58,7 +60,10 @@ else
     private static string RowBackground(int index) => index % 2 == 0 ? "#ffffff" : "#fbfcfe";
 
     private static string StepName(RunIssue issue) =>
-        string.IsNullOrEmpty(issue.StepName) ? "-" : issue.StepName;
+        string.IsNullOrWhiteSpace(issue.StepName) ? "-" : issue.StepName;
+
+    private static string IssueKey(RunIssue issue) =>
+        string.IsNullOrWhiteSpace(issue.Key) ? "-" : issue.Key;
 
     private static string FormatData(RunIssue issue)
     {

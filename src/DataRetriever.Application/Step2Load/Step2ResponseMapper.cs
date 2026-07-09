@@ -18,9 +18,10 @@ public sealed class Step2ResponseMapper(IRunReporter reporter)
             if (string.IsNullOrWhiteSpace(row.ExternalId2))
             {
                 reporter.AddIssue(
-                    Subject(input),
+                    Step2Loader.StepName,
+                    input.InternalId,
                     "Step 2 source row is missing external id 2 and was discarded.",
-                    Step2Loader.StepName);
+                    Subject(input));
                 continue;
             }
 

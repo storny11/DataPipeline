@@ -15,6 +15,7 @@ public sealed class StepExecutionResultTests
             [
                 new StepIssue(
                     "Step",
+                    "INT-001",
                     StepIssueSeverity.Warning,
                     "warning",
                     DiagnosticContext.From(("internalId", "INT-001")))
@@ -33,6 +34,7 @@ public sealed class StepExecutionResultTests
             [
                 new StepIssue(
                     "Step",
+                    "INT-001",
                     StepIssueSeverity.Error,
                     "error",
                     DiagnosticContext.From(("internalId", "INT-001")))

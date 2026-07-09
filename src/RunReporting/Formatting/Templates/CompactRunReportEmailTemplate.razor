@@ -19,7 +19,7 @@
         <ul style="margin:0 0 10px 18px; padding:0;">
             @foreach (var issue in TopIssues)
             {
-                <li style="margin:0 0 4px 0;">@StepName(issue): @issue.Message</li>
+                <li style="margin:0 0 4px 0;">@IssueLabel(issue): @issue.Message</li>
             }
         </ul>
 
@@ -61,5 +61,10 @@
         string.Join(" · ", Report.Attributes.Select(attribute => $"{attribute.Key}: {attribute.Value}"));
 
     private static string StepName(RunIssue issue) =>
-        string.IsNullOrEmpty(issue.StepName) ? "General" : issue.StepName;
+        string.IsNullOrWhiteSpace(issue.StepName) ? "General" : issue.StepName;
+
+    private static string IssueLabel(RunIssue issue) =>
+        string.IsNullOrWhiteSpace(issue.Key)
+            ? StepName(issue)
+            : $"{StepName(issue)} / {issue.Key}";
 }

@@ -60,6 +60,7 @@ public sealed class Step3ResponseMapperTests
 
         var issue = Assert.Single(reporter.Take().Issues);
         Assert.Equal(IssueSeverity.Warning, issue.Severity);
+        Assert.Equal("EXT2-A", issue.Key);
         Assert.Contains("more than one valid row", issue.Message, StringComparison.Ordinal);
         Assert.Equal("INT-1", issue.Data["internalId"]);
     }

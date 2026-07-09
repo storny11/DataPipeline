@@ -42,6 +42,7 @@ public sealed class Step1Loader(
                 [
                     new StepIssue(
                         Name,
+                        "no-valid-rows",
                         StepIssueSeverity.Error,
                         "No valid configured rows were available after validating the configured Step 1 source rows.",
                         DiagnosticContext.From())

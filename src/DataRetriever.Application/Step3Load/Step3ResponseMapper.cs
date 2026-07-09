@@ -18,9 +18,10 @@ public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer, IRunRe
             if (!normalizer.TryNormalize(row.ExternalId2, out var normalized))
             {
                 reporter.AddIssue(
-                    new { externalId2 = row.ExternalId2 },
+                    Step3Loader.StepName,
+                    Step3RequestMapper.IssueKey(row.ExternalId2),
                     "Step 3 response row has missing or invalid external id 2 and was discarded.",
-                    Step3Loader.StepName);
+                    new { externalId2 = row.ExternalId2 });
                 continue;
             }
 
@@ -29,18 +30,20 @@ public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer, IRunRe
                 !TryAmount(row.Amount3, out var amount3))
             {
                 reporter.AddIssue(
-                    Subject(subjectByExternalId2, normalized, row),
+                    Step3Loader.StepName,
+                    normalized.Value,
                     $"Step 3 response row for external id 2 '{row.ExternalId2}' has missing or invalid amount data and was discarded.",
-                    Step3Loader.StepName);
+                    Subject(subjectByExternalId2, normalized, row));
                 continue;
             }
 
             if (amounts.ContainsKey(normalized))
             {
                 reporter.AddIssue(
-                    Subject(subjectByExternalId2, normalized, row),
+                    Step3Loader.StepName,
+                    normalized.Value,
                     $"Step 3 response returned more than one valid row for external id 2 '{row.ExternalId2}'. The duplicate row was discarded and the first value was kept.",
-                    Step3Loader.StepName);
+                    Subject(subjectByExternalId2, normalized, row));
                 continue;
             }
 

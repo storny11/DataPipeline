@@ -43,6 +43,7 @@ public sealed class Step4Persister(
                 [
                     new StepIssue(
                         Name,
+                        "persistence-request",
                         StepIssueSeverity.Error,
                         $"Persistence request failed: {exception.Message}",
                         DiagnosticContext.From(("recordsAttempted", mapped.Request.Count.ToString())))
