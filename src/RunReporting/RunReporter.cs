@@ -87,14 +87,7 @@ public sealed class RunReporter : IRunReporter
 
     public void AddIssue(string message, IssueSeverity severity = IssueSeverity.Warning)
     {
-        try
-        {
-            Report(RunIssue.Create(null, null, null, severity, message));
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Run reporting failed to record an issue; it will be missing from the report.");
-        }
+        AddIssue(string.Empty, string.Empty, string.Empty, message, severity);
     }
 
     public void AddIssue(
@@ -106,7 +99,22 @@ public sealed class RunReporter : IRunReporter
     {
         try
         {
-            Report(RunIssue.Create(stepName, identifierName, identifierValue, severity, message));
+            var issue = new RunIssue(
+                stepName ?? string.Empty,
+                identifierName ?? string.Empty,
+                identifierValue ?? string.Empty,
+                severity == IssueSeverity.Error ? IssueSeverity.Error : IssueSeverity.Warning,
+                message ?? string.Empty);
+
+            CurrentRun.Add(issue);
+            _logger.Log(
+                issue.Severity == IssueSeverity.Error ? LogLevel.Error : LogLevel.Warning,
+                "{StepName} {Severity}: {Message}. {IdentifierName}: {IdentifierValue}",
+                string.IsNullOrWhiteSpace(issue.StepName) ? "General" : issue.StepName,
+                issue.Severity,
+                issue.Message,
+                issue.IdentifierName,
+                issue.IdentifierValue);
         }
         catch (Exception exception)
         {
@@ -186,19 +194,6 @@ public sealed class RunReporter : IRunReporter
         // Do not report successful completion if a publisher ignored a cancellation
         // requested while it was running.
         cancellationToken.ThrowIfCancellationRequested();
-    }
-
-    private void Report(RunIssue issue)
-    {
-        CurrentRun.Add(issue);
-        _logger.Log(
-            issue.Severity == IssueSeverity.Error ? LogLevel.Error : LogLevel.Warning,
-            "{StepName} {Severity}: {Message}. {IdentifierName}: {IdentifierValue}",
-            string.IsNullOrWhiteSpace(issue.StepName) ? "General" : issue.StepName,
-            issue.Severity,
-            issue.Message,
-            issue.IdentifierName,
-            issue.IdentifierValue);
     }
 
     private RunScope CurrentRun => _ambientRun.Value ?? _defaultRun;

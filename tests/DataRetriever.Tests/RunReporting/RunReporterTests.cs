@@ -163,6 +163,18 @@ public sealed class RunReporterTests
     }
 
     [Fact]
+    public void AddIssue_WithUnknownSeverity_TreatsItAsAWarning()
+    {
+        var reporter = CreateReporter(out _);
+
+        reporter.AddIssue("Unknown severity.", (IssueSeverity)999);
+
+        var report = reporter.Take();
+        Assert.Equal(RunOutcome.CompletedWithWarnings, report.Outcome);
+        Assert.Equal(IssueSeverity.Warning, Assert.Single(report.Issues).Severity);
+    }
+
+    [Fact]
     public async Task PublishAsync_WithExplicitOutcome_OverridesDerivedOneAndReturnsPublishedReport()
     {
         var reporter = CreateReporter(out var sender);

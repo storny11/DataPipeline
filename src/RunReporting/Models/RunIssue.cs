@@ -7,20 +7,4 @@ public sealed record RunIssue(
     string IdentifierName,
     string IdentifierValue,
     IssueSeverity Severity,
-    string Message)
-{
-    internal static RunIssue Create(
-        string? stepName,
-        string? identifierName,
-        string? identifierValue,
-        IssueSeverity severity,
-        string? message)
-    {
-        return new RunIssue(
-            stepName ?? string.Empty,
-            identifierName ?? string.Empty,
-            identifierValue ?? string.Empty,
-            severity,
-            message ?? string.Empty);
-    }
-}
+    string Message);
