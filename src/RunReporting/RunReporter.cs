@@ -164,6 +164,9 @@ public sealed class RunReporter : IRunReporter
 
     public async Task<RunReport> PublishAsync(RunOutcome? outcome = null, CancellationToken cancellationToken = default)
     {
+        // A request already cancelled by the caller must not drain the current run.
+        cancellationToken.ThrowIfCancellationRequested();
+
         var report = Take();
         if (outcome.HasValue)
         {
@@ -176,6 +179,8 @@ public sealed class RunReporter : IRunReporter
 
     public async Task PublishAsync(RunReport report, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (report == null)
         {
             _logger.LogError("Run reporting ignored a publish request for a null report.");
@@ -189,6 +194,8 @@ public sealed class RunReporter : IRunReporter
 
         foreach (var publisher in _publishers)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
                 await publisher.PublishAsync(report, cancellationToken).ConfigureAwait(false);
@@ -206,6 +213,10 @@ public sealed class RunReporter : IRunReporter
                     publisher.GetType().Name);
             }
         }
+
+        // Do not report successful completion if a publisher ignored a cancellation
+        // requested while it was running.
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private void Report(RunIssue issue)

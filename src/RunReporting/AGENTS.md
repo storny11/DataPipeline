@@ -21,7 +21,9 @@ HTML email report when the run finishes. Built to be dropped into many company s
 5. **Runtime never throws.** Every `IRunReporter` member logs-and-degrades on any failure
    (bad subjects, throwing getters, hostile enumerables, dead SMTP, null args). The single
    exception: `PublishAsync` honors the *caller's own* `CancellationToken`. A reporting
-   failure must never fail the pipeline it reports on.
+   failure must never fail the pipeline it reports on. Cancellation is checked before
+   `Take()` (so a pre-cancelled publish does not drain the run), at the report-overload
+   boundary, between publishers, and before a successfully published call returns.
 6. **Composition time fails fast.** `AddRunReporting(IConfiguration)` requires an
    `EmailReport` config section and validates email settings (host, port 1–65535, parseable
    From and recipients, at least one recipient, positive SendTimeout) — all problems
@@ -164,7 +166,8 @@ Package-focused tests live in `tests/DataRetriever.Tests/RunReporting/RunReporte
 (run `dotnet test`, use `-c Release` if a debugger holds Debug outputs). Coverage includes:
 ambient nesting/isolation across async, default-run mode,
 attribute salvage on collisions, `""` recipient blanking, never-throw guarantees (throwing
-getters, null args, publisher failures, internal-timeout OCE containment), exact step+key
-issue removal, subject builder (custom/fallback/CRLF), explicit typed table selectors,
-alignment flow, Razor rendering + HTML
+getters, null args, publisher failures, internal-timeout OCE containment), caller
+cancellation without pre-draining and between-publisher cancellation, exact step+key issue
+removal, subject builder (custom/fallback/CRLF), explicit typed table selectors, alignment
+flow, Razor rendering + HTML
 encoding, and composition-time validation failures.

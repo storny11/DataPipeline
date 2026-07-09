@@ -588,6 +588,56 @@ public sealed class RunReporterTests
     }
 
     [Fact]
+    public async Task PublishAsync_WithAlreadyCanceledToken_DoesNotDrainCurrentRun()
+    {
+        var reporter = CreateReporter(out var publisher);
+        reporter.AddIssue("Step1", "row-1", "Row skipped.");
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            reporter.PublishAsync(cancellationToken: cancellation.Token));
+
+        Assert.Empty(publisher.Sent);
+        Assert.Single(reporter.Take().Issues);
+    }
+
+    [Fact]
+    public async Task PublishAsync_ComposedReportHonorsCancellationBeforeAnEarlyReturn()
+    {
+        var reporter = new RunReporter(
+            new RunReportingOptions { SendWhenNoIssues = false },
+            []);
+        var report = new RunReport(
+            new Dictionary<string, string?>(),
+            RunOutcome.Succeeded,
+            DateTimeOffset.UtcNow,
+            [],
+            []);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            reporter.PublishAsync(report, cancellation.Token));
+    }
+
+    [Fact]
+    public async Task PublishAsync_WhenCallerCancelsBetweenPublishers_StopsFanOut()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var canceling = new CancelingPublisher(cancellation);
+        var next = new CapturingPublisher();
+        var reporter = new RunReporter(new RunReportingOptions(), [canceling, next]);
+        reporter.AddIssue("Step1", "row-1", "Row skipped.");
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            reporter.PublishAsync(cancellationToken: cancellation.Token));
+
+        Assert.True(canceling.Called);
+        Assert.Empty(next.Sent);
+    }
+
+    [Fact]
     public async Task PublishAsync_WhenOnePublisherFails_DoesNotThrowAndStillReachesOthers()
     {
         var failing = new ThrowingPublisher();
@@ -780,6 +830,18 @@ public sealed class RunReporterTests
         public Task PublishAsync(RunReport report, CancellationToken cancellationToken)
         {
             throw new InvalidOperationException("SMTP unavailable.");
+        }
+    }
+
+    private sealed class CancelingPublisher(CancellationTokenSource cancellation) : IRunReportPublisher
+    {
+        public bool Called { get; private set; }
+
+        public Task PublishAsync(RunReport report, CancellationToken cancellationToken)
+        {
+            Called = true;
+            cancellation.Cancel();
+            return Task.CompletedTask;
         }
     }
 
