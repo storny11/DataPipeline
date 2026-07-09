@@ -41,7 +41,9 @@ HTML email report when the run finishes. Built to be dropped into many company s
    receive a slim rendering (`CompactRunReportEmailTemplate`: outcome, counts, top 10 issues,
    table row counts, no nested layout tables) as a second email with the same subject, while
    To/Cc/Bcc get the full report. `IRunReportFormatter.FormatCompactAsync` is the seam.
-   `CompactTo` alone satisfies the recipient requirement.
+   `CompactTo` alone satisfies the recipient requirement. Full and compact formatting/send
+   failures are isolated: both variants are attempted, failures are aggregated afterward,
+   and only caller-requested cancellation stops before the other variant.
 9. **Publishers are a list.** `IRunReportPublisher` is the delivery seam;
    `EmailRunReportPublisher` (SMTP via `System.Net.Mail`, no third-party deps) is the only
    built-in. Extra publishers (a Teams webhook one is anticipated) are plain
@@ -124,7 +126,8 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
   `AddLogging()` makes bare hosts work, `TryAddSingleton` registers formatter + reporter, and
   `TryAddEnumerable` registers the email publisher idempotently.
 - SMTP send is bounded by `Options.SendTimeout` via a linked CTS
-  (`SmtpClient.Timeout` does not apply to `SendMailAsync`).
+  (`SmtpClient.Timeout` does not apply to `SendMailAsync`). Full and compact delivery are
+  independent best-effort attempts; any failures are reported together after both.
 
 ## Consumer quick start
 
@@ -176,5 +179,5 @@ table selectors, null args, publisher failures, internal-timeout OCE containment
 named issue data and snapshotting, caller
 cancellation without pre-draining and between-publisher cancellation, exact step+key issue
 removal, subject builder (custom/fallback/CRLF), explicit typed table selectors, alignment
-flow, Razor rendering + HTML
+flow, isolated full/compact email failures, Razor rendering + HTML
 encoding, and composition-time validation failures.

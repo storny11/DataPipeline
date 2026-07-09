@@ -32,22 +32,50 @@ public sealed class EmailRunReportPublisher(
                 "RunReportingOptions must contain at least one To/Cc/Bcc/CompactTo recipient before a report can be published.");
         }
 
+        var failures = new List<Exception>();
         RunReportEmail? fullEmail = null;
         if (to.Count + cc.Count + bcc.Count > 0)
         {
-            fullEmail = await formatter.FormatAsync(report, cancellationToken);
-            await SendAsync(fullEmail, to, cc, bcc, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                fullEmail = await formatter.FormatAsync(report, cancellationToken);
+                await SendAsync(fullEmail, to, cc, bcc, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                failures.Add(exception);
+            }
         }
 
         if (compactTo.Count > 0)
         {
-            var email = await formatter.FormatCompactAsync(report, cancellationToken);
-            if (fullEmail != null)
+            try
             {
-                email = email with { Subject = fullEmail.Subject };
-            }
+                var email = await formatter.FormatCompactAsync(report, cancellationToken);
+                if (fullEmail != null)
+                {
+                    email = email with { Subject = fullEmail.Subject };
+                }
 
-            await SendAsync(email, compactTo, [], [], cancellationToken).ConfigureAwait(false);
+                await SendAsync(email, compactTo, [], [], cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                failures.Add(exception);
+            }
+        }
+
+        if (failures.Count > 0)
+        {
+            throw new AggregateException("One or more run-report email variants failed.", failures);
         }
     }
 

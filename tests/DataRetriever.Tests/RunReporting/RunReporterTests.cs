@@ -680,6 +680,33 @@ public sealed class RunReporterTests
     }
 
     [Fact]
+    public async Task EmailPublisher_AttemptsCompactVariantWhenFullVariantFails()
+    {
+        var formatter = new FailingVariantFormatter();
+        var publisher = new EmailRunReportPublisher(
+            new RunReportingOptions
+            {
+                From = "reporter@test.local",
+                To = "full@test.local",
+                CompactTo = "compact@test.local"
+            },
+            formatter);
+        var report = new RunReport(
+            new Dictionary<string, string?>(),
+            RunOutcome.Succeeded,
+            DateTimeOffset.UtcNow,
+            [],
+            []);
+
+        var exception = await Assert.ThrowsAsync<AggregateException>(() =>
+            publisher.PublishAsync(report, CancellationToken.None));
+
+        Assert.True(formatter.FullCalled);
+        Assert.True(formatter.CompactCalled);
+        Assert.Equal(2, exception.InnerExceptions.Count);
+    }
+
+    [Fact]
     public async Task PublishAsync_WithoutIssues_SkipsSendWhenConfiguredOff()
     {
         var sender = new CapturingPublisher();
@@ -866,6 +893,25 @@ public sealed class RunReporterTests
             Called = true;
             cancellation.Cancel();
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FailingVariantFormatter : IRunReportFormatter
+    {
+        public bool FullCalled { get; private set; }
+
+        public bool CompactCalled { get; private set; }
+
+        public Task<RunReportEmail> FormatAsync(RunReport report, CancellationToken cancellationToken)
+        {
+            FullCalled = true;
+            throw new InvalidOperationException("Full variant failed.");
+        }
+
+        public Task<RunReportEmail> FormatCompactAsync(RunReport report, CancellationToken cancellationToken)
+        {
+            CompactCalled = true;
+            throw new InvalidOperationException("Compact variant failed.");
         }
     }
 
