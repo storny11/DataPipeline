@@ -270,6 +270,7 @@ public sealed class RunReporter : IRunReporter
         RunScope? previousRun) : IDisposable
     {
         private readonly object _gate = new();
+        private readonly RunScope? _previousRun = previousRun;
         private readonly Dictionary<string, string?> _attributes = attributes;
         private readonly List<RunIssue> _issues = [];
         private readonly List<ResultTable> _tables = [];
@@ -352,8 +353,19 @@ public sealed class RunReporter : IRunReporter
             _disposed = true;
             if (ReferenceEquals(reporter._ambientRun.Value, this))
             {
-                reporter._ambientRun.Value = previousRun;
+                reporter._ambientRun.Value = PreviousActiveRun();
             }
+        }
+
+        private RunScope? PreviousActiveRun()
+        {
+            var candidate = _previousRun;
+            while (candidate?._disposed == true)
+            {
+                candidate = candidate._previousRun;
+            }
+
+            return candidate;
         }
     }
 }

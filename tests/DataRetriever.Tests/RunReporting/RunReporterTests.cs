@@ -53,6 +53,22 @@ public sealed class RunReporterTests
     }
 
     [Fact]
+    public void BeginRun_OutOfOrderDisposal_DoesNotRestoreDisposedOuterRun()
+    {
+        var reporter = CreateReporter(out _);
+        var outer = reporter.BeginRun(("runId", "outer"));
+        var inner = reporter.BeginRun(("runId", "inner"));
+
+        outer.Dispose();
+        inner.Dispose();
+        reporter.AddIssue("Default-run issue.");
+
+        var report = reporter.Take();
+        Assert.Empty(report.Attributes);
+        Assert.Equal("Default-run issue.", Assert.Single(report.Issues).Message);
+    }
+
+    [Fact]
     public async Task BeginRun_FlowsAmbientlyAcrossAsyncCallsAndPublishesAttributes()
     {
         var reporter = CreateReporter(out var sender);

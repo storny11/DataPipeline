@@ -115,7 +115,8 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
 
 - `RunReporter` is the singleton. Ambient run = `AsyncLocal<RunScope?>`; `CurrentRun`
   falls back to `_defaultRun`. `RunScope` (private) holds lock-guarded attribute/issue/table
-  state; `Dispose` is idempotent and only pops the ambient chain if still current.
+  state; `Dispose` is idempotent, only pops the ambient chain if still current, and skips
+  any ancestors already disposed out of order rather than restoring them.
 - Attribute copying (`CopyAttributes`) is entry-by-entry: empty names logged+skipped,
   case-colliding keys last-wins, a throwing source keeps what was read — one bad attribute
   never costs the set.
@@ -169,7 +170,7 @@ await reporter.PublishAsync(failed ? RunOutcome.Failed : null);
 
 Package-focused tests live in `tests/DataRetriever.Tests/RunReporting/RunReporterTests.cs`
 (run `dotnet test`, use `-c Release` if a debugger holds Debug outputs). Coverage includes:
-ambient nesting/isolation across async, default-run mode,
+ambient nesting/isolation across async, out-of-order scope disposal, default-run mode,
 attribute salvage on collisions, `""` recipient blanking, never-throw guarantees (throwing
 table selectors, null args, publisher failures, internal-timeout OCE containment), explicit
 named issue data and snapshotting, caller
