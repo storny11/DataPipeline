@@ -2,42 +2,29 @@
 @using Microsoft.AspNetCore.Components
 @namespace RunReporting.Templates
 
-@if (Issues.Count == 0)
-{
-    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="@EmptyStateTableStyle">
-        <tbody>
+<table width="100%" cellspacing="0" cellpadding="0" border="0" style="@GridStyle">
+    <thead>
+        <tr>
+            <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">STEP</th>
+            <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">IDENTIFIER</th>
+            <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">VALUE</th>
+            <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">MESSAGE</th>
+        </tr>
+    </thead>
+    <tbody>
+        @for (var index = 0; index < Issues.Count; index++)
+        {
+            var issue = Issues[index];
+            var rowBackground = RowBackground(index);
             <tr>
-                <td bgcolor="#f8fafc" style="@EmptyStateCellStyle">None.</td>
+                <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@StepName(issue)</td>
+                <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@IdentifierName(issue)</td>
+                <td bgcolor="@rowBackground" style="@MonoCellStyleFor(rowBackground)">@IdentifierValue(issue)</td>
+                <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@issue.Message</td>
             </tr>
-        </tbody>
-    </table>
-}
-else
-{
-    <table width="100%" cellspacing="0" cellpadding="0" border="0" style="@GridStyle">
-        <thead>
-            <tr>
-                <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">STEP</th>
-                <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">IDENTIFIER</th>
-                <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">VALUE</th>
-                <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">MESSAGE</th>
-            </tr>
-        </thead>
-        <tbody>
-            @for (var index = 0; index < Issues.Count; index++)
-            {
-                var issue = Issues[index];
-                var rowBackground = RowBackground(index);
-                <tr>
-                    <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@StepName(issue)</td>
-                    <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@IdentifierName(issue)</td>
-                    <td bgcolor="@rowBackground" style="@MonoCellStyleFor(rowBackground)">@IdentifierValue(issue)</td>
-                    <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@issue.Message</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+        }
+    </tbody>
+</table>
 
 @code {
     [Parameter]
@@ -54,8 +41,6 @@ else
     private const string HeaderCellBaseStyle = "border:1px solid #e6ebf2; padding:8px 12px; font-size:12px; line-height:16px; font-weight:700; letter-spacing:0.3px; mso-line-height-rule:exactly;";
     private const string CellStyle = "border:1px solid #edf1f6; padding:9px 12px; font-size:14px; line-height:20px; color:#344054; vertical-align:top; mso-line-height-rule:exactly;";
     private const string MonoCellStyle = CellStyle + " font-family:Consolas, 'Courier New', monospace;";
-    private const string EmptyStateTableStyle = "width:100%; border-collapse:collapse; border:1px solid #d7dde8; mso-table-lspace:0pt; mso-table-rspace:0pt;";
-    private const string EmptyStateCellStyle = "padding:12px 14px; background-color:#f8fafc; color:#475467; font-size:13px; line-height:19px; mso-line-height-rule:exactly;";
 
     private static string RowBackground(int index) => index % 2 == 0 ? "#ffffff" : "#fbfcfe";
 
