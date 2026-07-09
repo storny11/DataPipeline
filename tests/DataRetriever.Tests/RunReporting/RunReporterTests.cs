@@ -261,7 +261,7 @@ public sealed class RunReporterTests
             new Dictionary<string, string?> { ["environment"] = "prod" },
             RunOutcome.CompletedWithWarnings,
             DateTimeOffset.UtcNow,
-            [RunIssue.Create("Step1", "Row", "row-1", IssueSeverity.Warning, "Row skipped.")],
+            [new RunIssue("Step1", "Row", "row-1", IssueSeverity.Warning, "Row skipped.", DateTimeOffset.UtcNow)],
             []);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
@@ -310,7 +310,7 @@ public sealed class RunReporterTests
             new Dictionary<string, string?>(),
             RunOutcome.Failed,
             DateTimeOffset.UtcNow,
-            [RunIssue.Create("Step1", "Row", "row-1", IssueSeverity.Error, "Boom.")],
+            [new RunIssue("Step1", "Row", "row-1", IssueSeverity.Error, "Boom.", DateTimeOffset.UtcNow)],
             []);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
@@ -369,7 +369,7 @@ public sealed class RunReporterTests
             new Dictionary<string, string?>(),
             RunOutcome.CompletedWithWarnings,
             DateTimeOffset.UtcNow,
-            [RunIssue.Create("Step1", "Row", "row-1", IssueSeverity.Warning, "Review this row.")],
+            [new RunIssue("Step1", "Row", "row-1", IssueSeverity.Warning, "Review this row.", DateTimeOffset.UtcNow)],
             []);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
@@ -394,17 +394,24 @@ public sealed class RunReporterTests
         var formatter = provider.GetRequiredService<IRunReportFormatter>();
 
         var issues = Enumerable.Range(1, 12)
-            .Select(index => RunIssue.Create("Step1", "Row", $"row-{index}", IssueSeverity.Warning, $"Row {index} skipped <b>."))
+            .Select(index => new RunIssue(
+                "Step1",
+                "Row",
+                $"row-{index}",
+                IssueSeverity.Warning,
+                $"Row {index} skipped <b>.",
+                DateTimeOffset.UtcNow))
             .ToList();
         var report = new RunReport(
             new Dictionary<string, string?> { ["runId"] = "run-1" },
             RunOutcome.CompletedWithWarnings,
             DateTimeOffset.UtcNow,
             issues,
-            [ResultTable.From(
+            [new ResultTable(
                 "Persisted Records",
-                [new IdRow("INT-1")],
-                [TableColumn<IdRow>.Left("ID", row => row.Id)])]);
+                ["ID"],
+                [ColumnAlignment.Left],
+                [["INT-1"]])]);
 
         var email = await formatter.FormatCompactAsync(report, CancellationToken.None);
 
@@ -707,13 +714,14 @@ public sealed class RunReporterTests
             RunOutcome.Failed,
             DateTimeOffset.UtcNow,
             [
-                RunIssue.Create("Step<1>", "Internal<Id>", "row<1>", IssueSeverity.Error, "<script>alert(1)</script>"),
-                RunIssue.Create("Step<2>", "InternalId", "row<2>", IssueSeverity.Warning, "Review this row.")
+                new RunIssue("Step<1>", "Internal<Id>", "row<1>", IssueSeverity.Error, "<script>alert(1)</script>", DateTimeOffset.UtcNow),
+                new RunIssue("Step<2>", "InternalId", "row<2>", IssueSeverity.Warning, "Review this row.", DateTimeOffset.UtcNow)
             ],
-            [ResultTable.From(
+            [new ResultTable(
                 "Persisted <Rows>",
-                [new IdRow("INT-1")],
-                [TableColumn<IdRow>.Left("ID", row => row.Id)])]);
+                ["ID"],
+                [ColumnAlignment.Left],
+                [["INT-1"]])]);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
 

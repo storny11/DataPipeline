@@ -10,7 +10,7 @@ public sealed record RunIssue(
     string Message,
     DateTimeOffset TimestampUtc)
 {
-    public static RunIssue Create(
+    internal static RunIssue Create(
         string? stepName,
         string? identifierName,
         string? identifierValue,

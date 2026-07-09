@@ -9,7 +9,7 @@ public sealed record ResultTable(
     IReadOnlyList<ColumnAlignment> Alignments,
     IReadOnlyList<IReadOnlyList<string?>> Rows)
 {
-    public static ResultTable From<TRow>(
+    internal static ResultTable From<TRow>(
         string? title,
         IEnumerable<TRow>? rows,
         IReadOnlyList<TableColumn<TRow>>? columns)

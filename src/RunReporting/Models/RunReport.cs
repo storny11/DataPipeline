@@ -23,7 +23,7 @@ public sealed record RunReport(
 
     public bool HasIssues => Issues.Count > 0;
 
-    public static RunOutcome DeriveOutcome(IReadOnlyList<RunIssue> issues)
+    internal static RunOutcome DeriveOutcome(IReadOnlyList<RunIssue> issues)
     {
         if (issues.Any(issue => issue.Severity == IssueSeverity.Error))
         {

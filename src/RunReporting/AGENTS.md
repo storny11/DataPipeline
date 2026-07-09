@@ -118,6 +118,8 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
   any ancestors already disposed out of order rather than restoring them.
 - `RunReporter` requires explicit options, publishers, and logger dependencies. Invalid
   construction fails at composition time; it never silently substitutes no-op defaults.
+- `RunIssue.Create`, `ResultTable.From`, and `RunReport.DeriveOutcome` are internal
+  collection helpers. Public formatters and publishers consume the resulting records.
 - Attribute copying (`CopyAttributes`) is entry-by-entry: empty names logged+skipped,
   case-colliding keys last-wins, a throwing source keeps what was read — one bad attribute
   never costs the set.
