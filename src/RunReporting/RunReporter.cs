@@ -4,7 +4,6 @@
 // propagated to the caller. The one exception is the caller's own cancellation token,
 // which PublishAsync honors.
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace RunReporting;
 
@@ -17,23 +16,18 @@ public sealed class RunReporter : IRunReporter
     private readonly ILogger<RunReporter> _logger;
 
     public RunReporter(
-        RunReportingOptions? options = null,
-        IEnumerable<IRunReportPublisher>? publishers = null,
-        ILogger<RunReporter>? logger = null)
+        RunReportingOptions options,
+        IEnumerable<IRunReportPublisher> publishers,
+        ILogger<RunReporter> logger)
     {
-        _logger = logger ?? NullLogger<RunReporter>.Instance;
-        _options = options ?? new RunReportingOptions();
-        _defaultRun = new RunScope(this, new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase), previousRun: null);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(publishers);
+        ArgumentNullException.ThrowIfNull(logger);
 
-        try
-        {
-            _publishers = publishers?.ToList() ?? [];
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Run reporting failed to read the publisher list; reports will not be delivered.");
-            _publishers = [];
-        }
+        _logger = logger;
+        _options = options;
+        _publishers = publishers.ToList();
+        _defaultRun = new RunScope(this, new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase), previousRun: null);
     }
 
     public IDisposable BeginRun(IReadOnlyDictionary<string, string?>? attributes = null)

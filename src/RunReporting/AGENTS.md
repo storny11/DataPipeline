@@ -116,6 +116,8 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
   falls back to `_defaultRun`. `RunScope` (private) holds lock-guarded attribute/issue/table
   state; `Dispose` is idempotent, only pops the ambient chain if still current, and skips
   any ancestors already disposed out of order rather than restoring them.
+- `RunReporter` requires explicit options, publishers, and logger dependencies. Invalid
+  construction fails at composition time; it never silently substitutes no-op defaults.
 - Attribute copying (`CopyAttributes`) is entry-by-entry: empty names logged+skipped,
   case-colliding keys last-wins, a throwing source keeps what was read — one bad attribute
   never costs the set.
@@ -174,4 +176,4 @@ table selectors, null args, publisher failures, internal-timeout OCE containment
 issue identifiers, caller cancellation without pre-draining and between-publisher cancellation,
 subject builder (custom/fallback/CRLF), explicit typed table selectors, alignment
 flow, isolated full/compact email failures, Razor rendering + HTML
-encoding, and composition-time validation failures.
+encoding, explicit-constructor failures, and composition-time validation failures.

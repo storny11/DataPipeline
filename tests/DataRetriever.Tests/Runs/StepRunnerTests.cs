@@ -12,7 +12,10 @@ public sealed class StepRunnerTests
     [Fact]
     public async Task ExecuteAsync_ForwardsStepResultIssuesToReporter()
     {
-        var reporter = new RunReporter(new RunReportingOptions(), []);
+        var reporter = new RunReporter(
+            new RunReportingOptions(),
+            [],
+            NullLogger<RunReporter>.Instance);
         var runner = new StepRunner(
             new RunInstrumentationWriter(),
             reporter,

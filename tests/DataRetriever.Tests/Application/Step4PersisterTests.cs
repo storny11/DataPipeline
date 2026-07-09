@@ -3,6 +3,7 @@ using DataRetriever.Application.Step3Load.Models;
 using DataRetriever.Application.Step4Persist;
 using DataRetriever.Application.Step4Persist.Models;
 using DataRetriever.Execution;
+using Microsoft.Extensions.Logging.Abstractions;
 using RunReporting;
 
 namespace DataRetriever.Tests.Application;
@@ -12,7 +13,10 @@ public sealed class Step4PersisterTests
     [Fact]
     public async Task ExecuteAsync_WithDuplicateIdentifiers_CountsEachPersistedRow()
     {
-        var reporter = new RunReporter(new RunReportingOptions(), []);
+        var reporter = new RunReporter(
+            new RunReportingOptions(),
+            [],
+            NullLogger<RunReporter>.Instance);
         var persister = new Step4Persister(
             new FakeStep4SinkClient(),
             new Step4RequestMapper(reporter),
@@ -38,7 +42,10 @@ public sealed class Step4PersisterTests
     [Fact]
     public async Task ExecuteAsync_WhenSinkThrows_ReturnsFailedResult()
     {
-        var failedRunReporter = new RunReporter(new RunReportingOptions(), []);
+        var failedRunReporter = new RunReporter(
+            new RunReportingOptions(),
+            [],
+            NullLogger<RunReporter>.Instance);
         var persister = new Step4Persister(
             new FakeStep4SinkClient(_ => throw new InvalidOperationException("Sink unavailable.")),
             new Step4RequestMapper(failedRunReporter),

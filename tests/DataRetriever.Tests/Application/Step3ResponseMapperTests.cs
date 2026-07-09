@@ -2,6 +2,7 @@
 using System.Globalization;
 using DataRetriever.Application.Step3Load;
 using DataRetriever.Application.Step3Load.Models;
+using Microsoft.Extensions.Logging.Abstractions;
 using RunReporting;
 
 namespace DataRetriever.Tests.Application;
@@ -15,7 +16,10 @@ public sealed class Step3ResponseMapperTests
         try
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("de-DE");
-            var reporter = new RunReporter(new RunReportingOptions(), []);
+            var reporter = new RunReporter(
+                new RunReportingOptions(),
+                [],
+                NullLogger<RunReporter>.Instance);
             var normalizer = new ExternalId2Normalizer();
             var mapper = new Step3ResponseMapper(normalizer, reporter);
             normalizer.TryNormalize("EXT2-A", out var normalized);
@@ -37,7 +41,10 @@ public sealed class Step3ResponseMapperTests
     [Fact]
     public void Map_WhenDuplicateValidRowsExist_KeepsFirstAmountAndWarns()
     {
-        var reporter = new RunReporter(new RunReportingOptions(), []);
+        var reporter = new RunReporter(
+            new RunReportingOptions(),
+            [],
+            NullLogger<RunReporter>.Instance);
         var normalizer = new ExternalId2Normalizer();
         var mapper = new Step3ResponseMapper(normalizer, reporter);
         normalizer.TryNormalize("EXT2-A", out var normalized);

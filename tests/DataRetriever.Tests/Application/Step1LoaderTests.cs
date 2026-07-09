@@ -3,6 +3,7 @@ using DataRetriever.Application.Runs;
 using DataRetriever.Application.Step1Load;
 using DataRetriever.Application.Step1Load.Models;
 using DataRetriever.Execution;
+using Microsoft.Extensions.Logging.Abstractions;
 using RunReporting;
 
 namespace DataRetriever.Tests.Application;
@@ -12,7 +13,7 @@ public sealed class Step1LoaderTests
     [Fact]
     public async Task ExecuteAsync_FiltersSourceRowsBeforeValidation()
     {
-        var reporter = new RunReporter(new RunReportingOptions(), []);
+        var reporter = new RunReporter(new RunReportingOptions(), [], NullLogger<RunReporter>.Instance);
         var loader = new Step1Loader(
             new Source([
                 new("INT-001", "EXT1-AAA", "GBP", "1"),
@@ -37,7 +38,7 @@ public sealed class Step1LoaderTests
     [Fact]
     public async Task ExecuteAsync_ReportsInvalidSelectedRows()
     {
-        var reporter = new RunReporter(new RunReportingOptions(), []);
+        var reporter = new RunReporter(new RunReportingOptions(), [], NullLogger<RunReporter>.Instance);
         var loader = new Step1Loader(
             new Source([
                 new("INT-001", "EXT1-AAA", "GBP", "1"),
@@ -64,7 +65,7 @@ public sealed class Step1LoaderTests
     [Fact]
     public async Task ExecuteAsync_WithNoValidConfiguredRows_ReturnsFailedResult()
     {
-        var reporter = new RunReporter(new RunReportingOptions(), []);
+        var reporter = new RunReporter(new RunReportingOptions(), [], NullLogger<RunReporter>.Instance);
         var loader = new Step1Loader(
             new Source([
                 new(null, "EXT1-AAA", "GBP", "1"),
@@ -89,7 +90,7 @@ public sealed class Step1LoaderTests
     [Fact]
     public async Task ExecuteAsync_WithNullInput_Throws()
     {
-        var reporter = new RunReporter(new RunReportingOptions(), []);
+        var reporter = new RunReporter(new RunReportingOptions(), [], NullLogger<RunReporter>.Instance);
         var loader = new Step1Loader(
             new Source([]),
             new Step1Validator(reporter),

@@ -1,6 +1,7 @@
 // Verifies ambient run scoping, attribute flow, tables, and publish behavior of the RunReporting package.
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using RunReporting;
 
 namespace DataRetriever.Tests.RunReporting;
@@ -194,7 +195,10 @@ public sealed class RunReporterTests
     {
         var first = new CapturingPublisher();
         var second = new CapturingPublisher();
-        var reporter = new RunReporter(new RunReportingOptions(), [first, second]);
+        var reporter = new RunReporter(
+            new RunReportingOptions(),
+            [first, second],
+            NullLogger<RunReporter>.Instance);
 
         reporter.AddIssue("Row skipped.");
         await reporter.PublishAsync();
@@ -524,20 +528,25 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void Constructor_WithNullArguments_ProducesUsableReporter()
+    public void Constructor_WithNullDependencies_FailsFast()
     {
-        var reporter = new RunReporter(null, null);
+        var options = new RunReportingOptions();
+        IRunReportPublisher[] publishers = [];
+        var logger = NullLogger<RunReporter>.Instance;
 
-        reporter.AddIssue("Still works.");
-
-        Assert.Single(reporter.Take().Issues);
+        Assert.Throws<ArgumentNullException>(() => new RunReporter(null!, publishers, logger));
+        Assert.Throws<ArgumentNullException>(() => new RunReporter(options, null!, logger));
+        Assert.Throws<ArgumentNullException>(() => new RunReporter(options, publishers, null!));
     }
 
     [Fact]
     public async Task PublishAsync_PublisherInternalTimeout_IsContainedAndOthersStillRun()
     {
         var healthy = new CapturingPublisher();
-        var reporter = new RunReporter(new RunReportingOptions(), [new TimingOutPublisher(), healthy]);
+        var reporter = new RunReporter(
+            new RunReportingOptions(),
+            [new TimingOutPublisher(), healthy],
+            NullLogger<RunReporter>.Instance);
 
         reporter.AddIssue("Row skipped.");
         await reporter.PublishAsync();
@@ -566,7 +575,10 @@ public sealed class RunReporterTests
         using var cancellation = new CancellationTokenSource();
         var canceling = new CancelingPublisher(cancellation);
         var next = new CapturingPublisher();
-        var reporter = new RunReporter(new RunReportingOptions(), [canceling, next]);
+        var reporter = new RunReporter(
+            new RunReportingOptions(),
+            [canceling, next],
+            NullLogger<RunReporter>.Instance);
         reporter.AddIssue("Step1", "Row", "row-1", "Row skipped.");
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
@@ -581,7 +593,10 @@ public sealed class RunReporterTests
     {
         var failing = new ThrowingPublisher();
         var healthy = new CapturingPublisher();
-        var reporter = new RunReporter(new RunReportingOptions(), [failing, healthy]);
+        var reporter = new RunReporter(
+            new RunReportingOptions(),
+            [failing, healthy],
+            NullLogger<RunReporter>.Instance);
 
         reporter.AddIssue("Row skipped.");
         await reporter.PublishAsync();
@@ -620,7 +635,10 @@ public sealed class RunReporterTests
     public async Task PublishAsync_WithoutIssues_SkipsSendWhenConfiguredOff()
     {
         var sender = new CapturingPublisher();
-        var reporter = new RunReporter(new RunReportingOptions { SendWhenNoIssues = false }, [sender]);
+        var reporter = new RunReporter(
+            new RunReportingOptions { SendWhenNoIssues = false },
+            [sender],
+            NullLogger<RunReporter>.Instance);
 
         await reporter.PublishAsync();
 
@@ -631,7 +649,10 @@ public sealed class RunReporterTests
     public async Task PublishAsync_WithOnlyTables_SendsEvenWhenNoIssueSendIsOff()
     {
         var sender = new CapturingPublisher();
-        var reporter = new RunReporter(new RunReportingOptions { SendWhenNoIssues = false }, [sender]);
+        var reporter = new RunReporter(
+            new RunReportingOptions { SendWhenNoIssues = false },
+            [sender],
+            NullLogger<RunReporter>.Instance);
 
         reporter.AddTable(
             "Persisted",
@@ -739,7 +760,10 @@ public sealed class RunReporterTests
     private static RunReporter CreateReporter(out CapturingPublisher sender)
     {
         sender = new CapturingPublisher();
-        return new RunReporter(new RunReportingOptions(), [sender]);
+        return new RunReporter(
+            new RunReportingOptions(),
+            [sender],
+            NullLogger<RunReporter>.Instance);
     }
 
     private sealed record RateRow(string Ccy, decimal Rate);
