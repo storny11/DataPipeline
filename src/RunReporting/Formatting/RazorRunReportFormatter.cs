@@ -15,15 +15,16 @@ public sealed class RazorRunReportFormatter(
 
     public Task<RunReportEmail> FormatAsync(RunReport report, CancellationToken cancellationToken)
     {
-        return FormatAsync(report, typeof(RunReportEmailTemplate), cancellationToken);
+        return FormatAsync<RunReportEmailTemplate>(report, cancellationToken);
     }
 
     public Task<RunReportEmail> FormatCompactAsync(RunReport report, CancellationToken cancellationToken)
     {
-        return FormatAsync(report, typeof(CompactRunReportEmailTemplate), cancellationToken);
+        return FormatAsync<CompactRunReportEmailTemplate>(report, cancellationToken);
     }
 
-    private async Task<RunReportEmail> FormatAsync(RunReport report, Type templateType, CancellationToken cancellationToken)
+    private async Task<RunReportEmail> FormatAsync<TTemplate>(RunReport report, CancellationToken cancellationToken)
+        where TTemplate : IComponent
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -37,7 +38,7 @@ public sealed class RazorRunReportFormatter(
 
         var htmlBody = await renderer.Dispatcher.InvokeAsync(async () =>
         {
-            var component = await renderer.RenderComponentAsync(templateType, parameters);
+            var component = await renderer.RenderComponentAsync<TTemplate>(parameters);
             return component.ToHtmlString();
         });
 
