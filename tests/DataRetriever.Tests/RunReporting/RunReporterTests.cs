@@ -246,7 +246,7 @@ public sealed class RunReporterTests
             new Dictionary<string, string?> { ["environment"] = "prod" },
             RunOutcome.CompletedWithWarnings,
             DateTimeOffset.UtcNow,
-            [new RunIssue("Step1", "Row", "row-1", IssueSeverity.Warning, "Row skipped.", DateTimeOffset.UtcNow)],
+            [new RunIssue("Step1", "Row", "row-1", IssueSeverity.Warning, "Row skipped.")],
             []);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
@@ -295,7 +295,7 @@ public sealed class RunReporterTests
             new Dictionary<string, string?>(),
             RunOutcome.Failed,
             DateTimeOffset.UtcNow,
-            [new RunIssue("Step1", "Row", "row-1", IssueSeverity.Error, "Boom.", DateTimeOffset.UtcNow)],
+            [new RunIssue("Step1", "Row", "row-1", IssueSeverity.Error, "Boom.")],
             []);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
@@ -354,7 +354,7 @@ public sealed class RunReporterTests
             new Dictionary<string, string?>(),
             RunOutcome.CompletedWithWarnings,
             DateTimeOffset.UtcNow,
-            [new RunIssue("Step1", "Row", "row-1", IssueSeverity.Warning, "Review this row.", DateTimeOffset.UtcNow)],
+            [new RunIssue("Step1", "Row", "row-1", IssueSeverity.Warning, "Review this row.")],
             []);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
@@ -384,8 +384,7 @@ public sealed class RunReporterTests
                 "Row",
                 $"row-{index}",
                 IssueSeverity.Warning,
-                $"Row {index} skipped <b>.",
-                DateTimeOffset.UtcNow))
+                $"Row {index} skipped <b>."))
             .ToList();
         var report = new RunReport(
             new Dictionary<string, string?> { ["runId"] = "run-1" },
@@ -699,8 +698,8 @@ public sealed class RunReporterTests
             RunOutcome.Failed,
             DateTimeOffset.UtcNow,
             [
-                new RunIssue("Step<1>", "Internal<Id>", "row<1>", IssueSeverity.Error, "<script>alert(1)</script>", DateTimeOffset.UtcNow),
-                new RunIssue("Step<2>", "InternalId", "row<2>", IssueSeverity.Warning, "Review this row.", DateTimeOffset.UtcNow)
+                new RunIssue("Step<1>", "Internal<Id>", "row<1>", IssueSeverity.Error, "<script>alert(1)</script>"),
+                new RunIssue("Step<2>", "InternalId", "row<2>", IssueSeverity.Warning, "Review this row.")
             ],
             [new ResultTable(
                 "Persisted <Rows>",

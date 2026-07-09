@@ -7,8 +7,7 @@ public sealed record RunIssue(
     string IdentifierName,
     string IdentifierValue,
     IssueSeverity Severity,
-    string Message,
-    DateTimeOffset TimestampUtc)
+    string Message)
 {
     internal static RunIssue Create(
         string? stepName,
@@ -22,7 +21,6 @@ public sealed record RunIssue(
             identifierName ?? string.Empty,
             identifierValue ?? string.Empty,
             severity,
-            message ?? string.Empty,
-            DateTimeOffset.UtcNow);
+            message ?? string.Empty);
     }
 }

@@ -87,9 +87,10 @@ HTML email report when the run finishes. Built to be dropped into many company s
     with `AddIssue(stepName, identifierName, identifierValue, message, severity?)`.
     `IdentifierName` says what the value represents (`InternalId`, `ExternalId2`, `RunId`),
     while `IdentifierValue` identifies the affected record or operation. General message-only
-    issues have empty identifier fields. There is no open-ended issue-data dictionary and no
-    issue-removal API: determine record relevance before reporting an issue rather than adding
-    provisional issues and deleting them later.
+    issues have empty identifier fields. Issues retain collection order and do not carry an
+    unused internal timestamp. There is no open-ended issue-data dictionary and no issue-removal
+    API: determine record relevance before reporting an issue rather than adding provisional
+    issues and deleting them later.
 15. **Outcome** (`Succeeded` / `CompletedWithWarnings` / `Failed`) is derived from collected
     issues; callers may override at publish (`PublishAsync(RunOutcome.Failed)`).
     `PublishAsync` returns the published `RunReport` so callers can shape API responses
