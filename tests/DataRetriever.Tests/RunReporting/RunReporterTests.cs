@@ -376,7 +376,10 @@ public sealed class RunReporterTests
             RunOutcome.CompletedWithWarnings,
             DateTimeOffset.UtcNow,
             issues,
-            [ResultTable.From("Persisted Records", ["ID"], [new { id = "INT-1" }])]);
+            [ResultTable.From(
+                "Persisted Records",
+                [new IdRow("INT-1")],
+                [TableColumn<IdRow>.Left("ID", row => row.Id)])]);
 
         var email = await formatter.FormatCompactAsync(report, CancellationToken.None);
 
@@ -460,10 +463,31 @@ public sealed class RunReporterTests
         var reporter = CreateReporter(out _);
 
         // "Z" is an invalid standard numeric specifier and makes decimal.ToString throw.
-        reporter.AddTable("Rates", ["RATE"], [new { rate = 1.25m }], [Column.Number("Z")]);
+        reporter.AddTable(
+            "Rates",
+            [new RateRow("GBP", 1.25m)],
+            [TableColumn<RateRow>.Number("RATE", row => row.Rate, "Z")]);
 
         var table = Assert.Single(reporter.Take().Tables);
         Assert.Equal("1.25", Assert.Single(table.Rows)[0]);
+    }
+
+    [Fact]
+    public void AddTable_WithThrowingSelector_LosesOnlyThatCell()
+    {
+        var reporter = CreateReporter(out _);
+
+        reporter.AddTable(
+            "Rows",
+            [new ExplosiveSubject()],
+            [
+                TableColumn<ExplosiveSubject>.Left("ID", row => row.Id),
+                TableColumn<ExplosiveSubject>.Left("BAD", row => row.Bad)
+            ]);
+
+        var row = Assert.Single(Assert.Single(reporter.Take().Tables).Rows);
+        Assert.Equal("INT-1", row[0]);
+        Assert.Null(row[1]);
     }
 
     [Fact]
@@ -471,7 +495,7 @@ public sealed class RunReporterTests
     {
         var reporter = CreateReporter(out _);
 
-        reporter.AddTable(null!, null!, null!);
+        reporter.AddTable<object?>(null!, null!, null!);
 
         var table = Assert.Single(reporter.Take().Tables);
         Assert.Equal(string.Empty, table.Title);
@@ -541,7 +565,10 @@ public sealed class RunReporterTests
         var sender = new CapturingPublisher();
         var reporter = new RunReporter(new RunReportingOptions { SendWhenNoIssues = false }, [sender]);
 
-        reporter.AddTable("Persisted", ["ID"], [new { id = "INT-1" }]);
+        reporter.AddTable(
+            "Persisted",
+            [new IdRow("INT-1")],
+            [TableColumn<IdRow>.Left("ID", row => row.Id)]);
         await reporter.PublishAsync();
 
         Assert.Single(sender.Sent);
@@ -584,24 +611,25 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public async Task AddTable_PublishesAnonymousAndTypedRows()
+    public async Task AddTable_UsesExplicitTypedColumnSelectors()
     {
         var reporter = CreateReporter(out var sender);
 
-        // Headers are verbatim; each matches a property ignoring case ("CCY" reads ccy or Ccy).
         reporter.AddTable(
             "Fetched Rates",
-            ["CCY", "RATE"],
             [
-                new { ccy = "GBP", rate = 1.25m },
+                new RateRow("GBP", 1.25m),
                 new RateRow("EUR", 1.1m)
             ],
-            [Column.Left, Column.Number("N2")]);
+            [
+                TableColumn<RateRow>.Left("CURRENCY", row => row.Ccy),
+                TableColumn<RateRow>.Number("RATE", row => row.Rate, "N2")
+            ]);
         await reporter.PublishAsync();
 
         var table = Assert.Single(Assert.Single(sender.Sent).Tables);
         Assert.Equal("Fetched Rates", table.Title);
-        Assert.Equal(["CCY", "RATE"], table.Headers);
+        Assert.Equal(["CURRENCY", "RATE"], table.Headers);
         Assert.Equal(["GBP", "1.25"], table.Rows[0]);
         Assert.Equal(["EUR", "1.10"], table.Rows[1]);
         Assert.Equal([ColumnAlignment.Left, ColumnAlignment.Right], table.Alignments);
@@ -629,7 +657,10 @@ public sealed class RunReporterTests
                 RunIssue.Create("Step<1>", IssueSeverity.Error, "<script>alert(1)</script>"),
                 RunIssue.Create("Step<2>", IssueSeverity.Warning, "Review this row.")
             ],
-            [ResultTable.From("Persisted <Rows>", ["ID"], [new { id = "INT-1" }])]);
+            [ResultTable.From(
+                "Persisted <Rows>",
+                [new IdRow("INT-1")],
+                [TableColumn<IdRow>.Left("ID", row => row.Id)])]);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
 
@@ -676,6 +707,8 @@ public sealed class RunReporterTests
     }
 
     private sealed record RateRow(string Ccy, decimal Rate);
+
+    private sealed record IdRow(string Id);
 
     private sealed class CapturingPublisher : IRunReportPublisher
     {

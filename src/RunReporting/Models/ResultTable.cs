@@ -1,9 +1,5 @@
-// A published result set: column headers plus formatted rows built from plain or anonymous
-// objects. Headers are shown verbatim; each header is matched to a row property ignoring
-// case and spacing, so "INTERNAL ID" reads an InternalId property.
-using System.Collections.Concurrent;
-using System.Reflection;
-using System.Text;
+// A published result set containing the explicit headings, alignments, and formatted
+// cell values selected by the caller's table-column definitions.
 
 namespace RunReporting;
 
@@ -13,71 +9,41 @@ public sealed record ResultTable(
     IReadOnlyList<ColumnAlignment> Alignments,
     IReadOnlyList<IReadOnlyList<string?>> Rows)
 {
-    private static readonly ConcurrentDictionary<Type, (PropertyInfo Property, string Key)[]> PropertyCache = new();
-
-    public static ResultTable From(
+    public static ResultTable From<TRow>(
         string? title,
-        IReadOnlyList<string>? headers,
-        IEnumerable<object?>? rows,
-        IReadOnlyList<Column>? columns = null)
+        IEnumerable<TRow>? rows,
+        IReadOnlyList<TableColumn<TRow>>? columns)
     {
-        var safeHeaders = (headers ?? []).Select(header => header ?? string.Empty).ToList();
-        var normalizedHeaders = safeHeaders.Select(NormalizeKey).ToList();
-        var safeColumns = Enumerable.Range(0, safeHeaders.Count)
-            .Select(index => columns != null && index < columns.Count ? columns[index] ?? Column.Left : Column.Left)
+        var safeColumns = (columns ?? [])
+            .Where(column => column != null)
             .ToList();
 
         return new ResultTable(
             title ?? string.Empty,
-            safeHeaders,
+            safeColumns.Select(column => column.Header ?? string.Empty).ToList(),
             safeColumns.Select(column => column.Alignment).ToList(),
-            (rows ?? []).Select(row => ToRow(row, normalizedHeaders, safeColumns)).ToList());
+            (rows ?? []).Select(row => ToRow(row, safeColumns)).ToList());
     }
 
-    private static IReadOnlyList<string?> ToRow(
-        object? row,
-        IReadOnlyList<string> normalizedHeaders,
-        IReadOnlyList<Column> columns)
+    private static IReadOnlyList<string?> ToRow<TRow>(
+        TRow row,
+        IReadOnlyList<TableColumn<TRow>> columns)
     {
-        if (row == null)
-        {
-            return new string?[normalizedHeaders.Count];
-        }
-
-        var properties = PropertiesOf(row.GetType());
-
-        return normalizedHeaders
-            .Select((header, index) =>
-            {
-                var match = Array.Find(properties, column => column.Key == header);
-                return match.Property != null
-                    ? ValueFormatter.FormatProperty(match.Property, row, columns[index].Format)
-                    : null;
-            })
+        return columns
+            .Select(column => FormatCell(column, row))
             .ToList();
     }
 
-    private static (PropertyInfo Property, string Key)[] PropertiesOf(Type type)
+    private static string? FormatCell<TRow>(TableColumn<TRow> column, TRow row)
     {
-        return PropertyCache.GetOrAdd(type, static rowType => rowType
-            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .Where(property => property.CanRead && property.GetIndexParameters().Length == 0)
-            .Select(property => (property, NormalizeKey(property.Name)))
-            .ToArray());
-    }
-
-    // "INTERNAL ID" -> "internalid", "InternalId" -> "internalid"
-    private static string NormalizeKey(string value)
-    {
-        var builder = new StringBuilder(value.Length);
-        foreach (var character in value)
+        try
         {
-            if (char.IsLetterOrDigit(character))
-            {
-                builder.Append(char.ToLowerInvariant(character));
-            }
+            return ValueFormatter.Format(column.ValueSelector(row), column.Format);
         }
-
-        return builder.ToString();
+        catch
+        {
+            // A bad selector costs one cell, never the table or caller.
+            return null;
+        }
     }
 }

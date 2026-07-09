@@ -115,11 +115,14 @@ public sealed class RunReporter : IRunReporter
         }
     }
 
-    public void AddTable(string title, IReadOnlyList<string> headers, IEnumerable<object?> rows, IReadOnlyList<Column>? columns = null)
+    public void AddTable<TRow>(
+        string title,
+        IEnumerable<TRow> rows,
+        IReadOnlyList<TableColumn<TRow>> columns)
     {
         try
         {
-            CurrentRun.Add(ResultTable.From(title, headers, rows, columns));
+            CurrentRun.Add(ResultTable.From(title, rows, columns));
         }
         catch (Exception exception)
         {

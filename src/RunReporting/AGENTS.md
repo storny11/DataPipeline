@@ -66,19 +66,16 @@ HTML email report when the run finishes. Built to be dropped into many company s
     If a consumer wants Started, Completed, Duration, Environment, etc., they pass those
     as run attributes from the host/application code. The DataRetriever host supplies
     `started (ET)` at run start and `completed (ET)` immediately before publish.
-13. **Result tables: explicit headers, rows as plain or anonymous objects.**
-    `AddTable(title, headers, rows, columns?)`: headers are strings shown **verbatim**
-    (the owner wants to reword headers without touching row types); each header is matched
-    to a row property ignoring case and spacing ("INTERNAL ID" reads `InternalId`).
-    An unmatched header renders `-` cells. Rows may be typed objects or anonymous
-    projections (`new { Name = ..., Email = ... }`); mixed row types fill what they can.
-    Earlier iterations tried dictionary/dynamic-row support and header derivation from
-    properties — both were deliberately removed (owner prefers explicit headers); do not
-    reintroduce without the owner. Alignment and value formatting are explicit per column
-    via one positional `Column` spec (`Column.Left`/`Right`/`Center`, `Column.Number("N4")`
-    = right-aligned + .NET format string, invariant culture; bad format degrades to the
-    unformatted value) — no type-based magic, and no implicit `ColumnAlignment → Column`
-    conversion (owner removed it; write `Column.Left`, not the enum, at call sites).
+13. **Result tables use explicit typed column definitions.**
+    `AddTable(title, rows, columns)`: every `TableColumn<TRow>` owns its displayed header,
+    typed value selector, alignment, and optional .NET format string. Headers are shown
+    **verbatim**, so callers can reword them without touching row types. The selector is the
+    complete data binding; there is no reflection, property-name normalization, inferred
+    header mapping, dictionary/dynamic-row support, or positional header/format list.
+    `TableColumn<TRow>.Left`/`Right`/`Center` select alignment explicitly, while
+    `TableColumn<TRow>.Number(..., "N4")` is right-aligned and formats with invariant
+    culture. A throwing selector renders `-`; a bad format degrades to the unformatted
+    value. Do not reintroduce inferred property binding without the owner.
     Attribute labels in the summary panel are still auto-humanized
     (`ValueFormatter.ToHeader`: `runId` → "RUN ID").
 14. **Issue subjects are flexible:** scalar (→ `id=5`), list (→ `ids=a, b`), dictionary
@@ -99,7 +96,7 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
 ├── RunReportingOptions.cs            Flat namespace `RunReporting` (folders are physical only).
 ├── ServiceCollectionExtensions.cs
 ├── Models/       RunReport, RunIssue, ResultTable, RunOutcome, IssueSeverity,
-│                 ColumnAlignment, IssueData, ValueFormatter
+│                 TableColumn, ColumnAlignment, IssueData, ValueFormatter
 ├── Formatting/   IRunReportFormatter, RazorRunReportFormatter (HtmlRenderer),
 │   └── Templates/  RunReportEmailTemplate.razor, CompactRunReportEmailTemplate.razor,
 │                   IssuesTable.razor, ResultTableView.razor
@@ -128,8 +125,11 @@ services.AddRunReporting(configuration);            // requires "EmailReport" se
 using var run = reporter.BeginRun(("runId", id), ("environment", env));
 reporter.AddIssue(new { ccy, id }, "Rate missing", "Step3");        // Warning by default
 reporter.AddIssue("fatal", severity: IssueSeverity.Error);
-reporter.AddTable("Persisted Records", ["INTERNAL ID", "AMOUNT"], rows,
-    [Column.Left, Column.Number("N2")]);
+reporter.AddTable("Persisted Records", rows,
+    [
+        TableColumn<PersistedRow>.Left("INTERNAL ID", row => row.InternalId),
+        TableColumn<PersistedRow>.Number("AMOUNT", row => row.Amount, "N2")
+    ]);
 await reporter.PublishAsync(failed ? RunOutcome.Failed : null);
 ```
 
@@ -150,7 +150,7 @@ await reporter.PublishAsync(failed ? RunOutcome.Failed : null);
   run's async flow lands in the default run (logged at origin, never published in apps that
   always use scopes — accepted; a warning/cap was considered and deferred).
 - Publishers run sequentially; concurrency to be decided when a second publisher exists.
-- Table cell values that fail to read/format render `-`/type-name; never throw.
+- Table selectors or cell values that fail to evaluate/format render `-`/type-name; never throw.
 - Package version/metadata in `RunReporting.csproj` is `0.2.0` — bump before publishing.
 
 ## Testing
@@ -160,5 +160,5 @@ Package-focused tests live in `tests/DataRetriever.Tests/RunReporting/RunReporte
 ambient nesting/isolation across async, default-run mode,
 attribute salvage on collisions, `""` recipient blanking, never-throw guarantees (throwing
 getters, null args, publisher failures, internal-timeout OCE containment), subject builder
-(custom/fallback/CRLF), anonymous+typed table rows, alignment flow, Razor rendering + HTML
+(custom/fallback/CRLF), explicit typed table selectors, alignment flow, Razor rendering + HTML
 encoding, and composition-time validation failures.

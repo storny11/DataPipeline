@@ -61,15 +61,14 @@ public sealed class Step4Persister(
     {
         reporter.AddTable(
             "Persisted Records",
-            ["INTERNAL ID", "EXTERNAL ID 1", "EXTERNAL ID 2", "AMOUNT 1", "AMOUNT 2", "AMOUNT 3"],
             records,
             [
-                Column.Left,
-                Column.Left,
-                Column.Left,
-                Column.Number("N4"),
-                Column.Number("N4"),
-                Column.Number("N4")
+                TableColumn<Step3OutputRecord>.Left("INTERNAL ID", record => record.InternalId),
+                TableColumn<Step3OutputRecord>.Left("EXTERNAL ID 1", record => record.ExternalId1),
+                TableColumn<Step3OutputRecord>.Left("EXTERNAL ID 2", record => record.ExternalId2),
+                TableColumn<Step3OutputRecord>.Number("AMOUNT 1", record => record.Amount1, "N4"),
+                TableColumn<Step3OutputRecord>.Number("AMOUNT 2", record => record.Amount2, "N4"),
+                TableColumn<Step3OutputRecord>.Number("AMOUNT 3", record => record.Amount3, "N4")
             ]);
     }
 
