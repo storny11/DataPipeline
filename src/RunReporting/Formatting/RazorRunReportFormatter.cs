@@ -33,8 +33,8 @@ public sealed class RazorRunReportFormatter(
         var parameters = ParameterView.FromDictionary(
             new Dictionary<string, object?>
             {
-                ["Report"] = report,
-                ["Options"] = options
+                [nameof(RunReportTemplateBase.Report)] = report,
+                [nameof(RunReportTemplateBase.Options)] = options
             });
 
         var htmlBody = await renderer.Dispatcher.InvokeAsync(async () =>

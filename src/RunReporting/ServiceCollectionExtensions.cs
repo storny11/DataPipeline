@@ -1,7 +1,6 @@
 // Registers run reporting as singletons. Extra publishers are plain
 // AddSingleton<IRunReportPublisher, ...> registrations; all of them receive each report.
 // Configuration problems fail fast here, at composition time — never during a run.
-using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -68,9 +67,9 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>Points the default Razor formatter at a custom template component taking Report and Options parameters.</summary>
+    /// <summary>Points the default Razor formatter at a typed custom template component.</summary>
     public static IServiceCollection UseRunReportTemplate<TTemplate>(this IServiceCollection services)
-        where TTemplate : IComponent
+        where TTemplate : RunReportTemplateBase
     {
         services.AddSingleton(new RunReportTemplate(typeof(TTemplate)));
         return services;

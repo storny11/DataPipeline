@@ -1,6 +1,7 @@
 // Verifies ambient run scoping, attribute flow, tables, and publish behavior of the RunReporting package.
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Components.Rendering;
 using RunReporting;
 
 namespace DataRetriever.Tests.RunReporting;
@@ -160,6 +161,32 @@ public sealed class RunReporterTests
         var email = await formatter.FormatAsync(report, CancellationToken.None);
 
         Assert.Equal("line1  line2", email.Subject);
+    }
+
+    [Fact]
+    public async Task UseRunReportTemplate_RendersTypedCustomTemplate()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRunReporting(options =>
+        {
+            options.Enabled = false;
+            options.ServiceName = "TestApp";
+        });
+        services.UseRunReportTemplate<TestRunReportTemplate>();
+
+        await using var provider = services.BuildServiceProvider();
+        var formatter = provider.GetRequiredService<IRunReportFormatter>();
+        var report = new RunReport(
+            new Dictionary<string, string?>(),
+            RunOutcome.Succeeded,
+            DateTimeOffset.UtcNow,
+            [],
+            []);
+
+        var email = await formatter.FormatAsync(report, CancellationToken.None);
+
+        Assert.Contains("Custom TestApp Succeeded", email.HtmlBody);
     }
 
     [Fact]
@@ -864,6 +891,16 @@ public sealed class RunReporterTests
     private sealed record RateRow(string Ccy, decimal Rate);
 
     private sealed record IdRow(string Id);
+
+    public sealed class TestRunReportTemplate : RunReportTemplateBase
+    {
+        protected override void BuildRenderTree(RenderTreeBuilder builder)
+        {
+            builder.OpenElement(0, "p");
+            builder.AddContent(1, $"Custom {Options.ServiceName} {Report.Outcome}");
+            builder.CloseElement();
+        }
+    }
 
     private sealed class CapturingPublisher : IRunReportPublisher
     {

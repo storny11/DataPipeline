@@ -1,7 +1,7 @@
 @* Compact variant for clients that mangle rich HTML, e.g. Teams channel email addresses:
    outcome, counts, top issues, and table row counts — no nested layout tables. *@
-@using Microsoft.AspNetCore.Components
 @namespace RunReporting.Templates
+@inherits RunReporting.RunReportTemplateBase
 
 <div style="font-family:Segoe UI, Arial, sans-serif; font-size:14px; color:#101828;">
     <p style="margin:0 0 6px 0;">
@@ -37,12 +37,6 @@
 
 @code {
     private const int MaxIssues = 10;
-
-    [Parameter, EditorRequired]
-    public RunReport Report { get; set; } = null!;
-
-    [Parameter, EditorRequired]
-    public RunReportingOptions Options { get; set; } = null!;
 
     private IReadOnlyList<RunIssue> TopIssues => Report.Issues.Take(MaxIssues).ToList();
 
