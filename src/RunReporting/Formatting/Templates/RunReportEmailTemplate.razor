@@ -1,8 +1,18 @@
 @* Default email layout: run outcome, errors, warnings, and result tables. *@
 @using System.Globalization
-@using System.Text
 @using Microsoft.AspNetCore.Components
 @namespace RunReporting.Templates
+
+@{
+    var summaryItems = Report.Attributes
+        .Select(attribute => (
+            Label: ValueFormatter.ToHeader(attribute.Key),
+            Value: attribute.Value,
+            IsCopyFriendly: IsRunIdAttribute(attribute.Key)))
+        .ToList();
+    var warnings = Report.Issues.Where(issue => issue.Severity == IssueSeverity.Warning).ToList();
+    var errors = Report.Issues.Where(issue => issue.Severity == IssueSeverity.Error).ToList();
+}
 
 <!DOCTYPE html>
 <html>
@@ -44,7 +54,7 @@
                                 </td>
                             </tr>
 
-                            @if (SummaryItems.Count > 0)
+                            @if (summaryItems.Count > 0)
                             {
                                 <tr><td height="16" style="@SpacerStyle">&nbsp;</td></tr>
 
@@ -52,22 +62,21 @@
                                     <td>
                                         <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f5f7fb" style="@SummaryTableStyle">
                                             <tbody>
-                                                @for (var index = 0; index < SummaryItems.Count; index += 4)
+                                                @for (var index = 0; index < summaryItems.Count; index += 4)
                                                 {
                                                     <tr>
                                                         @for (var offset = 0; offset < 4; offset++)
                                                         {
                                                             var itemIndex = index + offset;
-                                                            var cellStyle = offset == 0 ? SummaryCellStyle : SummaryCellDividerStyle;
-                                                            <td width="25%" valign="top" style="@cellStyle">
-                                                                @if (itemIndex < SummaryItems.Count)
+                                                            <td width="25%" valign="top" style="@SummaryCellStyle">
+                                                                @if (itemIndex < summaryItems.Count)
                                                                 {
                                                                     <table width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#fbfcfe" style="@SummaryCardStyle">
                                                                         <tbody>
                                                                             <tr>
                                                                                 <td style="@SummaryCardCellStyle">
-                                                                                    <div style="@SummaryLabelStyle">@SummaryItems[itemIndex].Label</div>
-                                                                                    <div style="@SummaryValueStyleFor(SummaryItems[itemIndex].IsCopyFriendly)">@(SummaryItems[itemIndex].Value ?? "-")</div>
+                                                                                    <div style="@SummaryLabelStyle">@summaryItems[itemIndex].Label</div>
+                                                                                    <div style="@SummaryValueStyleFor(summaryItems[itemIndex].IsCopyFriendly)">@(summaryItems[itemIndex].Value ?? "-")</div>
                                                                                 </td>
                                                                             </tr>
                                                                         </tbody>
@@ -106,7 +115,7 @@
                                 </tr>
                             }
 
-                            @if (Errors.Count > 0)
+                            @if (errors.Count > 0)
                             {
                                 <tr><td height="18" style="@SpacerStyle">&nbsp;</td></tr>
                                 <tr>
@@ -115,9 +124,9 @@
                                             <tbody>
                                                 <tr>
                                                     <td style="@ErrorsSectionContentStyle">
-                                                        <div style="@ErrorsHeadingStyle">Errors (@Errors.Count)</div>
+                                                        <div style="@ErrorsHeadingStyle">Errors (@errors.Count)</div>
                                                         <div style="@SectionCaptionStyle">These items need attention before the run can be treated as clean.</div>
-                                                        <IssuesTable Issues="Errors" HeaderBackground="#fef3f2" HeaderForeground="#b42318" />
+                                                        <IssuesTable Issues="errors" HeaderBackground="#fef3f2" HeaderForeground="#b42318" />
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -126,7 +135,7 @@
                                 </tr>
                             }
 
-                            @if (Warnings.Count > 0)
+                            @if (warnings.Count > 0)
                             {
                                 <tr><td height="18" style="@SpacerStyle">&nbsp;</td></tr>
                                 <tr>
@@ -135,9 +144,9 @@
                                             <tbody>
                                                 <tr>
                                                     <td style="@WarningsSectionContentStyle">
-                                                        <div style="@WarningsHeadingStyle">Warnings (@Warnings.Count)</div>
+                                                        <div style="@WarningsHeadingStyle">Warnings (@warnings.Count)</div>
                                                         <div style="@SectionCaptionStyle">The run completed, but these items should be reviewed.</div>
-                                                        <IssuesTable Issues="Warnings" HeaderBackground="#fffaeb" HeaderForeground="#92620a" />
+                                                        <IssuesTable Issues="warnings" HeaderBackground="#fffaeb" HeaderForeground="#92620a" />
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -201,7 +210,6 @@
     private const string StatusTableStyle = "margin-top:14px; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string SpacerStyle = "font-size:1px; line-height:1px; mso-line-height-rule:exactly;";
     private const string SummaryCellStyle = "padding:8px; vertical-align:top;";
-    private const string SummaryCellDividerStyle = SummaryCellStyle;
     private const string SummaryCardStyle = "width:100%; background-color:#fbfcfe; border:1px solid #e6ebf2; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string SummaryCardCellStyle = "padding:10px 12px; vertical-align:top;";
     private const string SummaryLabelStyle = "font-size:10px; line-height:14px; color:#667085; font-weight:700; letter-spacing:0.5px; mso-line-height-rule:exactly;";
@@ -218,22 +226,6 @@
     private const string AllClearHeadingStyle = "font-size:17px; line-height:23px; color:#067647; font-weight:700; mso-line-height-rule:exactly;";
     private const string AllClearCaptionStyle = "padding-top:2px; font-size:13px; line-height:18px; color:#175d3b; mso-line-height-rule:exactly;";
 
-    private IReadOnlyList<(string Label, string? Value, bool IsCopyFriendly)>? _summaryItems;
-    private IReadOnlyList<RunIssue>? _warnings;
-    private IReadOnlyList<RunIssue>? _errors;
-
-    private IReadOnlyList<(string Label, string? Value, bool IsCopyFriendly)> SummaryItems => _summaryItems ??= BuildSummaryItems();
-
-    private IReadOnlyList<(string Label, string? Value, bool IsCopyFriendly)> BuildSummaryItems()
-    {
-        return Report.Attributes
-            .Select(attribute => (
-                Label: ValueFormatter.ToHeader(attribute.Key),
-                Value: attribute.Value,
-                IsCopyFriendly: IsRunIdAttribute(attribute.Key)))
-            .ToList();
-    }
-
     private static string SummaryValueStyleFor(bool isCopyFriendly) =>
         isCopyFriendly ? SummaryCodeValueStyle : SummaryValueStyle;
 
@@ -248,12 +240,6 @@
     private string FooterText => string.IsNullOrWhiteSpace(Options.ServiceName)
         ? "Generated by run reporting"
         : $"Generated by {Options.ServiceName} run reporting";
-
-    private IReadOnlyList<RunIssue> Warnings =>
-        _warnings ??= Report.Issues.Where(issue => issue.Severity == IssueSeverity.Warning).ToList();
-
-    private IReadOnlyList<RunIssue> Errors =>
-        _errors ??= Report.Issues.Where(issue => issue.Severity == IssueSeverity.Error).ToList();
 
     private string StatusHeading => Report.Outcome switch
     {
