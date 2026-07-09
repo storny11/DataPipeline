@@ -66,12 +66,4 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
-
-    /// <summary>Points the default Razor formatter at a typed custom template component.</summary>
-    public static IServiceCollection UseRunReportTemplate<TTemplate>(this IServiceCollection services)
-        where TTemplate : RunReportTemplateBase
-    {
-        services.AddSingleton(new RunReportTemplate(typeof(TTemplate)));
-        return services;
-    }
 }

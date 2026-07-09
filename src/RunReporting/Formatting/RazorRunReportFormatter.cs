@@ -9,15 +9,13 @@ namespace RunReporting;
 public sealed class RazorRunReportFormatter(
     IServiceProvider serviceProvider,
     ILoggerFactory loggerFactory,
-    RunReportingOptions options,
-    RunReportTemplate? template = null) : IRunReportFormatter
+    RunReportingOptions options) : IRunReportFormatter
 {
-    private readonly Type _templateType = template?.ComponentType ?? typeof(RunReportEmailTemplate);
     private readonly ILogger _logger = loggerFactory.CreateLogger<RazorRunReportFormatter>();
 
     public Task<RunReportEmail> FormatAsync(RunReport report, CancellationToken cancellationToken)
     {
-        return FormatAsync(report, _templateType, cancellationToken);
+        return FormatAsync(report, typeof(RunReportEmailTemplate), cancellationToken);
     }
 
     public Task<RunReportEmail> FormatCompactAsync(RunReport report, CancellationToken cancellationToken)
@@ -33,8 +31,8 @@ public sealed class RazorRunReportFormatter(
         var parameters = ParameterView.FromDictionary(
             new Dictionary<string, object?>
             {
-                [nameof(RunReportTemplateBase.Report)] = report,
-                [nameof(RunReportTemplateBase.Options)] = options
+                [nameof(RunReportEmailTemplate.Report)] = report,
+                [nameof(RunReportEmailTemplate.Options)] = options
             });
 
         var htmlBody = await renderer.Dispatcher.InvokeAsync(async () =>

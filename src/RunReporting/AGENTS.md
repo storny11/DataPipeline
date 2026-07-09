@@ -51,10 +51,8 @@ HTML email report when the run finishes. Built to be dropped into many company s
    report; one failing publisher is logged and never blocks the others.
    `Options.Enabled = false` silences only the email publisher.
 10. **Formatting seam.** `IRunReportFormatter` (default `RazorRunReportFormatter`) turns a
-   `RunReport` into subject + HTML. Services override the look by supplying their own Razor
-   component via `UseRunReportTemplate<T>()`. Custom components must derive from
-   `RunReportTemplateBase`, which explicitly supplies the required `Report` and `Options`
-   parameters; the generic constraint catches incompatible components at compile time.
+   `RunReport` into subject + HTML. Services replace this formatter registration when they
+   need a different layout; there is no second component-template customization seam.
    Default subject is `[{ServiceName}] Run {failed (N errors, M warnings) | completed
    with M warnings | succeeded}`; the service prefix is omitted when `ServiceName` is empty.
    `Options.SubjectBuilder` (`Func<RunReport, string?>`) is the full-subject override;
@@ -109,7 +107,6 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
 ├── Models/       RunReport, RunIssue, ResultTable, RunOutcome, IssueSeverity,
 │                 TableColumn, ColumnAlignment, ValueFormatter
 ├── Formatting/   IRunReportFormatter, RazorRunReportFormatter (HtmlRenderer),
-│                 RunReportTemplateBase, RunReportTemplate,
 │   └── Templates/  RunReportEmailTemplate.razor, CompactRunReportEmailTemplate.razor,
 │                   IssuesTable.razor, ResultTableView.razor
 └── Publishing/   IRunReportPublisher, EmailRunReportPublisher
@@ -175,7 +172,6 @@ ambient nesting/isolation across async, out-of-order scope disposal, default-run
 attribute salvage on collisions, `""` recipient blanking, never-throw guarantees (throwing
 table selectors, null args, publisher failures, internal-timeout OCE containment), explicit
 issue identifiers, caller cancellation without pre-draining and between-publisher cancellation,
-subject builder (custom/fallback/CRLF), typed custom-template contracts, explicit
-typed table selectors, alignment
+subject builder (custom/fallback/CRLF), explicit typed table selectors, alignment
 flow, isolated full/compact email failures, Razor rendering + HTML
 encoding, and composition-time validation failures.
