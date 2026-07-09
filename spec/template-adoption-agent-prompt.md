@@ -100,7 +100,7 @@ Plan around these dependency rules:
 - `Application` owns the business flow, orchestrator, vertical slices, step interfaces, source/sink contracts, validators, mappers, and step models.
 - `Infrastructure` owns real technology integrations: internal package clients, generated HTTP clients, SQL connections, retry/timeout/auth setup, health checks, and persistence adapters.
 - `Simulators` owns local fake implementations of Application source/sink interfaces.
-- `Execution` owns reusable step result primitives such as `IStep`, `StepExecutionResult`, `StepIssue`, `DiagnosticContext`, counters, and status.
+- `Execution` owns reusable step result primitives such as `IStep`, `StepExecutionResult`, `StepIssue`, counters, and status.
 - `Reporting` owns `RunReport`, report building, email formatting templates, and publisher contracts.
 - `Monitoring` owns operational progress/instrumentation abstractions and the in-memory/local implementation.
 
@@ -156,11 +156,11 @@ Each output record should carry the identifiers needed by later steps, logging, 
 
 Use the template's simple diagnostic model:
 
-- A step issue has step name, severity, message, and diagnostic context.
-- Diagnostic context is a small key/value set with identifiers relevant to the row or operation.
+- A step issue has step name, identifier name, identifier value, severity, and message.
+- Use the single identifier that best identifies the affected row or operation.
 - Do not invent issue-code enums unless the existing service already has a strong need for them.
 - Do not create a complex identifier object hierarchy.
-- Logs and report issues should carry the same useful identifiers where possible.
+- Logs and report issues should carry the same identifier where possible.
 
 Plan for warnings and errors to be collected into one issue list, separated by severity. Examples:
 
@@ -331,4 +331,3 @@ The plan must include these sections:
 - Do not introduce abstractions without a clear owner and concrete use.
 - Clearly mark any optional items.
 - When uncertain, propose the smallest change that preserves the DataRetriever dependency direction.
-

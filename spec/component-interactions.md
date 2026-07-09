@@ -66,7 +66,7 @@ flowchart LR
     subgraph Execution["DataRetriever.Execution"]
         IStep["IStep<TInput,TOutput>"]
         Result["StepExecutionResult<T>"]
-        Issue["StepIssue + DiagnosticContext"]
+        Issue["StepIssue + identifier"]
         RunContext["RunContext"]
         StatusEnums["RunStatus / StepExecutionStatus"]
         Counters["StepCounter"]
@@ -412,7 +412,7 @@ The application layer does not know which implementation it receives. Switching 
 flowchart TB
     Step["Step implementation"]
     StepResult["StepExecutionResult<br/>status, counters, issues, output"]
-    Issue["StepIssue<br/>severity, message, DiagnosticContext"]
+    Issue["StepIssue<br/>severity, message, identifier"]
     Runner["StepRunner"]
     Logger["ILogger"]
     InstrumentationWriter["RunInstrumentationWriter"]
@@ -452,7 +452,7 @@ This is why logging, monitoring, and reporting are related but not the same thin
 - Monitoring is the current/latest run state exposed while the service is running.
 - Reporting is the final structured artifact for a run, including issues and tables.
 
-All three can use the same `StepIssue` and `DiagnosticContext`, so the same identifier context appears in logs and reports without forcing the systems to be physically combined.
+All three can use the same `StepIssue` identifier name and value, so the same record or operation identifier appears in logs and reports without forcing the systems to be physically combined.
 
 ## 6. Email Report Flow
 

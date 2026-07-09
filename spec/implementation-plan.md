@@ -23,7 +23,7 @@ Build a simple prototype service that can later become a real work service. The 
 - request options for all records, currency filter, or internal id filter;
 - reusable operational instrumentation/tracking for sequential multi-step services;
 - reusable issue collection and final user-facing reporting;
-- detailed diagnostic context in all issues, logs, and reports.
+- one explicit record or operation identifier in every non-general issue.
 
 The design should stay lightweight. The aim is a reusable project template for serial step-based services, not a generic workflow engine.
 
@@ -37,7 +37,7 @@ Core template rules:
 - Infrastructure owns real technology clients/helpers, transport details, retry/timeout, authentication, and health checks.
 - Simulators are removable local replacements for external dependencies.
 - Reporting, monitoring, and execution primitives stay separate.
-- Issues carry step name, severity, message, and diagnostic context.
+- Issues carry step name, identifier name, identifier value, severity, and message.
 - `RunId` is generated internally and is the primary id for one execution.
 
 Prototype/example choices:
@@ -163,7 +163,7 @@ Future services may use a different execution style, including TPL Dataflow, if 
 
 - status;
 - counters;
-- issues with diagnostic context;
+- issues with one explicit record or operation identifier;
 - optional instrumentation values;
 - optional output and persisted-record summaries.
 
@@ -270,7 +270,6 @@ src/
     StepIssue.cs
     StepIssueSeverity.cs
     StepCounter.cs
-    DiagnosticContext.cs
     NoInput.cs
     NoOutput.cs
 
@@ -574,33 +573,31 @@ Internal helpers inside a step can produce their own issues. For example, Step 3
 
 The step processor should merge those issues into the single `StepExecutionResult.Issues` collection for that step. Do not expose separate final collections such as `ValidationWarnings`, `MappingWarnings`, and `MatchingWarnings`.
 
-The issue message and diagnostic context should preserve what happened, but the report should still present related issues together under the step that emitted them. For example, a missing source response and an amount mapping problem are both Step 3 warnings and should appear in the same Step 3 warning section.
+The issue identifier and message should preserve what happened, but the report should still present related issues together under the step that emitted them. For example, a missing source response and an amount mapping problem are both Step 3 warnings and should appear in the same Step 3 warning section.
 
 ### Step issue
 
 ```csharp
-public sealed record DiagnosticContext(
-    IReadOnlyDictionary<string, string?> Values);
-
 public sealed record StepIssue(
     string StepName,
+    string IdentifierName,
+    string IdentifierValue,
     StepIssueSeverity Severity,
-    string Message,
-    DiagnosticContext Context);
+    string Message);
 ```
 
 `StepIssueSeverity.Error` means the issue should stop downstream flow because the step cannot safely produce usable output. Recoverable per-record or partial-data problems should be warnings, even if the message is serious.
 
-Diagnostic context examples:
+Identifier examples:
 
-- Step 1 may use `internalId`, plus available `currency` and `externalId1`.
-- Step 2 may use `internalId` and `externalId1`.
-- Step 3 may use `internalId`, `externalId1`, `externalId2`, or any domain-specific composite such as `customIdA` and `customIdB`.
-- Step 4 may use whatever ids identify the persisted record.
+- Step 1 may use `InternalId`, falling back to `ExternalId1` when necessary.
+- Step 2 normally uses `InternalId`.
+- Step 3 normally uses `ExternalId2` for source-response issues.
+- Step 4 uses whichever single available id best identifies the persisted record.
 
-Use PascalCase names such as `InternalId` and `ExternalId1` in C# records. Use camelCase names such as `internalId`, `externalId1`, `customIdA`, and `customIdB` in JSON, logs, instrumentation values, and report details.
+Use PascalCase identifier names such as `InternalId` and `ExternalId1` consistently in C# records, logs, and reports.
 
-Do not hard-code identifier properties into the reusable execution package. Every service can define the ids that make sense for its records. What matters is that the same simple `DiagnosticContext` shape can be used for structured logs, step issues, report rows, and any instrumentation values that need row-level context.
+Do not hard-code identifier types into the reusable execution package. Every service chooses the identifier name and value that best identify the affected record or operation. Do not add an open-ended issue-data dictionary; put essential non-identifier detail in the human-readable message or separate structured operational logs.
 
 Status rules:
 
@@ -608,7 +605,7 @@ Status rules:
 - `SucceededWithIssues`: step completed and may have produced partial output, but only warnings occurred.
 - `Failed`: step encountered at least one error.
 
-Do not add separate issue constants by default. For this template, the useful issue facts are step name, severity, diagnostic context, and a clear human-readable message.
+Do not add separate issue constants by default. For this template, the useful issue facts are step name, identifier name/value, severity, and a clear human-readable message.
 
 ### Monitoring instrumentation
 
@@ -681,7 +678,7 @@ Warnings should not make a run fail by themselves.
 - issue counts by severity;
 - grouped issues by step and severity;
 - zero or more service-specific report tables;
-- issue messages with diagnostic context.
+- issue identifier names/values and human-readable messages.
 
 The report builder should aggregate structured results, not infer meaning from the orchestrator implementation. It may preserve the configured logical step order for readability, but it should not require results to arrive in that order. A future TPL Dataflow orchestrator should be able to pass block/step results into the same report builder.
 
@@ -799,12 +796,12 @@ Introduce `StepNInput` only when the next step needs a narrower or reshaped inpu
 
 Every external or persistence boundary should have an explicit mapper in the relevant vertical slice, including Step 1 and Step 2. Even if the mapper is tiny in the prototype, keep the placeholder because it teaches the source DTO to internal record pattern.
 
-The mapper is responsible for converting from an external/client DTO into the internal domain model used by the next step. The mapper must not silently drop bad data. Any field-level or row-level mapping problem should become a `StepIssue` with the same diagnostic context rules as validation issues.
+The mapper is responsible for converting from an external/client DTO into the internal domain model used by the next step. The mapper must not silently drop selected bad data. Any field-level or row-level mapping problem should become a `StepIssue` with the same single-identifier rules as validation issues.
 
 Default load flow:
 
 ```text
-source response DTO -> mapper -> StepNOutputRecord / StepNOutput
+source response DTO -> apply run selection -> mapper -> StepNOutputRecord / StepNOutput
 StepNOutputRecord / StepNOutput -> mapper -> sink request DTO
 ```
 
@@ -824,7 +821,7 @@ Examples:
 
 For this service, Step 3 should produce final valid business records ready for persistence. Step 4 should not need to understand Step 3 source response DTOs or perform Step 3 amount validation.
 
-Do not create overly granular issue taxonomies by default. It is enough for an issue to include step name, severity, diagnostic context, and a clear message.
+Do not create overly granular issue taxonomies by default. It is enough for an issue to include step name, identifier name/value, severity, and a clear message.
 
 ### Step 1 configured data
 
@@ -869,12 +866,13 @@ Validation rules:
 
 Step 1 order must be:
 
-1. Fetch the full configured dataset.
-2. Validate the full configured dataset and record configuration issues for all invalid rows.
-3. Apply the request filter only to valid rows.
-4. Pass the filtered valid rows downstream.
+1. Pass the normalized run selection to `IStep1SourceClient`.
+2. Apply the selection in the database query where possible, or against raw source fields before mapping.
+3. Return only selected source rows to the loader.
+4. Validate and map the selected rows, recording issues only for selected failures.
+5. Pass the successfully mapped rows downstream.
 
-Invalid configured rows should be reported even when they would not have matched the requested currency or internal id filter. The filter controls downstream processing, not whether source configuration defects are visible.
+Only failures relevant to the current run belong in its report. A separate operational data-quality scan may report defects across the full source independently of a filtered run.
 
 Step 1 output:
 
@@ -989,7 +987,6 @@ Expected result:
    - `StepIssue`
    - `StepCounter`
    - `StepExecutionResult<TOutput>`
-   - `DiagnosticContext`
    - `RunContext`
 2. In `DataRetriever.Reporting`, implement:
    - `RunReport`
@@ -1007,7 +1004,7 @@ Expected result:
    - no-input and no-output step result helpers;
    - `StepExecutionStatus` selection;
    - warning versus error run-status behavior;
-   - `DiagnosticContext` serialization/report/logging context;
+   - issue identifier flow through reports and logs;
    - issue grouping in reports;
    - counter aggregation;
    - instrumentation append behavior in the simulator;
@@ -1044,7 +1041,10 @@ Expected result:
 ### Phase 4: Step 1 - load and filter configured data
 
 1. Define `IStep1SourceClient`.
+   - Accept normalized `DataRetrievalRunOptions` (or an equivalent application-owned selection object).
+   - Return only source rows selected for the current run.
 2. Implement `Step1SourceSimulator` in `DataRetriever.Simulators` returning about 50 configured records, including intentional scenario rows:
+   - Apply the same currency/internal-id selection semantics as the real source boundary.
    - valid rows across multiple currencies;
    - missing `externalId1`;
    - missing `currency`;
@@ -1052,13 +1052,13 @@ Expected result:
    - rows useful for Step 2 source missing/fewer/more result cases.
 3. Add `Step1SourceClient` in `DataRetriever.Infrastructure` when wiring to a real internal source; for the prototype this can be a placeholder or omitted until a real dependency exists.
    - It may directly use `SqlConnection`, `HttpClient`, a generated client, DocumentStore SDK, or another concrete technology.
-   - It should map real source rows/models into `Step1Dto` before returning to Application.
+   - It should push the selection into the source query where possible, then map selected source rows/models into `Step1Dto` before returning to Application.
 4. Implement `Step1Mapper`.
    - It maps `Step1Dto` rows into `Step1OutputRecord` rows.
    - It records mapping issues when a source row cannot be represented as an internal Step 1 record.
 5. Implement `Step1Validator`.
 6. Implement `Step1Loader` as `IStep<Step1Input, Step1Output>` for the API-driven prototype, or `IStep<NoInput, Step1Output>` if Step 1 owns loading run options/configuration itself.
-7. Ensure Step 1 validates and maps the full configured dataset before applying request filters.
+7. Apply request filters to the raw configured rows before validation and mapping, ideally pushing the selection into the real source query.
 8. Record counters:
    - `ConfiguredRowsReturned`
    - `InvalidConfiguredRows`
@@ -1066,13 +1066,13 @@ Expected result:
    - `RowsAfterFiltering`
    - `ValidRowsSelected`
    - `InvalidRowsDiscarded`
-9. Record issues with internal id context for every invalid or unmappable configured row, including invalid rows outside the selected filter.
-10. Add tests for all-record mode, currency filter, internal id filter, invalid configured rows, unmappable configured rows, and invalid rows outside the selected filter.
+9. Record issues only for invalid or unmappable rows selected by the current run, using one explicit identifier name and value.
+10. Add tests for all-record mode, currency filter, internal id filter, invalid selected rows, and invalid rows excluded by the filter.
 
 Expected result:
 
-- Step 1 always loads the full configured data first.
-- Validation happens on the full configured dataset before in-memory filtering.
+- Step 1 passes the run selection through `IStep1SourceClient`; a source may query only matching rows or filter raw rows internally before mapping.
+- Validation and mapping happen only after selection, so out-of-scope rows do not create run issues.
 - Invalid rows are visible in the report and do not break downstream steps.
 
 ### Phase 5: Step 2 - serial Step 2 source loading
@@ -1157,13 +1157,13 @@ public sealed class Step3SourceClientOptions
 
 7. Implement `Step3ResponseValidator`:
    - match requested and returned external ids after normalization;
-   - record a warning with diagnostic context and message when requested data is not returned.
+   - record a warning with the requested identifier and message when requested data is not returned.
 8. Implement `Step3ResponseMapper`:
    - convert Step 3 source response DTOs returned by `IStep3SourceClient` into internal records needed to build `Step3Output`;
    - warn and discard rows missing `amount1`, `amount2`, or `amount3`;
    - warn and discard rows with unparseable or invalid amount values;
    - warn and discard rows whose `externalId2` cannot be normalized;
-   - include `internalId`, `externalId1`, and `externalId2` when available in mapping warnings.
+   - use `ExternalId2` as the primary identifier for response mapping warnings, falling back to a raw placeholder when it is missing.
 9. Implement `Step3Loader` as `IStep<Step2Output, Step3Output>`.
    - Collect issues from `Step3ResponseValidator`.
    - Collect issues from `Step3ResponseMapper`.
@@ -1239,7 +1239,7 @@ Expected result:
    - record counters;
    - record step status;
    - record issue counts by severity;
-   - log issues with diagnostic context;
+   - log issues with the same identifier name and value used by the report;
    - optionally append step-level instrumentation values for counters and status;
    - retain full step issues for `RunReportBuilder`.
 7. Stop downstream execution when a step has errors or no usable output because of an error.
@@ -1265,13 +1265,13 @@ Expected result:
 2. Keep logging, issue collection, reporting, and instrumentation as separate concerns:
    - ordinary operational events may be logs only;
    - every issue should be available to the report builder;
-   - important issues should also be logged with the same diagnostic context.
+   - important issues should also be logged with the same identifier.
 3. Log each issue with:
    - run id;
    - step name;
    - severity;
-   - diagnostic context values.
-4. Keep report messages human-readable but derive them from structured issue data.
+   - identifier name and value.
+4. Keep report messages human-readable and put essential non-identifier details directly in the message.
 5. Add a summary section to `RunReport`:
    - total configured rows;
    - rows after filtering;
@@ -1303,7 +1303,7 @@ Expected result:
    - concurrent request conflict;
    - status endpoint before, during, and after a run;
    - simulator failure scenarios.
-5. Confirm the final report includes expected issues and diagnostic context.
+5. Confirm the final report includes expected issues and their identifiers.
 6. Confirm simulator removal/replacement would not require moving main application classes.
 
 ## Suggested simulator scenario matrix
@@ -1414,7 +1414,7 @@ The prototype is complete when:
 - Sink-style steps can use `IStep<TInput, NoOutput>`.
 - Step results include explicit `StepExecutionStatus`.
 - Step results expose a single `Issues` collection with severity.
-- Issues use one consistent `DiagnosticContext` shape for row identifiers.
+- Issues use one explicit identifier name and value for the affected row or operation.
 - `POST /api/data-retrieval/runs` can run all, currency-filtered, and identifier-filtered flows.
 - Parallel run attempts receive `409 Conflict`.
 - Step 2 processes Step 2 source requests serially.
@@ -1438,6 +1438,6 @@ The prototype is complete when:
 - Operational tracking records both last attempted run and last successful run.
 - The final report groups issues by step and severity.
 - Report publishing is behind `IRunReportPublisher`, with email delivery implemented as an infrastructure adapter and simulated email delivery isolated in `Simulators`.
-- Every issue includes relevant diagnostic context.
+- Every non-general issue includes one relevant identifier name and value.
 - Tests cover happy path, filtering, issues, run guard, report generation, and status transitions.
 - `dotnet build` and the full test suite pass.

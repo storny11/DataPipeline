@@ -35,10 +35,10 @@ public sealed class Step3Loader(
                 [
                     new StepIssue(
                         Name,
-                        "source-request",
+                        "Request",
+                        "external id 2 batch",
                         StepIssueSeverity.Error,
-                        $"Step 3 source request failed: {exception.Message}",
-                        DiagnosticContext.From(("requestedExternalId2Count", requestMapping.Request.ExternalId2Values.Count.ToString())))
+                        $"Step 3 source request failed: {exception.Message}")
                 ],
                 [
                     new StepCounter("ExternalId2ValuesRequested", requestMapping.Request.ExternalId2Values.Count)
@@ -46,8 +46,7 @@ public sealed class Step3Loader(
         }
 
         responseValidator.ValidateRequestedRowsReturned(input, response);
-        var dataByExternalId2 = BuildDataByExternalId2(input);
-        var amounts = responseMapper.Map(response.Items, dataByExternalId2);
+        var amounts = responseMapper.Map(response.Items);
 
         var output = new List<Step3OutputRecord>();
         foreach (var row in input.Records)
@@ -83,20 +82,5 @@ public sealed class Step3Loader(
             Name,
             new Step3Output(output),
             counters);
-    }
-
-    private IReadOnlyDictionary<NormalizedExternalId2, IReadOnlyDictionary<string, string?>> BuildDataByExternalId2(
-        Step2Output input)
-    {
-        var dataByExternalId2 = new Dictionary<NormalizedExternalId2, IReadOnlyDictionary<string, string?>>();
-        foreach (var row in input.Records)
-        {
-            if (normalizer.TryNormalize(row.ExternalId2, out var normalized))
-            {
-                dataByExternalId2[normalized] = Step3RequestMapper.Data(row);
-            }
-        }
-
-        return dataByExternalId2;
     }
 }

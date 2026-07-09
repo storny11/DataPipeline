@@ -18,14 +18,12 @@ public sealed class Step4RequestMapper(IRunReporter reporter)
                 string.IsNullOrWhiteSpace(record.ExternalId1) ||
                 string.IsNullOrWhiteSpace(record.ExternalId2))
             {
+                var identifier = Identifier(record);
                 reporter.AddIssue(
                     Step4Persister.StepName,
-                    IssueKey(record),
-                    "Persistence request row is missing an identifier and was discarded.",
-                    IssueData.From(
-                        ("internalId", record.InternalId),
-                        ("externalId1", record.ExternalId1),
-                        ("externalId2", record.ExternalId2)));
+                    identifier.Name,
+                    identifier.Value,
+                    "Persistence request row is missing an identifier and was discarded.");
                 continue;
             }
 
@@ -42,21 +40,21 @@ public sealed class Step4RequestMapper(IRunReporter reporter)
         return new Step4RequestMappingResult(request, sourceRecords);
     }
 
-    private static string IssueKey(Step3OutputRecord record)
+    private static (string Name, string Value) Identifier(Step3OutputRecord record)
     {
         if (!string.IsNullOrWhiteSpace(record.InternalId))
         {
-            return record.InternalId.Trim();
+            return ("InternalId", record.InternalId.Trim());
         }
 
         if (!string.IsNullOrWhiteSpace(record.ExternalId1))
         {
-            return record.ExternalId1.Trim();
+            return ("ExternalId1", record.ExternalId1.Trim());
         }
 
-        return string.IsNullOrWhiteSpace(record.ExternalId2)
-            ? "missing-identifiers"
-            : record.ExternalId2.Trim();
+        return !string.IsNullOrWhiteSpace(record.ExternalId2)
+            ? ("ExternalId2", record.ExternalId2.Trim())
+            : ("SourceRow", "unidentified");
     }
 }
 

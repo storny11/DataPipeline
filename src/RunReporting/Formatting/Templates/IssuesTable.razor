@@ -18,8 +18,8 @@ else
         <thead>
             <tr>
                 <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">STEP</th>
-                <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">KEY</th>
-                <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">DETAILS</th>
+                <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">IDENTIFIER</th>
+                <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">VALUE</th>
                 <th align="left" bgcolor="@HeaderBackground" style="@HeaderCellStyleFor()">MESSAGE</th>
             </tr>
         </thead>
@@ -30,8 +30,8 @@ else
                 var rowBackground = RowBackground(index);
                 <tr>
                     <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@StepName(issue)</td>
-                    <td bgcolor="@rowBackground" style="@MonoCellStyleFor(rowBackground)">@IssueKey(issue)</td>
-                    <td bgcolor="@rowBackground" style="@MonoCellStyleFor(rowBackground)">@FormatData(issue)</td>
+                    <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@IdentifierName(issue)</td>
+                    <td bgcolor="@rowBackground" style="@MonoCellStyleFor(rowBackground)">@IdentifierValue(issue)</td>
                     <td bgcolor="@rowBackground" style="@CellStyleFor(rowBackground)">@issue.Message</td>
                 </tr>
             }
@@ -62,15 +62,11 @@ else
     private static string StepName(RunIssue issue) =>
         string.IsNullOrWhiteSpace(issue.StepName) ? "-" : issue.StepName;
 
-    private static string IssueKey(RunIssue issue) =>
-        string.IsNullOrWhiteSpace(issue.Key) ? "-" : issue.Key;
+    private static string IdentifierName(RunIssue issue) =>
+        string.IsNullOrWhiteSpace(issue.IdentifierName) ? "-" : issue.IdentifierName;
 
-    private static string FormatData(RunIssue issue)
-    {
-        return issue.Data.Count == 0
-            ? "-"
-            : string.Join(", ", issue.Data.Select(pair => $"{pair.Key}={pair.Value}"));
-    }
+    private static string IdentifierValue(RunIssue issue) =>
+        string.IsNullOrWhiteSpace(issue.IdentifierValue) ? "-" : issue.IdentifierValue;
 
     private string HeaderCellStyleFor() => $"{HeaderCellBaseStyle} background-color:{HeaderBackground}; color:{HeaderForeground};";
 

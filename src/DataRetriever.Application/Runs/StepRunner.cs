@@ -28,9 +28,9 @@ public sealed class StepRunner(
         {
             runReporter.AddIssue(
                 issue.StepName,
-                issue.Key,
+                issue.IdentifierName,
+                issue.IdentifierValue,
                 issue.Message,
-                issue.Context.Values,
                 issue.Severity == StepIssueSeverity.Error ? IssueSeverity.Error : IssueSeverity.Warning);
         }
 

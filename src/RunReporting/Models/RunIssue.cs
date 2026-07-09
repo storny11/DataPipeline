@@ -1,31 +1,28 @@
-// Represents a single issue reported against a run. StepName + Key is its removable
-// identity; Data is display-only diagnostic context.
+// Represents a single issue reported against a run. The identifier names the record or
+// operation involved without introducing an open-ended diagnostic-data shape.
 namespace RunReporting;
 
 public sealed record RunIssue(
     string StepName,
-    string Key,
+    string IdentifierName,
+    string IdentifierValue,
     IssueSeverity Severity,
     string Message,
-    IReadOnlyDictionary<string, string?> Data,
     DateTimeOffset TimestampUtc)
 {
-    internal static readonly IReadOnlyDictionary<string, string?> EmptyData =
-        new Dictionary<string, string?>();
-
     public static RunIssue Create(
         string? stepName,
-        string? key,
+        string? identifierName,
+        string? identifierValue,
         IssueSeverity severity,
-        string? message,
-        IReadOnlyDictionary<string, string?>? data = null)
+        string? message)
     {
         return new RunIssue(
             stepName ?? string.Empty,
-            key ?? string.Empty,
+            identifierName ?? string.Empty,
+            identifierValue ?? string.Empty,
             severity,
             message ?? string.Empty,
-            data ?? EmptyData,
             DateTimeOffset.UtcNow);
     }
 }

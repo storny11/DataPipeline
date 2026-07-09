@@ -15,10 +15,10 @@ public sealed class StepExecutionResultTests
             [
                 new StepIssue(
                     "Step",
+                    "InternalId",
                     "INT-001",
                     StepIssueSeverity.Warning,
-                    "warning",
-                    DiagnosticContext.From(("internalId", "INT-001")))
+                    "warning")
             ]);
 
         Assert.Equal(StepExecutionStatus.SucceededWithIssues, result.Status);
@@ -34,10 +34,10 @@ public sealed class StepExecutionResultTests
             [
                 new StepIssue(
                     "Step",
+                    "InternalId",
                     "INT-001",
                     StepIssueSeverity.Error,
-                    "error",
-                    DiagnosticContext.From(("internalId", "INT-001")))
+                    "error")
             ]);
 
         Assert.Equal(StepExecutionStatus.Failed, result.Status);

@@ -10,14 +10,14 @@ namespace DataRetriever.Tests.Application;
 public sealed class Step1LoaderTests
 {
     [Fact]
-    public async Task ExecuteAsync_ValidatesFullDatasetBeforeFiltering()
+    public async Task ExecuteAsync_FiltersSourceRowsBeforeValidation()
     {
         var reporter = new RunReporter(new RunReportingOptions(), []);
         var loader = new Step1Loader(
             new Source([
                 new("INT-001", "EXT1-AAA", "GBP", "1"),
                 new("INT-002", "EXT1-BBB", null, "1"),
-                new("INT-003", "EXT1-CCC", "GBP", "not-a-number")
+                new("INT-003", "EXT1-CCC", "EUR", "not-a-number")
             ]),
             new Step1Validator(reporter),
             new Step1Mapper());
@@ -31,12 +31,34 @@ public sealed class Step1LoaderTests
         Assert.Single(result.Output!.Records);
         Assert.Equal("INT-001", result.Output.Records[0].InternalId);
 
-        var issues = reporter.Take().Issues;
-        Assert.Contains(issues, issue => issue.Message.Contains("currency", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(issues, issue => issue.Message.Contains("records-to-keep", StringComparison.OrdinalIgnoreCase));
-        Assert.All(issues, issue => Assert.Equal(Step1Loader.StepName, issue.StepName));
-        Assert.Contains(issues, issue => issue.Key == "INT-002");
-        Assert.Contains(issues, issue => issue.Key == "INT-003");
+        Assert.Empty(reporter.Take().Issues);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ReportsInvalidSelectedRows()
+    {
+        var reporter = new RunReporter(new RunReportingOptions(), []);
+        var loader = new Step1Loader(
+            new Source([
+                new("INT-001", "EXT1-AAA", "GBP", "1"),
+                new("INT-002", "EXT1-BBB", "GBP", "not-a-number"),
+                new("INT-003", "EXT1-CCC", "EUR", "not-a-number")
+            ]),
+            new Step1Validator(reporter),
+            new Step1Mapper());
+
+        var result = await loader.ExecuteAsync(
+            new Step1Input(DataRetrievalRunOptions.FromRequest("GBP", null)),
+            new RunContext(Guid.NewGuid(), DateTimeOffset.UtcNow),
+            CancellationToken.None);
+
+        Assert.Equal(StepExecutionStatus.Succeeded, result.Status);
+        Assert.Single(result.Output!.Records);
+
+        var issue = Assert.Single(reporter.Take().Issues);
+        Assert.Equal("InternalId", issue.IdentifierName);
+        Assert.Equal("INT-002", issue.IdentifierValue);
+        Assert.Contains("records-to-keep", issue.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -88,9 +110,25 @@ public sealed class Step1LoaderTests
             _rows = rows;
         }
 
-        public Task<IReadOnlyList<Step1SourceRow>> LoadConfiguredDataAsync(CancellationToken cancellationToken)
+        public Task<IReadOnlyList<Step1SourceRow>> LoadConfiguredDataAsync(
+            DataRetrievalRunOptions selection,
+            CancellationToken cancellationToken)
         {
-            return Task.FromResult(_rows);
+            IEnumerable<Step1SourceRow> rows = _rows;
+            if (!string.IsNullOrWhiteSpace(selection.Currency))
+            {
+                rows = rows.Where(row => string.Equals(
+                    row.Currency?.Trim(),
+                    selection.Currency,
+                    StringComparison.OrdinalIgnoreCase));
+            }
+            else if (selection.InternalIds.Count > 0)
+            {
+                var ids = selection.InternalIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+                rows = rows.Where(row => row.InternalId is not null && ids.Contains(row.InternalId.Trim()));
+            }
+
+            return Task.FromResult<IReadOnlyList<Step1SourceRow>>(rows.ToList());
         }
     }
 }

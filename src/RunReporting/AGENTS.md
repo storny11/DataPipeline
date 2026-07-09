@@ -85,16 +85,13 @@ HTML email report when the run finishes. Built to be dropped into many company s
     value. Do not reintroduce inferred property binding without the owner.
     Attribute labels in the summary panel are still auto-humanized
     (`ValueFormatter.ToHeader`: `runId` → "RUN ID").
-14. **Issue identity is explicit.** A keyed issue is reported with
-    `AddIssue(stepName, key, message, data?, severity?)`; its identity is the exact ordinal
-    `(StepName, Key)` pair. `RemoveIssues(stepName, key)` removes every matching issue from
-    the current run and returns the count. General message-only issues have empty identity
-    and are not targetable. `Data` is display-only diagnostic context with one explicit
-    shape: `IReadOnlyDictionary<string, string?>`. `IssueData.From(("name", value), ...)`
-    is only a named-string-pair convenience; it performs no scalar/list classification,
-    reflection, property discovery, or value formatting. Names are case-insensitive,
-    blank names are ignored, and the last duplicate wins. `RunReporter` snapshots data on
-    receipt, and data never participates in removal.
+14. **Issue identifiers are explicit and singular.** A record or operation issue is reported
+    with `AddIssue(stepName, identifierName, identifierValue, message, severity?)`.
+    `IdentifierName` says what the value represents (`InternalId`, `ExternalId2`, `RunId`),
+    while `IdentifierValue` identifies the affected record or operation. General message-only
+    issues have empty identifier fields. There is no open-ended issue-data dictionary and no
+    issue-removal API: determine record relevance before reporting an issue rather than adding
+    provisional issues and deleting them later.
 15. **Outcome** (`Succeeded` / `CompletedWithWarnings` / `Failed`) is derived from collected
     issues; callers may override at publish (`PublishAsync(RunOutcome.Failed)`).
     `PublishAsync` returns the published `RunReport` so callers can shape API responses
@@ -110,7 +107,7 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
 ├── RunReportingOptions.cs            Flat namespace `RunReporting` (folders are physical only).
 ├── ServiceCollectionExtensions.cs
 ├── Models/       RunReport, RunIssue, ResultTable, RunOutcome, IssueSeverity,
-│                 TableColumn, ColumnAlignment, IssueData, ValueFormatter
+│                 TableColumn, ColumnAlignment, ValueFormatter
 ├── Formatting/   IRunReportFormatter, RazorRunReportFormatter (HtmlRenderer),
 │                 RunReportTemplateBase, RunReportTemplate,
 │   └── Templates/  RunReportEmailTemplate.razor, CompactRunReportEmailTemplate.razor,
@@ -140,9 +137,7 @@ services.AddRunReporting(configuration);            // requires "EmailReport" se
 //                "From": "svc@x", "To": "team@x; ops@x", "ServiceName": "My Service" } }
 
 using var run = reporter.BeginRun(("runId", id), ("environment", env));
-reporter.AddIssue("Step3", id, "Rate missing",
-    IssueData.From(("currency", ccy), ("id", id)));                // Warning by default
-reporter.RemoveIssues("Step3", id);                                // Removes every exact match
+reporter.AddIssue("Step3", "ExternalId2", id, "Rate missing");    // Warning by default
 reporter.AddIssue("fatal", severity: IssueSeverity.Error);
 reporter.AddTable("Persisted Records", rows,
     [
@@ -179,9 +174,8 @@ Package-focused tests live in `tests/DataRetriever.Tests/RunReporting/RunReporte
 ambient nesting/isolation across async, out-of-order scope disposal, default-run mode,
 attribute salvage on collisions, `""` recipient blanking, never-throw guarantees (throwing
 table selectors, null args, publisher failures, internal-timeout OCE containment), explicit
-named issue data and snapshotting, caller
-cancellation without pre-draining and between-publisher cancellation, exact step+key issue
-removal, subject builder (custom/fallback/CRLF), typed custom-template contracts, explicit
+issue identifiers, caller cancellation without pre-draining and between-publisher cancellation,
+subject builder (custom/fallback/CRLF), typed custom-template contracts, explicit
 typed table selectors, alignment
 flow, isolated full/compact email failures, Razor rendering + HTML
 encoding, and composition-time validation failures.

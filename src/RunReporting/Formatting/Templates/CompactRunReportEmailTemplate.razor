@@ -58,7 +58,7 @@
         string.IsNullOrWhiteSpace(issue.StepName) ? "General" : issue.StepName;
 
     private static string IssueLabel(RunIssue issue) =>
-        string.IsNullOrWhiteSpace(issue.Key)
+        string.IsNullOrWhiteSpace(issue.IdentifierValue)
             ? StepName(issue)
-            : $"{StepName(issue)} / {issue.Key}";
+            : $"{StepName(issue)} / {issue.IdentifierName}={issue.IdentifierValue}";
 }

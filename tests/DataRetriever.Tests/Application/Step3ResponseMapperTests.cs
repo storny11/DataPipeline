@@ -21,8 +21,7 @@ public sealed class Step3ResponseMapperTests
             normalizer.TryNormalize("EXT2-A", out var normalized);
 
             var amounts = mapper.Map(
-                [new Step3ResponseItemDto("EXT2-A", "1.25", "2.50", "3.75")],
-                new Dictionary<NormalizedExternalId2, IReadOnlyDictionary<string, string?>>());
+                [new Step3ResponseItemDto("EXT2-A", "1.25", "2.50", "3.75")]);
 
             Assert.True(amounts.TryGetValue(normalized, out var mapped));
             Assert.Equal(1.25m, mapped.Amount1);
@@ -47,13 +46,7 @@ public sealed class Step3ResponseMapperTests
             [
                 new Step3ResponseItemDto("EXT2-A", "1.25", "2.50", "3.75"),
                 new Step3ResponseItemDto("EXT2-A", "9.99", "8.88", "7.77")
-            ],
-            new Dictionary<NormalizedExternalId2, IReadOnlyDictionary<string, string?>>
-            {
-                [normalized] = IssueData.From(
-                    ("internalId", "INT-1"),
-                    ("externalId2", "EXT2-A"))
-            });
+            ]);
 
         Assert.True(amounts.TryGetValue(normalized, out var mapped));
         Assert.Equal(1.25m, mapped.Amount1);
@@ -62,8 +55,8 @@ public sealed class Step3ResponseMapperTests
 
         var issue = Assert.Single(reporter.Take().Issues);
         Assert.Equal(IssueSeverity.Warning, issue.Severity);
-        Assert.Equal("EXT2-A", issue.Key);
+        Assert.Equal("ExternalId2", issue.IdentifierName);
+        Assert.Equal("EXT2-A", issue.IdentifierValue);
         Assert.Contains("more than one valid row", issue.Message, StringComparison.Ordinal);
-        Assert.Equal("INT-1", issue.Data["internalId"]);
     }
 }

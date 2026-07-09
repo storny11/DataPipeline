@@ -8,8 +8,7 @@ namespace DataRetriever.Application.Step3Load;
 public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer, IRunReporter reporter)
 {
     public IReadOnlyDictionary<NormalizedExternalId2, Step3MappedAmounts> Map(
-        IReadOnlyList<Step3ResponseItemDto> rows,
-        IReadOnlyDictionary<NormalizedExternalId2, IReadOnlyDictionary<string, string?>> dataByExternalId2)
+        IReadOnlyList<Step3ResponseItemDto> rows)
     {
         var amounts = new Dictionary<NormalizedExternalId2, Step3MappedAmounts>();
 
@@ -19,9 +18,9 @@ public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer, IRunRe
             {
                 reporter.AddIssue(
                     Step3Loader.StepName,
-                    Step3RequestMapper.IssueKey(row.ExternalId2),
-                    "Step 3 response row has missing or invalid external id 2 and was discarded.",
-                    IssueData.From(("externalId2", row.ExternalId2)));
+                    "ExternalId2",
+                    string.IsNullOrWhiteSpace(row.ExternalId2) ? "missing" : row.ExternalId2.Trim(),
+                    "Step 3 response row has missing or invalid external id 2 and was discarded.");
                 continue;
             }
 
@@ -31,9 +30,9 @@ public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer, IRunRe
             {
                 reporter.AddIssue(
                     Step3Loader.StepName,
+                    "ExternalId2",
                     normalized.Value,
-                    $"Step 3 response row for external id 2 '{row.ExternalId2}' has missing or invalid amount data and was discarded.",
-                    Data(dataByExternalId2, normalized, row));
+                    $"Step 3 response row for external id 2 '{row.ExternalId2}' has missing or invalid amount data and was discarded.");
                 continue;
             }
 
@@ -41,9 +40,9 @@ public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer, IRunRe
             {
                 reporter.AddIssue(
                     Step3Loader.StepName,
+                    "ExternalId2",
                     normalized.Value,
-                    $"Step 3 response returned more than one valid row for external id 2 '{row.ExternalId2}'. The duplicate row was discarded and the first value was kept.",
-                    Data(dataByExternalId2, normalized, row));
+                    $"Step 3 response returned more than one valid row for external id 2 '{row.ExternalId2}'. The duplicate row was discarded and the first value was kept.");
                 continue;
             }
 
@@ -51,16 +50,6 @@ public sealed class Step3ResponseMapper(ExternalId2Normalizer normalizer, IRunRe
         }
 
         return amounts;
-    }
-
-    private static IReadOnlyDictionary<string, string?> Data(
-        IReadOnlyDictionary<NormalizedExternalId2, IReadOnlyDictionary<string, string?>> dataByExternalId2,
-        NormalizedExternalId2 normalized,
-        Step3ResponseItemDto row)
-    {
-        return dataByExternalId2.TryGetValue(normalized, out var data)
-            ? data
-            : IssueData.From(("externalId2", row.ExternalId2));
     }
 
     private static bool TryAmount(string? value, out decimal amount)

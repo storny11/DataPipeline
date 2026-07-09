@@ -15,16 +15,13 @@ public interface IRunReporter
 
     void AddIssue(string message, IssueSeverity severity = IssueSeverity.Warning);
 
-    /// <summary>Reports a keyed issue for a step. Data is optional display context and does not participate in identity.</summary>
+    /// <summary>Reports an issue for one identified record or operation within a step.</summary>
     void AddIssue(
         string stepName,
-        string key,
+        string identifierName,
+        string identifierValue,
         string message,
-        IReadOnlyDictionary<string, string?>? data = null,
         IssueSeverity severity = IssueSeverity.Warning);
-
-    /// <summary>Removes all issues from the current run whose step and key match exactly; returns the number removed.</summary>
-    int RemoveIssues(string stepName, string key);
 
     /// <summary>Adds a result set to the published report. Every column explicitly defines its displayed
     /// header, row value selector, alignment, and optional format string.</summary>

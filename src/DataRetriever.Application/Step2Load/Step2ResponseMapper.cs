@@ -19,9 +19,9 @@ public sealed class Step2ResponseMapper(IRunReporter reporter)
             {
                 reporter.AddIssue(
                     Step2Loader.StepName,
+                    "InternalId",
                     input.InternalId,
-                    "Step 2 source row is missing external id 2 and was discarded.",
-                    Data(input));
+                    "Step 2 source row is missing external id 2 and was discarded.");
                 continue;
             }
 
@@ -33,12 +33,5 @@ public sealed class Step2ResponseMapper(IRunReporter reporter)
         }
 
         return records;
-    }
-
-    internal static IReadOnlyDictionary<string, string?> Data(Step1OutputRecord input)
-    {
-        return IssueData.From(
-            ("internalId", input.InternalId),
-            ("externalId1", input.ExternalId1));
     }
 }

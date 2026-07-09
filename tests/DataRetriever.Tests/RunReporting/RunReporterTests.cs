@@ -15,16 +15,16 @@ public sealed class RunReporterTests
 
         reporter.AddIssue(
             "Step1Load",
+            "Row",
             "row-7",
-            "Invalid source row skipped.",
-            IssueData.From(("row", "7")));
+            "Invalid source row skipped.");
 
         var report = reporter.Take();
         var issue = Assert.Single(report.Issues);
         Assert.Equal("Step1Load", issue.StepName);
-        Assert.Equal("row-7", issue.Key);
+        Assert.Equal("Row", issue.IdentifierName);
+        Assert.Equal("row-7", issue.IdentifierValue);
         Assert.Equal(IssueSeverity.Warning, issue.Severity);
-        Assert.Equal("7", issue.Data["row"]);
         Assert.Empty(report.Attributes);
         Assert.Empty(reporter.Take().Issues);
     }
@@ -204,61 +204,6 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void RemoveIssues_RemovesEveryExactStepAndKeyMatch()
-    {
-        var reporter = CreateReporter(out _);
-        reporter.AddIssue("Step1", "row-1", "First warning.", IssueData.From(("value", "1")));
-        reporter.AddIssue(
-            "Step1",
-            "row-1",
-            "Error for the same identity.",
-            IssueData.From(("value", "2")),
-            IssueSeverity.Error);
-        reporter.AddIssue("Step2", "row-1", "Different step.");
-        reporter.AddIssue("Step1", "ROW-1", "Different key casing.");
-
-        var removed = reporter.RemoveIssues("Step1", "row-1");
-
-        Assert.Equal(2, removed);
-        var report = reporter.Take();
-        Assert.Equal(RunOutcome.CompletedWithWarnings, report.Outcome);
-        Assert.Equal(2, report.Issues.Count);
-        Assert.Contains(report.Issues, issue => issue.StepName == "Step2" && issue.Key == "row-1");
-        Assert.Contains(report.Issues, issue => issue.StepName == "Step1" && issue.Key == "ROW-1");
-    }
-
-    [Fact]
-    public void RemoveIssues_OnlyChangesTheCurrentRun()
-    {
-        var reporter = CreateReporter(out _);
-
-        using (reporter.BeginRun(("runId", "outer")))
-        {
-            reporter.AddIssue("Step1", "row-1", "Outer warning.");
-
-            using (reporter.BeginRun(("runId", "inner")))
-            {
-                reporter.AddIssue("Step1", "row-1", "Inner warning.");
-                Assert.Equal(1, reporter.RemoveIssues("Step1", "row-1"));
-                Assert.Empty(reporter.Take().Issues);
-            }
-
-            Assert.Single(reporter.Take().Issues);
-        }
-    }
-
-    [Fact]
-    public void RemoveIssues_WithMissingIdentity_IsIgnored()
-    {
-        var reporter = CreateReporter(out _);
-        reporter.AddIssue("Step1", "row-1", "Warning.");
-
-        Assert.Equal(0, reporter.RemoveIssues(null!, "row-1"));
-        Assert.Equal(0, reporter.RemoveIssues("Step1", null!));
-        Assert.Single(reporter.Take().Issues);
-    }
-
-    [Fact]
     public async Task PublishAsync_WithExplicitOutcome_OverridesDerivedOneAndReturnsPublishedReport()
     {
         var reporter = CreateReporter(out var sender);
@@ -339,7 +284,7 @@ public sealed class RunReporterTests
             new Dictionary<string, string?> { ["environment"] = "prod" },
             RunOutcome.CompletedWithWarnings,
             DateTimeOffset.UtcNow,
-            [RunIssue.Create("Step1", "row-1", IssueSeverity.Warning, "Row skipped.")],
+            [RunIssue.Create("Step1", "Row", "row-1", IssueSeverity.Warning, "Row skipped.")],
             []);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
@@ -388,7 +333,7 @@ public sealed class RunReporterTests
             new Dictionary<string, string?>(),
             RunOutcome.Failed,
             DateTimeOffset.UtcNow,
-            [RunIssue.Create("Step1", "row-1", IssueSeverity.Error, "Boom.")],
+            [RunIssue.Create("Step1", "Row", "row-1", IssueSeverity.Error, "Boom.")],
             []);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
@@ -447,7 +392,7 @@ public sealed class RunReporterTests
             new Dictionary<string, string?>(),
             RunOutcome.CompletedWithWarnings,
             DateTimeOffset.UtcNow,
-            [RunIssue.Create("Step1", "row-1", IssueSeverity.Warning, "Review this row.")],
+            [RunIssue.Create("Step1", "Row", "row-1", IssueSeverity.Warning, "Review this row.")],
             []);
 
         var email = await formatter.FormatAsync(report, CancellationToken.None);
@@ -472,7 +417,7 @@ public sealed class RunReporterTests
         var formatter = provider.GetRequiredService<IRunReportFormatter>();
 
         var issues = Enumerable.Range(1, 12)
-            .Select(index => RunIssue.Create("Step1", $"row-{index}", IssueSeverity.Warning, $"Row {index} skipped <b>."))
+            .Select(index => RunIssue.Create("Step1", "Row", $"row-{index}", IssueSeverity.Warning, $"Row {index} skipped <b>."))
             .ToList();
         var report = new RunReport(
             new Dictionary<string, string?> { ["runId"] = "run-1" },
@@ -488,7 +433,7 @@ public sealed class RunReporterTests
 
         Assert.Contains("TestApp", email.HtmlBody);
         Assert.Contains("Run completed with 12 warnings", email.HtmlBody);
-        Assert.Contains("Step1 / row-1", email.HtmlBody);
+        Assert.Contains("Step1 / Row=row-1", email.HtmlBody);
         Assert.Contains("runId: run-1", email.HtmlBody);
         Assert.Contains("Row 1 skipped", email.HtmlBody);
         Assert.Contains("and 2 more issues", email.HtmlBody);
@@ -547,22 +492,6 @@ public sealed class RunReporterTests
         await using var provider = services.BuildServiceProvider();
 
         Assert.NotNull(provider.GetRequiredService<IRunReporter>());
-    }
-
-    [Fact]
-    public void IssueData_FromNamedValues_IgnoresEmptyNamesAndUsesLastCaseInsensitiveValue()
-    {
-        var reporter = CreateReporter(out _);
-        var data = IssueData.From(
-            ("Id", "before"),
-            ("", "ignored"),
-            ("id", "after"));
-
-        reporter.AddIssue("Step1", "INT-1", "Row rejected.", data);
-
-        var issue = Assert.Single(reporter.Take().Issues);
-        Assert.Single(issue.Data);
-        Assert.Equal("after", issue.Data["ID"]);
     }
 
     [Fact]
@@ -647,7 +576,7 @@ public sealed class RunReporterTests
     public async Task PublishAsync_WithAlreadyCanceledToken_DoesNotDrainCurrentRun()
     {
         var reporter = CreateReporter(out var publisher);
-        reporter.AddIssue("Step1", "row-1", "Row skipped.");
+        reporter.AddIssue("Step1", "Row", "row-1", "Row skipped.");
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 
@@ -684,7 +613,7 @@ public sealed class RunReporterTests
         var canceling = new CancelingPublisher(cancellation);
         var next = new CapturingPublisher();
         var reporter = new RunReporter(new RunReportingOptions(), [canceling, next]);
-        reporter.AddIssue("Step1", "row-1", "Row skipped.");
+        reporter.AddIssue("Step1", "Row", "row-1", "Row skipped.");
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             reporter.PublishAsync(cancellationToken: cancellation.Token));
@@ -760,37 +689,6 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void AddIssue_WithExplicitNamedData_PreservesValues()
-    {
-        var reporter = CreateReporter(out _);
-
-        reporter.AddIssue(
-            "Step1",
-            "GBP:INT-1",
-            "Combination rejected.",
-            IssueData.From(
-                ("currency", "GBP"),
-                ("internalId", "INT-1")));
-
-        var issue = Assert.Single(reporter.Take().Issues);
-        Assert.Equal("GBP", issue.Data["currency"]);
-        Assert.Equal("INT-1", issue.Data["internalId"]);
-    }
-
-    [Fact]
-    public void AddIssue_WithExplicitData_SnapshotsData()
-    {
-        var reporter = CreateReporter(out _);
-        var data = new Dictionary<string, string?> { ["id"] = "before" };
-
-        reporter.AddIssue("Step1", "before", "Row rejected.", data);
-        data["id"] = "after";
-
-        var issue = Assert.Single(reporter.Take().Issues);
-        Assert.Equal("before", issue.Data["id"]);
-    }
-
-    [Fact]
     public async Task AddTable_UsesExplicitTypedColumnSelectors()
     {
         var reporter = CreateReporter(out var sender);
@@ -834,8 +732,8 @@ public sealed class RunReporterTests
             RunOutcome.Failed,
             DateTimeOffset.UtcNow,
             [
-                RunIssue.Create("Step<1>", "row<1>", IssueSeverity.Error, "<script>alert(1)</script>"),
-                RunIssue.Create("Step<2>", "row<2>", IssueSeverity.Warning, "Review this row.")
+                RunIssue.Create("Step<1>", "Internal<Id>", "row<1>", IssueSeverity.Error, "<script>alert(1)</script>"),
+                RunIssue.Create("Step<2>", "InternalId", "row<2>", IssueSeverity.Warning, "Review this row.")
             ],
             [ResultTable.From(
                 "Persisted <Rows>",
@@ -848,8 +746,10 @@ public sealed class RunReporterTests
         Assert.DoesNotContain("<script>", email.HtmlBody);
         Assert.Contains("&lt;script&gt;", email.HtmlBody);
         Assert.Contains("Step&lt;1&gt;", email.HtmlBody);
+        Assert.Contains("Internal&lt;Id&gt;", email.HtmlBody);
         Assert.Contains("row&lt;1&gt;", email.HtmlBody);
-        Assert.Contains(">KEY</th>", email.HtmlBody);
+        Assert.Contains(">IDENTIFIER</th>", email.HtmlBody);
+        Assert.Contains(">VALUE</th>", email.HtmlBody);
         Assert.Contains("Persisted &lt;Rows&gt; (1)", email.HtmlBody);
         Assert.Contains("Run failed", email.HtmlBody);
         Assert.Contains("run-1", email.HtmlBody);
@@ -879,7 +779,7 @@ public sealed class RunReporterTests
     private static async Task AddFromNestedAsyncCall(IRunReporter reporter)
     {
         await Task.Yield();
-        reporter.AddIssue("Nested", "42", "Subject message.", IssueData.From(("id", "42")));
+        reporter.AddIssue("Nested", "Id", "42", "Subject message.");
     }
 
     private static RunReporter CreateReporter(out CapturingPublisher sender)

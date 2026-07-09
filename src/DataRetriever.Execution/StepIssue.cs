@@ -1,9 +1,9 @@
-// Represents a keyed warning or error produced by a step with diagnostic context.
+// Represents a warning or error produced by a step for one identified record or operation.
 namespace DataRetriever.Execution;
 
 public sealed record StepIssue(
     string StepName,
-    string Key,
+    string IdentifierName,
+    string IdentifierValue,
     StepIssueSeverity Severity,
-    string Message,
-    DiagnosticContext Context);
+    string Message);

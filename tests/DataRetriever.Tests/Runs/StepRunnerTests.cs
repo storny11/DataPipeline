@@ -31,10 +31,10 @@ public sealed class StepRunnerTests
 
         var bridged = Assert.Single(reporter.Take().Issues);
         Assert.Equal("FailingStep", bridged.StepName);
-        Assert.Equal("row-7", bridged.Key);
+        Assert.Equal("Row", bridged.IdentifierName);
+        Assert.Equal("7", bridged.IdentifierValue);
         Assert.Equal(IssueSeverity.Error, bridged.Severity);
         Assert.Equal("Source unavailable.", bridged.Message);
-        Assert.Equal("7", bridged.Data["row"]);
     }
 
     private sealed class FailingStep : IStep<NoInput, string>
@@ -51,10 +51,10 @@ public sealed class StepRunnerTests
                 [
                     new StepIssue(
                         Name,
-                        "row-7",
+                        "Row",
+                        "7",
                         StepIssueSeverity.Error,
-                        "Source unavailable.",
-                        DiagnosticContext.From(("row", "7")))
+                        "Source unavailable.")
                 ]));
         }
     }

@@ -29,9 +29,9 @@ public sealed class Step3ResponseValidator(ExternalId2Normalizer normalizer, IRu
 
             reporter.AddIssue(
                 Step3Loader.StepName,
+                "ExternalId2",
                 normalized.Value,
-                $"Step 3 source did not return data for requested external id 2 '{row.ExternalId2}'.",
-                Step3RequestMapper.Data(row));
+                $"Step 3 source did not return data for requested external id 2 '{row.ExternalId2}'.");
         }
     }
 }

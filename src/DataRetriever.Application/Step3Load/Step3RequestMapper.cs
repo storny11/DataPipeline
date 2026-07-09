@@ -21,11 +21,12 @@ public sealed class Step3RequestMapper(ExternalId2Normalizer normalizer, IRunRep
             }
 
             invalidRows++;
+            var identifier = Identifier(row);
             reporter.AddIssue(
                 Step3Loader.StepName,
-                IssueKey(row.ExternalId2),
-                "Step 3 request could not be built because external id 2 is missing or invalid.",
-                Data(row));
+                identifier.Name,
+                identifier.Value,
+                "Step 3 request could not be built because external id 2 is missing or invalid.");
         }
 
         return new Step3RequestMappingResult(
@@ -33,19 +34,11 @@ public sealed class Step3RequestMapper(ExternalId2Normalizer normalizer, IRunRep
             invalidRows);
     }
 
-    internal static IReadOnlyDictionary<string, string?> Data(Step2OutputRecord row)
+    private static (string Name, string Value) Identifier(Step2OutputRecord row)
     {
-        return IssueData.From(
-            ("internalId", row.InternalId),
-            ("externalId1", row.ExternalId1),
-            ("externalId2", row.ExternalId2));
-    }
-
-    internal static string IssueKey(string? externalId2)
-    {
-        return string.IsNullOrWhiteSpace(externalId2)
-            ? "missing-external-id-2"
-            : externalId2.Trim();
+        return !string.IsNullOrWhiteSpace(row.InternalId)
+            ? ("InternalId", row.InternalId.Trim())
+            : ("ExternalId1", row.ExternalId1.Trim());
     }
 }
 
