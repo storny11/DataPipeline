@@ -213,7 +213,6 @@ public sealed class RunReporter : IRunReporter
         private readonly Dictionary<string, string?> _attributes = attributes;
         private readonly List<RunIssue> _issues = [];
         private readonly List<ResultTable> _tables = [];
-        private DateTimeOffset _startedAtUtc = DateTimeOffset.UtcNow;
         private bool _disposed;
 
         public void SetAttribute(string name, string? value)
@@ -245,7 +244,6 @@ public sealed class RunReporter : IRunReporter
             Dictionary<string, string?> attributeSnapshot;
             List<RunIssue> issues;
             List<ResultTable> tables;
-            DateTimeOffset startedAtUtc;
             lock (_gate)
             {
                 // Issues and tables drain; attributes describe the run and survive the Take.
@@ -254,11 +252,6 @@ public sealed class RunReporter : IRunReporter
                 tables = [.. _tables];
                 _issues.Clear();
                 _tables.Clear();
-
-                // The next collection window starts now, so a reused scope (the default run
-                // publishing every cycle) reports the current cycle's start, not a stale one.
-                startedAtUtc = _startedAtUtc;
-                _startedAtUtc = DateTimeOffset.UtcNow;
             }
 
             return new RunReport(
@@ -266,10 +259,7 @@ public sealed class RunReporter : IRunReporter
                 RunReport.DeriveOutcome(issues),
                 DateTimeOffset.UtcNow,
                 issues,
-                tables)
-            {
-                StartedAtUtc = startedAtUtc
-            };
+                tables);
         }
 
         public void Dispose()

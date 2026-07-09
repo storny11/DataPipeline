@@ -94,7 +94,7 @@ HTML email report when the run finishes. Built to be dropped into many company s
     issues; callers may override at publish (`PublishAsync(RunOutcome.Failed)`).
     `PublishAsync` returns the published `RunReport` so callers can shape API responses
     from exactly what was sent. `Take()` drains issues/tables (attributes survive; the
-    collection window's start time resets) without sending.
+    generated timestamp is captured when the snapshot is taken) without sending.
 
 ## Architecture
 

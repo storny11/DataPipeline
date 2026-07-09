@@ -107,21 +107,6 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public async Task Take_ResetsTheStartOfTheNextCollectionWindow()
-    {
-        var reporter = CreateReporter(out _);
-
-        reporter.AddIssue("First cycle.");
-        var first = reporter.Take();
-
-        await Task.Delay(30);
-        reporter.AddIssue("Second cycle.");
-        var second = reporter.Take();
-
-        Assert.True(second.StartedAtUtc > first.StartedAtUtc);
-    }
-
-    [Fact]
     public void BeginRun_WithCaseCollidingAndEmptyKeys_KeepsTheValidAttributes()
     {
         var reporter = CreateReporter(out _);
