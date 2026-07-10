@@ -181,12 +181,12 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void AddRunReporting_EnabledWithInvalidEmailConfiguration_FailsFastAtComposition()
+    public void AddSmtpRunReportPublisher_EnabledWithInvalidEmailConfiguration_FailsFastAtComposition()
     {
         var services = new ServiceCollection();
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            services.AddRunReporting(options => options.From = "not-an-address"));
+            services.AddSmtpRunReportPublisher(options => options.From = "not-an-address"));
 
         Assert.Contains("not-an-address", exception.Message);
         Assert.Contains("recipient", exception.Message);
@@ -399,14 +399,26 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void AddRunReporting_CompactRecipientsAlone_SatisfyTheRecipientRequirement()
+    public void AddRunReporting_DoesNotRegisterTheSmtpPublisher()
+    {
+        var services = new ServiceCollection();
+        services.AddRunReporting();
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Empty(provider.GetServices<IRunReportPublisher>());
+    }
+
+    [Fact]
+    public void AddSmtpRunReportPublisher_CompactRecipientsAlone_SatisfyTheRecipientRequirement()
     {
         var services = new ServiceCollection();
 
-        services.AddRunReporting(options => options.CompactTo = "channel@apac.teams.ms");
+        services.AddSmtpRunReportPublisher(options => options.CompactTo = "channel@apac.teams.ms");
 
         using var provider = services.BuildServiceProvider();
         Assert.NotNull(provider.GetRequiredService<IRunReporter>());
+        Assert.IsType<EmailRunReportPublisher>(Assert.Single(provider.GetServices<IRunReportPublisher>()));
     }
 
     [Fact]
@@ -431,7 +443,7 @@ public sealed class RunReporterTests
             .Build();
         var services = new ServiceCollection();
 
-        services.AddRunReporting(configuration);
+        services.AddSmtpRunReportPublisher(configuration);
 
         using var provider = services.BuildServiceProvider();
         Assert.Equal("c@test.local", provider.GetRequiredService<RunReportingOptions>().To);
@@ -440,10 +452,10 @@ public sealed class RunReporterTests
     private static MemoryStream Json(string json) => new(System.Text.Encoding.UTF8.GetBytes(json));
 
     [Fact]
-    public async Task AddRunReporting_WithEmailDisabled_RequiresNoEmailConfiguration()
+    public async Task AddSmtpRunReportPublisher_WithEmailDisabled_RequiresNoEmailConfiguration()
     {
         var services = new ServiceCollection();
-        services.AddRunReporting(options => options.Enabled = false);
+        services.AddSmtpRunReportPublisher(options => options.Enabled = false);
 
         await using var provider = services.BuildServiceProvider();
 

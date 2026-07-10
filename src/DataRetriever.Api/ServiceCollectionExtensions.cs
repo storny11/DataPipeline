@@ -29,7 +29,8 @@ public static class ServiceCollectionExtensions
         });
 
         services
-            .AddRunReporting(configuration, options =>
+            .AddRunReporting()
+            .AddSmtpRunReportPublisher(configuration, options =>
             {
                 if (string.IsNullOrWhiteSpace(options.ServiceName))
                 {

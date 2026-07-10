@@ -17,7 +17,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDataRetrieverApplication(this IServiceCollection services)
     {
-        // Run reporting is registered by the host (AddRunReporting(configuration)) so its
+        // Run reporting is registered by the host so its
         // configured options can never be shadowed by defaults added here.
         services.AddSingleton<SingleRunGuard>();
         services.AddScoped<RunInstrumentationWriter>();

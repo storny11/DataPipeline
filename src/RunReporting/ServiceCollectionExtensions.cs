@@ -1,6 +1,5 @@
-// Registers one reporter per DI scope. Extra publishers are plain
-// AddSingleton<IRunReportPublisher, ...> registrations; all of them receive each report.
-// Configuration problems fail fast here, at composition time — never during a run.
+// Core reporting registration is delivery-agnostic. The built-in SMTP publisher is an
+// explicit opt-in; custom publishers are ordinary singleton registrations.
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -9,24 +8,34 @@ namespace RunReporting;
 
 public static class ServiceCollectionExtensions
 {
-    /// <summary>Registers run reporting configured by convention from the required "EmailReport" configuration section.</summary>
     public static IServiceCollection AddRunReporting(
+        this IServiceCollection services,
+        Action<RunReportingOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        var options = new RunReportingOptions();
+        configure?.Invoke(options);
+        RegisterCore(services, options);
+        return services;
+    }
+
+    /// <summary>Adds the built-in SMTP publisher configured from the required "EmailReport" section.</summary>
+    public static IServiceCollection AddSmtpRunReportPublisher(
         this IServiceCollection services,
         IConfiguration configuration,
         Action<RunReportingOptions>? configure = null)
     {
-        if (configuration == null)
-        {
-            throw new ArgumentNullException(nameof(configuration));
-        }
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
 
-        return services.AddRunReporting(options =>
+        return services.AddSmtpRunReportPublisher(options =>
         {
             var section = configuration.GetSection(RunReportingOptions.SectionName);
             if (!section.Exists())
             {
                 throw new InvalidOperationException(
-                    $"Run reporting requires an '{RunReportingOptions.SectionName}' configuration section " +
+                    $"SMTP run reporting requires an '{RunReportingOptions.SectionName}' configuration section " +
                     "(Enabled, Host, Port, From, To, ...).");
             }
 
@@ -35,35 +44,34 @@ public static class ServiceCollectionExtensions
         });
     }
 
-    public static IServiceCollection AddRunReporting(
+    /// <summary>Adds the built-in SMTP publisher with explicitly configured options.</summary>
+    public static IServiceCollection AddSmtpRunReportPublisher(
         this IServiceCollection services,
         Action<RunReportingOptions>? configure = null)
     {
-        if (services == null)
-        {
-            throw new ArgumentNullException(nameof(services));
-        }
+        ArgumentNullException.ThrowIfNull(services);
 
         var options = new RunReportingOptions();
         configure?.Invoke(options);
-
         var errors = options.GetValidationErrors();
         if (errors.Count > 0)
         {
             throw new InvalidOperationException(
                 $"Run reporting email configuration is invalid: {string.Join("; ", errors)}. " +
-                "Fix the configuration or set Enabled=false to run without email.");
+                "Fix the configuration or set Enabled=false to run without SMTP email.");
         }
 
-        // The Razor formatter and reporter need logging infrastructure even in hosts that never call AddLogging.
-        services.AddLogging();
+        RegisterCore(services, options);
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IRunReportPublisher, EmailRunReportPublisher>());
+        return services;
+    }
 
+    private static void RegisterCore(IServiceCollection services, RunReportingOptions options)
+    {
+        services.AddLogging();
         services.RemoveAll<RunReportingOptions>();
         services.AddSingleton(options);
         services.TryAddSingleton<IRunReportFormatter, RazorRunReportFormatter>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IRunReportPublisher, EmailRunReportPublisher>());
         services.TryAddScoped<IRunReporter, RunReporter>();
-
-        return services;
     }
 }

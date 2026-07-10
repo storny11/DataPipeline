@@ -5,7 +5,7 @@ namespace RunReporting;
 
 public sealed class RunReportingOptions
 {
-    /// <summary>Conventional configuration section consumed by AddRunReporting(IConfiguration).</summary>
+    /// <summary>Conventional configuration section consumed by AddSmtpRunReportPublisher(IConfiguration).</summary>
     public const string SectionName = "EmailReport";
 
     /// <summary>When false, the built-in email publisher sends nothing; other registered publishers still run.</summary>

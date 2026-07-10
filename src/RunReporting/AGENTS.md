@@ -23,7 +23,7 @@ HTML email report when the run finishes. Built to be dropped into many company s
    args). A reporting failure must never fail the pipeline it reports on. `CompleteAsync`
    has no caller cancellation token; publishers receive `CancellationToken.None` and own
    their transport timeout/retry behavior.
-6. **Composition time fails fast.** `AddRunReporting(IConfiguration)` requires an
+6. **Composition time fails fast.** `AddSmtpRunReportPublisher(IConfiguration)` requires an
    `EmailReport` config section and validates email settings (host, port 1–65535, parseable
    From and recipients, at least one recipient, positive SendTimeout) — all problems
    aggregated in one `InvalidOperationException`. Validation is skipped when
@@ -44,7 +44,8 @@ HTML email report when the run finishes. Built to be dropped into many company s
    and only caller-requested cancellation stops before the other variant.
 9. **Publishers are a list.** `IRunReportPublisher` is the delivery seam;
    `EmailRunReportPublisher` (SMTP via `System.Net.Mail`, no third-party deps) is the only
-   built-in. Extra publishers (a Teams webhook one is anticipated) are plain
+   built-in and is registered only by `AddSmtpRunReportPublisher`. Core `AddRunReporting`
+   is delivery-agnostic. Extra publishers are plain
    `AddSingleton<IRunReportPublisher, ...>` registrations; every publisher receives every
    report; one failing publisher is logged and never blocks the others.
    `Options.Enabled = false` silences only the email publisher.
@@ -118,9 +119,10 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
   construction fails at composition time; it never silently substitutes no-op defaults.
 - `ResultTable.From` and `RunReport.DeriveOutcome` are internal collection helpers.
   Public formatters and publishers consume the resulting records.
-- DI (`AddRunReporting`): configured options replace any pre-registered `RunReportingOptions`,
-  `AddLogging()` makes bare hosts work, the formatter is singleton, the reporter is scoped,
-  and `TryAddEnumerable` registers the email publisher idempotently.
+- DI: `AddRunReporting` registers the delivery-agnostic core; `AddSmtpRunReportPublisher`
+  validates email configuration and explicitly adds the SMTP publisher. Configured options
+  replace any pre-registered `RunReportingOptions`; the formatter is singleton and the
+  reporter is scoped.
 - SMTP send is bounded by `Options.SendTimeout` via a linked CTS
   (`SmtpClient.Timeout` does not apply to `SendMailAsync`). Full and compact delivery are
   independent best-effort attempts; any failures are reported together after both.
@@ -128,7 +130,8 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
 ## Consumer quick start
 
 ```csharp
-services.AddRunReporting(configuration);            // requires "EmailReport" section
+services.AddRunReporting();
+services.AddSmtpRunReportPublisher(configuration);  // requires "EmailReport" section
 // appsettings: { "EmailReport": { "Enabled": true, "Host": "...", "Port": 25,
 //                "From": "svc@x", "To": "team@x; ops@x", "ServiceName": "My Service" } }
 
