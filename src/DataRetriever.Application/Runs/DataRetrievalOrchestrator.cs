@@ -84,7 +84,7 @@ public sealed class DataRetrievalOrchestrator(
         runReporter.AddAttribute($"completed ({TimeLabel})", FormatRunTimestamp(DateTimeOffset.UtcNow));
         await runReporter.PublishAsync(
             status == RunStatus.Failed ? RunOutcome.Failed : null,
-            cancellationToken);
+            CancellationToken.None);
 
         return new DataRetrievalRunResult(context.RunId, status);
     }

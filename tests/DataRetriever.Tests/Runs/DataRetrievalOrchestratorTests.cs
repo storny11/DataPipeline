@@ -28,13 +28,15 @@ public sealed class DataRetrievalOrchestratorTests
         await using var provider = services.BuildServiceProvider();
         var orchestrator = provider.GetRequiredService<DataRetrievalOrchestrator>();
 
-        var result = await orchestrator.RunAsync(DataRetrievalRunOptions.All, CancellationToken.None);
+        using var requestCancellation = new CancellationTokenSource();
+        var result = await orchestrator.RunAsync(DataRetrievalRunOptions.All, requestCancellation.Token);
         var tracker = provider.GetRequiredService<IProcessingTracker>();
         var snapshot = await tracker.GetSnapshotAsync(result.RunId, CancellationToken.None);
 
         Assert.Equal(RunStatus.Success, result.Status);
 
         var report = Assert.Single(publisher.Published);
+        Assert.False(Assert.Single(publisher.PublicationTokens).CanBeCanceled);
         Assert.Equal(result.RunId.ToString(), report.Attributes["runId"]);
         Assert.Contains(report.Attributes.Keys, key => key.Equals("started (ET)", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(report.Attributes.Keys, key => key.Equals("completed (ET)", StringComparison.OrdinalIgnoreCase));
@@ -54,9 +56,12 @@ public sealed class DataRetrievalOrchestratorTests
     {
         public List<RunReport> Published { get; } = [];
 
+        public List<CancellationToken> PublicationTokens { get; } = [];
+
         public Task PublishAsync(RunReport report, CancellationToken cancellationToken)
         {
             Published.Add(report);
+            PublicationTokens.Add(cancellationToken);
             return Task.CompletedTask;
         }
     }
