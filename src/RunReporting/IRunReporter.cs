@@ -1,16 +1,10 @@
-// The one interface, injectable like ILogger: collect issues and result tables against the
-// ambient run started by BeginRun (or a default process-wide run), then publish the report.
+// One scoped collector per run: contributors add report data at origin, then the
+// orchestration boundary completes and publishes one immutable snapshot.
 namespace RunReporting;
 
 public interface IRunReporter
 {
-    /// <summary>Starts a run for the current async flow, like ILogger.BeginScope. Attributes (environment, run id, ...) are shown in the report. Dispose to restore the previous run; publish before disposing or the collected data is discarded.</summary>
-    IDisposable BeginRun(IReadOnlyDictionary<string, string?>? attributes = null);
-
-    /// <summary>Convenience overload: BeginRun(("runId", id), ("environment", "prod")).</summary>
-    IDisposable BeginRun(params (string Name, string? Value)[] attributes);
-
-    /// <summary>Adds or overwrites a run attribute at any point during the run; shown in the report header.</summary>
+    /// <summary>Adds or overwrites a run attribute; shown in the report header.</summary>
     void AddAttribute(string name, string? value);
 
     void AddIssue(string message, IssueSeverity severity = IssueSeverity.Warning);
@@ -30,9 +24,7 @@ public interface IRunReporter
         IEnumerable<TRow> rows,
         IReadOnlyList<TableColumn<TRow>> columns);
 
-    /// <summary>Removes and returns everything collected for the current run, without sending anything. The outcome is derived from the issues.</summary>
-    RunReport Take();
-
-    /// <summary>Removes everything collected for the current run, sends the report, and returns it; pass an outcome to override the derived one.</summary>
-    Task<RunReport> PublishAsync(RunOutcome? outcome = null, CancellationToken cancellationToken = default);
+    /// <summary>Completes this scoped run, publishes its snapshot once, and returns that snapshot.
+    /// Repeated calls return the same report without publishing again.</summary>
+    Task<RunReport> CompleteAsync(RunOutcome? outcome = null);
 }

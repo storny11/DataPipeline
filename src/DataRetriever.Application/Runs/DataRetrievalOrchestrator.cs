@@ -29,9 +29,8 @@ public sealed class DataRetrievalOrchestrator(
         CancellationToken cancellationToken)
     {
         var context = new RunContext(Guid.NewGuid(), DateTimeOffset.UtcNow);
-        using var run = runReporter.BeginRun(
-            ("runId", context.RunId.ToString()),
-            ($"started ({TimeLabel})", FormatRunTimestamp(context.StartedAt)));
+        runReporter.AddAttribute("runId", context.RunId.ToString());
+        runReporter.AddAttribute($"started ({TimeLabel})", FormatRunTimestamp(context.StartedAt));
         if (hostEnvironment != null)
         {
             runReporter.AddAttribute("environment", hostEnvironment.EnvironmentName);
@@ -82,9 +81,7 @@ public sealed class DataRetrievalOrchestrator(
 
         instrumentationWriter.RecordRunStatus(instrumentation, status);
         runReporter.AddAttribute($"completed ({TimeLabel})", FormatRunTimestamp(DateTimeOffset.UtcNow));
-        await runReporter.PublishAsync(
-            status == RunStatus.Failed ? RunOutcome.Failed : null,
-            CancellationToken.None);
+        await runReporter.CompleteAsync(status == RunStatus.Failed ? RunOutcome.Failed : null);
 
         return new DataRetrievalRunResult(context.RunId, status);
     }

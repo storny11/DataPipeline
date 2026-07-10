@@ -33,7 +33,7 @@ public sealed class Step4PersisterTests
         Assert.Equal(2, result.Output!.PersistedRecords.Count);
         Assert.Equal(2, result.Counters.Single(counter => counter.Name == "RowsSuccessfullyPersisted").Value);
 
-        var table = Assert.Single(reporter.Take().Tables);
+        var table = Assert.Single((await reporter.CompleteAsync()).Tables);
         Assert.Equal("Persisted Records", table.Title);
         Assert.Equal(2, table.Rows.Count);
         Assert.Equal("INT-1", table.Rows[0][0]);
@@ -65,7 +65,7 @@ public sealed class Step4PersisterTests
             issue.Severity == StepIssueSeverity.Error &&
             issue.Message.Contains("Sink unavailable", StringComparison.Ordinal));
         Assert.Equal(0, result.Counters.Single(counter => counter.Name == "RowsSuccessfullyPersisted").Value);
-        Assert.Empty(failedRunReporter.Take().Tables);
+        Assert.Empty((await failedRunReporter.CompleteAsync()).Tables);
     }
 
     private sealed class FakeStep4SinkClient(

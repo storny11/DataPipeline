@@ -1,4 +1,4 @@
-// Registers run reporting as singletons. Extra publishers are plain
+// Registers one reporter per DI scope. Extra publishers are plain
 // AddSingleton<IRunReportPublisher, ...> registrations; all of them receive each report.
 // Configuration problems fail fast here, at composition time — never during a run.
 using Microsoft.Extensions.Configuration;
@@ -62,7 +62,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(options);
         services.TryAddSingleton<IRunReportFormatter, RazorRunReportFormatter>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IRunReportPublisher, EmailRunReportPublisher>());
-        services.TryAddSingleton<IRunReporter, RunReporter>();
+        services.TryAddScoped<IRunReporter, RunReporter>();
 
         return services;
     }

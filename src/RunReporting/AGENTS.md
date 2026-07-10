@@ -9,22 +9,20 @@ HTML email report when the run finishes. Built to be dropped into many company s
 
 1. **One package, one interface.** Consumers learn `IRunReporter` only — modeled on
    `ILogger`. No scoped handles, no companion interfaces on the consuming side.
-2. **Inject anywhere, no run id passing.** `BeginRun(attributes)` sets the ambient run for
-   the current async flow via `AsyncLocal` (exactly like `ILogger.BeginScope`); everything
-   downstream calls `AddIssue`/`AddTable`/`AddAttribute` with no context arguments.
-   `BeginRun` returns an opaque `IDisposable`.
-3. **The run concept is optional.** Code that never calls `BeginRun` collects into a
-   process-wide default run and can still `PublishAsync()`. The library must not force a
-   run id; "run id" is just an attribute (`BeginRun(("runId", id))`).
+2. **One reporter per run scope, no run id passing.** `IRunReporter` is scoped; the host
+   creates or uses one DI scope per run, and every contributor resolved from that scope
+   writes to the same reporter. Downstream code calls `AddIssue`/`AddTable`/`AddAttribute`
+   with no context arguments. There is no ambient `AsyncLocal` state.
+3. **Run metadata is optional.** A scoped reporter starts empty and can complete without
+   attributes. The library does not force a run id; callers add it as an ordinary attribute
+   with `AddAttribute("runId", id)` when they have one.
 4. **Report at origin.** Issues/tables/attributes are reported where they happen
    (validators, mappers, persisters), not accumulated in lists and merged at the end.
 5. **Runtime never throws.** Every `IRunReporter` member logs-and-degrades on any failure
    (invalid explicit data, throwing table selectors, hostile enumerables, dead SMTP, null
-   args). The single
-   exception: `PublishAsync` honors the *caller's own* `CancellationToken`. A reporting
-   failure must never fail the pipeline it reports on. Cancellation is checked before
-   `Take()` (so a pre-cancelled publish does not drain the run), between publishers, and
-   before a successfully published call returns.
+   args). A reporting failure must never fail the pipeline it reports on. `CompleteAsync`
+   has no caller cancellation token; publishers receive `CancellationToken.None` and own
+   their transport timeout/retry behavior.
 6. **Composition time fails fast.** `AddRunReporting(IConfiguration)` requires an
    `EmailReport` config section and validates email settings (host, port 1–65535, parseable
    From and recipients, at least one recipient, positive SendTimeout) — all problems
@@ -91,11 +89,11 @@ HTML email report when the run finishes. Built to be dropped into many company s
     unused internal timestamp. There is no open-ended issue-data dictionary and no issue-removal
     API: determine record relevance before reporting an issue rather than adding provisional
     issues and deleting them later.
-15. **Outcome** (`Succeeded` / `CompletedWithWarnings` / `Failed`) is derived from collected
-    issues; callers may override at publish (`PublishAsync(RunOutcome.Failed)`).
-    `PublishAsync` returns the published `RunReport` so callers can shape API responses
-    from exactly what was sent. `Take()` drains issues/tables (attributes survive; the
-    generated timestamp is captured when the snapshot is taken) without sending.
+15. **Outcome and completion.** Outcome (`Succeeded` / `CompletedWithWarnings` / `Failed`)
+    is derived from collected issues; callers may override it at completion
+    (`CompleteAsync(RunOutcome.Failed)`). Completion snapshots and publishes once, then
+    returns the exact `RunReport`. Repeated or concurrent completion returns the same report
+    without republishing; later writes are logged and ignored.
 
 ## Architecture
 
@@ -113,20 +111,16 @@ src/RunReporting/                     net8.0, Sdk=Microsoft.NET.Sdk.Razor,
 └── Publishing/   IRunReportPublisher, EmailRunReportPublisher
 ```
 
-- `RunReporter` is the singleton. Ambient run = `AsyncLocal<RunScope?>`; `CurrentRun`
-  falls back to `_defaultRun`. `RunScope` (private) holds lock-guarded attribute/issue/table
-  state; `Dispose` is idempotent, only pops the ambient chain if still current, and skips
-  any ancestors already disposed out of order rather than restoring them.
+- `RunReporter` is scoped and owns one lock-guarded attribute/issue/table state. The DI scope
+  is the run boundary. `CompleteAsync` atomically closes collection, captures one snapshot,
+  and shares one completion task with every repeated/concurrent caller.
 - `RunReporter` requires explicit options, publishers, and logger dependencies. Invalid
   construction fails at composition time; it never silently substitutes no-op defaults.
 - `ResultTable.From` and `RunReport.DeriveOutcome` are internal collection helpers.
   Public formatters and publishers consume the resulting records.
-- Attribute copying (`CopyAttributes`) is entry-by-entry: empty names logged+skipped,
-  case-colliding keys last-wins, a throwing source keeps what was read — one bad attribute
-  never costs the set.
 - DI (`AddRunReporting`): configured options replace any pre-registered `RunReportingOptions`,
-  `AddLogging()` makes bare hosts work, `TryAddSingleton` registers formatter + reporter, and
-  `TryAddEnumerable` registers the email publisher idempotently.
+  `AddLogging()` makes bare hosts work, the formatter is singleton, the reporter is scoped,
+  and `TryAddEnumerable` registers the email publisher idempotently.
 - SMTP send is bounded by `Options.SendTimeout` via a linked CTS
   (`SmtpClient.Timeout` does not apply to `SendMailAsync`). Full and compact delivery are
   independent best-effort attempts; any failures are reported together after both.
@@ -138,7 +132,8 @@ services.AddRunReporting(configuration);            // requires "EmailReport" se
 // appsettings: { "EmailReport": { "Enabled": true, "Host": "...", "Port": 25,
 //                "From": "svc@x", "To": "team@x; ops@x", "ServiceName": "My Service" } }
 
-using var run = reporter.BeginRun(("runId", id), ("environment", env));
+reporter.AddAttribute("runId", id);
+reporter.AddAttribute("environment", env);
 reporter.AddIssue("Step3", "ExternalId2", id, "Rate missing");    // Warning by default
 reporter.AddIssue("fatal", severity: IssueSeverity.Error);
 reporter.AddTable("Persisted Records", rows,
@@ -146,13 +141,13 @@ reporter.AddTable("Persisted Records", rows,
         TableColumn<PersistedRow>.Left("INTERNAL ID", row => row.InternalId),
         TableColumn<PersistedRow>.Number("AMOUNT", row => row.Amount, "N2")
     ]);
-await reporter.PublishAsync(failed ? RunOutcome.Failed : null);
+await reporter.CompleteAsync(failed ? RunOutcome.Failed : null);
 ```
 
 ## Reference integration (DataRetriever, in this repo)
 
-- `DataRetrievalOrchestrator`: `BeginRun(("runId", ...))` at the top, one
-  `PublishAsync(status == Failed ? RunOutcome.Failed : null)` at the bottom; API returns
+- `DataRetrievalOrchestrator`: adds run attributes at the top, then calls
+  `CompleteAsync(status == Failed ? RunOutcome.Failed : null)` at the bottom; API returns
   only `{ runId, status }` (`DataRetrievalRunResult`) — the email *is* the report.
 - `StepRunner` bridges keyed fatal errors carried in `StepExecutionResult.Issues` into the
   reporter (ordinary warnings are origin-reported by validators/mappers directly).
@@ -162,9 +157,9 @@ await reporter.PublishAsync(failed ? RunOutcome.Failed : null);
 
 ## Known accepted limitations (deliberate, revisit only with the owner)
 
-- Ambient context flows only *downward* from `BeginRun`; work scheduled before/outside the
-  run's async flow lands in the default run (logged at origin, never published in apps that
-  always use scopes — accepted; a warning/cap was considered and deferred).
+- Every reporting contributor must be resolved from the same per-run DI scope. A singleton
+  cannot depend on `IRunReporter`; singleton handlers resolve the reporter and workflow from
+  the nested run scope they already create.
 - Publishers run sequentially; concurrency to be decided when a second publisher exists.
 - Table selectors or cell values that fail to evaluate/format render `-`/type-name; never throw.
 - Package version/metadata in `RunReporting.csproj` is `0.2.0` — bump before publishing.
@@ -173,10 +168,10 @@ await reporter.PublishAsync(failed ? RunOutcome.Failed : null);
 
 Package-focused tests live in `tests/DataRetriever.Tests/RunReporting/RunReporterTests.cs`
 (run `dotnet test`, use `-c Release` if a debugger holds Debug outputs). Coverage includes:
-ambient nesting/isolation across async, out-of-order scope disposal, default-run mode,
-attribute salvage on collisions, `""` recipient blanking, never-throw guarantees (throwing
+scoped lifetime/isolation, idempotent concurrent completion, ignored writes after completion,
+case-insensitive attributes, `""` recipient blanking, never-throw guarantees (throwing
 table selectors, null args, publisher failures, internal-timeout OCE containment), explicit
-issue identifiers, caller cancellation without pre-draining and between-publisher cancellation,
+issue identifiers,
 subject builder (custom/fallback/CRLF), explicit typed table selectors, alignment
 flow, isolated full/compact email failures, Razor rendering + HTML
 encoding, explicit-constructor failures, and composition-time validation failures.

@@ -39,7 +39,7 @@ public sealed class Step3ResponseMapperTests
     }
 
     [Fact]
-    public void Map_WhenDuplicateValidRowsExist_KeepsFirstAmountAndWarns()
+    public async Task Map_WhenDuplicateValidRowsExist_KeepsFirstAmountAndWarns()
     {
         var reporter = new RunReporter(
             new RunReportingOptions(),
@@ -60,7 +60,7 @@ public sealed class Step3ResponseMapperTests
         Assert.Equal(2.50m, mapped.Amount2);
         Assert.Equal(3.75m, mapped.Amount3);
 
-        var issue = Assert.Single(reporter.Take().Issues);
+        var issue = Assert.Single((await reporter.CompleteAsync()).Issues);
         Assert.Equal(IssueSeverity.Warning, issue.Severity);
         Assert.Equal("ExternalId2", issue.IdentifierName);
         Assert.Equal("EXT2-A", issue.IdentifierValue);

@@ -1,4 +1,4 @@
-// Verifies ambient run scoping, attribute flow, tables, and publish behavior of the RunReporting package.
+// Verifies scoped run collection, completion, formatting, and publishing behavior.
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -9,7 +9,7 @@ namespace DataRetriever.Tests.RunReporting;
 public sealed class RunReporterTests
 {
     [Fact]
-    public void AddIssue_WithoutBeginRun_CollectsIntoDefaultRun()
+    public async Task AddIssue_CollectsIntoScopedRun()
     {
         var reporter = CreateReporter(out _);
 
@@ -19,67 +19,50 @@ public sealed class RunReporterTests
             "row-7",
             "Invalid source row skipped.");
 
-        var report = reporter.Take();
+        var report = await reporter.CompleteAsync();
         var issue = Assert.Single(report.Issues);
         Assert.Equal("Step1Load", issue.StepName);
         Assert.Equal("Row", issue.IdentifierName);
         Assert.Equal("row-7", issue.IdentifierValue);
         Assert.Equal(IssueSeverity.Warning, issue.Severity);
         Assert.Empty(report.Attributes);
-        Assert.Empty(reporter.Take().Issues);
+        Assert.Same(report, await reporter.CompleteAsync());
     }
 
     [Fact]
-    public void BeginRun_NestsAndIsolatesRuns()
+    public async Task CompleteAsync_PublishesOnceAndIgnoresLaterWrites()
     {
-        var reporter = CreateReporter(out _);
+        var reporter = CreateReporter(out var sender);
+        reporter.AddAttribute("runId", "run-1");
+        reporter.AddIssue("Before completion.");
 
-        using (reporter.BeginRun(("runId", "run-1")))
-        {
-            reporter.AddIssue("Outer issue.");
+        var completions = await Task.WhenAll(
+            reporter.CompleteAsync(),
+            reporter.CompleteAsync(RunOutcome.Failed));
+        var first = completions[0];
+        reporter.AddAttribute("environment", "ignored");
+        reporter.AddIssue("After completion.");
+        reporter.AddTable("Ignored", [new IdRow("INT-1")], [TableColumn<IdRow>.Left("ID", row => row.Id)]);
+        var second = completions[1];
 
-            using (reporter.BeginRun(("runId", "run-2")))
-            {
-                reporter.AddIssue("Inner issue.");
-
-                var inner = reporter.Take();
-                Assert.Equal("run-2", inner.Attributes["runId"]);
-                Assert.Equal("Inner issue.", Assert.Single(inner.Issues).Message);
-            }
-
-            var outer = reporter.Take();
-            Assert.Equal("run-1", outer.Attributes["runId"]);
-            Assert.Equal("Outer issue.", Assert.Single(outer.Issues).Message);
-        }
+        Assert.Same(first, second);
+        Assert.Same(first, Assert.Single(sender.Sent));
+        Assert.Equal(RunOutcome.CompletedWithWarnings, first.Outcome);
+        Assert.Equal("Before completion.", Assert.Single(first.Issues).Message);
+        Assert.Empty(first.Tables);
+        Assert.False(first.Attributes.ContainsKey("environment"));
     }
 
     [Fact]
-    public void BeginRun_OutOfOrderDisposal_DoesNotRestoreDisposedOuterRun()
-    {
-        var reporter = CreateReporter(out _);
-        var outer = reporter.BeginRun(("runId", "outer"));
-        var inner = reporter.BeginRun(("runId", "inner"));
-
-        outer.Dispose();
-        inner.Dispose();
-        reporter.AddIssue("Default-run issue.");
-
-        var report = reporter.Take();
-        Assert.Empty(report.Attributes);
-        Assert.Equal("Default-run issue.", Assert.Single(report.Issues).Message);
-    }
-
-    [Fact]
-    public async Task BeginRun_FlowsAmbientlyAcrossAsyncCallsAndPublishesAttributes()
+    public async Task ScopedReporter_CollectsAcrossAsyncCallsAndPublishesAttributes()
     {
         var reporter = CreateReporter(out var sender);
 
-        using (reporter.BeginRun(("runId", "run-1"), ("environment", "test")))
-        {
-            reporter.AddIssue("Standalone message.");
-            await AddFromNestedAsyncCall(reporter);
-            await reporter.PublishAsync();
-        }
+        reporter.AddAttribute("runId", "run-1");
+        reporter.AddAttribute("environment", "test");
+        reporter.AddIssue("Standalone message.");
+        await AddFromNestedAsyncCall(reporter);
+        await reporter.CompleteAsync();
 
         var report = Assert.Single(sender.Sent);
         Assert.Equal("run-1", report.Attributes["runId"]);
@@ -92,13 +75,11 @@ public sealed class RunReporterTests
     {
         var reporter = CreateReporter(out var sender);
 
-        using (reporter.BeginRun(("runId", "run-1")))
-        {
-            reporter.AddIssue("Row skipped.");
-            reporter.AddAttribute("environment", "prod");
-            reporter.AddAttribute("RUNID", "run-2");
-            await reporter.PublishAsync();
-        }
+        reporter.AddAttribute("runId", "run-1");
+        reporter.AddIssue("Row skipped.");
+        reporter.AddAttribute("environment", "prod");
+        reporter.AddAttribute("RUNID", "run-2");
+        await reporter.CompleteAsync();
 
         var report = Assert.Single(sender.Sent);
         Assert.Equal(2, report.Attributes.Count);
@@ -107,25 +88,19 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void BeginRun_WithCaseCollidingAndEmptyKeys_KeepsTheValidAttributes()
+    public async Task AddAttribute_WithCaseCollidingAndEmptyNames_KeepsTheValidAttributes()
     {
         var reporter = CreateReporter(out _);
 
-        var attributes = new Dictionary<string, string?>
-        {
-            ["Env"] = "a",
-            ["env"] = "b",
-            [""] = "ignored",
-            ["runId"] = "run-1"
-        };
+        reporter.AddAttribute("Env", "a");
+        reporter.AddAttribute("env", "b");
+        reporter.AddAttribute("", "ignored");
+        reporter.AddAttribute("runId", "run-1");
 
-        using (reporter.BeginRun(attributes))
-        {
-            var report = reporter.Take();
-            Assert.Equal(2, report.Attributes.Count);
-            Assert.Equal("run-1", report.Attributes["runId"]);
-            Assert.True(report.Attributes.ContainsKey("env"));
-        }
+        var report = await reporter.CompleteAsync();
+        Assert.Equal(2, report.Attributes.Count);
+        Assert.Equal("b", report.Attributes["env"]);
+        Assert.Equal("run-1", report.Attributes["runId"]);
     }
 
     [Fact]
@@ -149,38 +124,39 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void Take_DerivesOutcomeFromIssues()
+    public async Task CompleteAsync_DerivesOutcomeFromIssues()
     {
-        var reporter = CreateReporter(out _);
+        var clean = CreateReporter(out _);
+        Assert.Equal(RunOutcome.Succeeded, (await clean.CompleteAsync()).Outcome);
 
-        Assert.Equal(RunOutcome.Succeeded, reporter.Take().Outcome);
+        var warning = CreateReporter(out _);
+        warning.AddIssue("Row skipped.");
+        Assert.Equal(RunOutcome.CompletedWithWarnings, (await warning.CompleteAsync()).Outcome);
 
-        reporter.AddIssue("Row skipped.");
-        Assert.Equal(RunOutcome.CompletedWithWarnings, reporter.Take().Outcome);
-
-        reporter.AddIssue("Lookup failed.", IssueSeverity.Error);
-        Assert.Equal(RunOutcome.Failed, reporter.Take().Outcome);
+        var failed = CreateReporter(out _);
+        failed.AddIssue("Lookup failed.", IssueSeverity.Error);
+        Assert.Equal(RunOutcome.Failed, (await failed.CompleteAsync()).Outcome);
     }
 
     [Fact]
-    public void AddIssue_WithUnknownSeverity_TreatsItAsAWarning()
+    public async Task AddIssue_WithUnknownSeverity_TreatsItAsAWarning()
     {
         var reporter = CreateReporter(out _);
 
         reporter.AddIssue("Unknown severity.", (IssueSeverity)999);
 
-        var report = reporter.Take();
+        var report = await reporter.CompleteAsync();
         Assert.Equal(RunOutcome.CompletedWithWarnings, report.Outcome);
         Assert.Equal(IssueSeverity.Warning, Assert.Single(report.Issues).Severity);
     }
 
     [Fact]
-    public async Task PublishAsync_WithExplicitOutcome_OverridesDerivedOneAndReturnsPublishedReport()
+    public async Task CompleteAsync_WithExplicitOutcome_OverridesDerivedOneAndReturnsPublishedReport()
     {
         var reporter = CreateReporter(out var sender);
 
         reporter.AddIssue("Row skipped.");
-        var published = await reporter.PublishAsync(RunOutcome.Failed);
+        var published = await reporter.CompleteAsync(RunOutcome.Failed);
 
         Assert.Same(published, Assert.Single(sender.Sent));
         Assert.Equal(RunOutcome.Failed, published.Outcome);
@@ -188,7 +164,7 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public async Task PublishAsync_FansOutToAllPublishers()
+    public async Task CompleteAsync_FansOutToAllPublishers()
     {
         var first = new CapturingPublisher();
         var second = new CapturingPublisher();
@@ -198,7 +174,7 @@ public sealed class RunReporterTests
             NullLogger<RunReporter>.Instance);
 
         reporter.AddIssue("Row skipped.");
-        await reporter.PublishAsync();
+        await reporter.CompleteAsync();
 
         Assert.Single(first.Sent);
         Assert.Single(second.Sent);
@@ -475,7 +451,29 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public void AddTable_WithThrowingFormatString_FallsBackToUnformattedValue()
+    public async Task AddRunReporting_ReporterIsScopedAndIsolatesRuns()
+    {
+        var services = new ServiceCollection();
+        services.AddRunReporting(options => options.Enabled = false);
+
+        await using var provider = services.BuildServiceProvider();
+        await using var firstScope = provider.CreateAsyncScope();
+        await using var secondScope = provider.CreateAsyncScope();
+        var first = firstScope.ServiceProvider.GetRequiredService<IRunReporter>();
+        var second = secondScope.ServiceProvider.GetRequiredService<IRunReporter>();
+
+        Assert.Same(first, firstScope.ServiceProvider.GetRequiredService<IRunReporter>());
+        Assert.NotSame(first, second);
+
+        first.AddAttribute("runId", "first");
+        second.AddAttribute("runId", "second");
+
+        Assert.Equal("first", (await first.CompleteAsync()).Attributes["runId"]);
+        Assert.Equal("second", (await second.CompleteAsync()).Attributes["runId"]);
+    }
+
+    [Fact]
+    public async Task AddTable_WithThrowingFormatString_FallsBackToUnformattedValue()
     {
         var reporter = CreateReporter(out _);
 
@@ -485,12 +483,12 @@ public sealed class RunReporterTests
             [new RateRow("GBP", 1.25m)],
             [TableColumn<RateRow>.Number("RATE", row => row.Rate, "Z")]);
 
-        var table = Assert.Single(reporter.Take().Tables);
+        var table = Assert.Single((await reporter.CompleteAsync()).Tables);
         Assert.Equal("1.25", Assert.Single(table.Rows)[0]);
     }
 
     [Fact]
-    public void AddTable_WithThrowingSelector_LosesOnlyThatCell()
+    public async Task AddTable_WithThrowingSelector_LosesOnlyThatCell()
     {
         var reporter = CreateReporter(out _);
 
@@ -502,32 +500,32 @@ public sealed class RunReporterTests
                 TableColumn<ExplosiveSubject>.Left("BAD", row => row.Bad)
             ]);
 
-        var row = Assert.Single(Assert.Single(reporter.Take().Tables).Rows);
+        var row = Assert.Single(Assert.Single((await reporter.CompleteAsync()).Tables).Rows);
         Assert.Equal("INT-1", row[0]);
         Assert.Null(row[1]);
     }
 
     [Fact]
-    public void AddTable_WithNullArguments_IsToleratedWithoutThrowing()
+    public async Task AddTable_WithNullArguments_IsToleratedWithoutThrowing()
     {
         var reporter = CreateReporter(out _);
 
         reporter.AddTable<object?>(null!, null!, null!);
 
-        var table = Assert.Single(reporter.Take().Tables);
+        var table = Assert.Single((await reporter.CompleteAsync()).Tables);
         Assert.Equal(string.Empty, table.Title);
         Assert.Empty(table.Rows);
     }
 
     [Fact]
-    public void AddAttribute_WithEmptyName_IsIgnoredWithoutThrowing()
+    public async Task AddAttribute_WithEmptyName_IsIgnoredWithoutThrowing()
     {
         var reporter = CreateReporter(out _);
 
         reporter.AddAttribute("", "value");
         reporter.AddAttribute(null!, "value");
 
-        Assert.Empty(reporter.Take().Attributes);
+        Assert.Empty((await reporter.CompleteAsync()).Attributes);
     }
 
     [Fact]
@@ -543,7 +541,7 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public async Task PublishAsync_PublisherInternalTimeout_IsContainedAndOthersStillRun()
+    public async Task CompleteAsync_PublisherInternalTimeout_IsContainedAndOthersStillRun()
     {
         var healthy = new CapturingPublisher();
         var reporter = new RunReporter(
@@ -552,47 +550,13 @@ public sealed class RunReporterTests
             NullLogger<RunReporter>.Instance);
 
         reporter.AddIssue("Row skipped.");
-        await reporter.PublishAsync();
+        await reporter.CompleteAsync();
 
         Assert.Single(healthy.Sent);
     }
 
     [Fact]
-    public async Task PublishAsync_WithAlreadyCanceledToken_DoesNotDrainCurrentRun()
-    {
-        var reporter = CreateReporter(out var publisher);
-        reporter.AddIssue("Step1", "Row", "row-1", "Row skipped.");
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            reporter.PublishAsync(cancellationToken: cancellation.Token));
-
-        Assert.Empty(publisher.Sent);
-        Assert.Single(reporter.Take().Issues);
-    }
-
-    [Fact]
-    public async Task PublishAsync_WhenCallerCancelsBetweenPublishers_StopsFanOut()
-    {
-        using var cancellation = new CancellationTokenSource();
-        var canceling = new CancelingPublisher(cancellation);
-        var next = new CapturingPublisher();
-        var reporter = new RunReporter(
-            new RunReportingOptions(),
-            [canceling, next],
-            NullLogger<RunReporter>.Instance);
-        reporter.AddIssue("Step1", "Row", "row-1", "Row skipped.");
-
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            reporter.PublishAsync(cancellationToken: cancellation.Token));
-
-        Assert.True(canceling.Called);
-        Assert.Empty(next.Sent);
-    }
-
-    [Fact]
-    public async Task PublishAsync_WhenOnePublisherFails_DoesNotThrowAndStillReachesOthers()
+    public async Task CompleteAsync_WhenOnePublisherFails_DoesNotThrowAndStillReachesOthers()
     {
         var failing = new ThrowingPublisher();
         var healthy = new CapturingPublisher();
@@ -602,7 +566,7 @@ public sealed class RunReporterTests
             NullLogger<RunReporter>.Instance);
 
         reporter.AddIssue("Row skipped.");
-        await reporter.PublishAsync();
+        await reporter.CompleteAsync();
 
         Assert.Single(healthy.Sent);
     }
@@ -635,7 +599,7 @@ public sealed class RunReporterTests
     }
 
     [Fact]
-    public async Task PublishAsync_EmptyReport_SkipsSendWhenConfiguredOff()
+    public async Task CompleteAsync_EmptyReport_SkipsSendWhenConfiguredOff()
     {
         var sender = new CapturingPublisher();
         var reporter = new RunReporter(
@@ -643,13 +607,13 @@ public sealed class RunReporterTests
             [sender],
             NullLogger<RunReporter>.Instance);
 
-        await reporter.PublishAsync();
+        await reporter.CompleteAsync();
 
         Assert.Empty(sender.Sent);
     }
 
     [Fact]
-    public async Task PublishAsync_WithOnlyTables_SendsWhenEmptyReportSendIsOff()
+    public async Task CompleteAsync_WithOnlyTables_SendsWhenEmptyReportSendIsOff()
     {
         var sender = new CapturingPublisher();
         var reporter = new RunReporter(
@@ -661,7 +625,7 @@ public sealed class RunReporterTests
             "Persisted",
             [new IdRow("INT-1")],
             [TableColumn<IdRow>.Left("ID", row => row.Id)]);
-        await reporter.PublishAsync();
+        await reporter.CompleteAsync();
 
         Assert.Single(sender.Sent);
     }
@@ -681,7 +645,7 @@ public sealed class RunReporterTests
                 TableColumn<RateRow>.Left("CURRENCY", row => row.Ccy),
                 TableColumn<RateRow>.Number("RATE", row => row.Rate, "N2")
             ]);
-        await reporter.PublishAsync();
+        await reporter.CompleteAsync();
 
         var table = Assert.Single(Assert.Single(sender.Sent).Tables);
         Assert.Equal("Fetched Rates", table.Title);
@@ -790,18 +754,6 @@ public sealed class RunReporterTests
         public Task PublishAsync(RunReport report, CancellationToken cancellationToken)
         {
             throw new InvalidOperationException("SMTP unavailable.");
-        }
-    }
-
-    private sealed class CancelingPublisher(CancellationTokenSource cancellation) : IRunReportPublisher
-    {
-        public bool Called { get; private set; }
-
-        public Task PublishAsync(RunReport report, CancellationToken cancellationToken)
-        {
-            Called = true;
-            cancellation.Cancel();
-            return Task.CompletedTask;
         }
     }
 

@@ -32,7 +32,7 @@ public sealed class StepRunnerTests
 
         Assert.Equal(StepExecutionStatus.Failed, result.Status);
 
-        var bridged = Assert.Single(reporter.Take().Issues);
+        var bridged = Assert.Single((await reporter.CompleteAsync()).Issues);
         Assert.Equal("FailingStep", bridged.StepName);
         Assert.Equal("Row", bridged.IdentifierName);
         Assert.Equal("7", bridged.IdentifierValue);

@@ -32,7 +32,7 @@ public sealed class Step1LoaderTests
         Assert.Single(result.Output!.Records);
         Assert.Equal("INT-001", result.Output.Records[0].InternalId);
 
-        Assert.Empty(reporter.Take().Issues);
+        Assert.Empty((await reporter.CompleteAsync()).Issues);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class Step1LoaderTests
         Assert.Equal(StepExecutionStatus.Succeeded, result.Status);
         Assert.Single(result.Output!.Records);
 
-        var issue = Assert.Single(reporter.Take().Issues);
+        var issue = Assert.Single((await reporter.CompleteAsync()).Issues);
         Assert.Equal("InternalId", issue.IdentifierName);
         Assert.Equal("INT-002", issue.IdentifierValue);
         Assert.Contains("records-to-keep", issue.Message, StringComparison.OrdinalIgnoreCase);
@@ -84,7 +84,7 @@ public sealed class Step1LoaderTests
         Assert.Null(result.Output);
         Assert.Contains(result.Issues, issue => issue.Severity == StepIssueSeverity.Error);
         Assert.Contains(result.Counters, counter => counter.Name == "ValidConfiguredRows" && counter.Value == 0);
-        Assert.NotEmpty(reporter.Take().Issues);
+        Assert.NotEmpty((await reporter.CompleteAsync()).Issues);
     }
 
     [Fact]
