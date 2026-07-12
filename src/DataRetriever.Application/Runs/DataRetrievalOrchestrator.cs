@@ -1,4 +1,5 @@
-// Coordinates the concrete step sequence and publishes the run report at the end.
+// Coordinates the concrete step sequence and publishes the run report on every exit path,
+// including cancellation and unexpected failure.
 using System.Globalization;
 using DataRetriever.Application.Step1Load.Models;
 using DataRetriever.Application.Step2Load.Models;
@@ -44,46 +45,67 @@ public sealed class DataRetrievalOrchestrator(
         {
             status = await ExecuteStepsAsync(options, context, instrumentation, cancellationToken);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            // A cancelled run must still publish whatever it collected: data persisted by earlier
+            // steps is already visible to users, and the tracker must not stay on Running forever.
+            RecordRunInterruption(
+                context,
+                instrumentation,
+                "Run was cancelled before completion; the report may be incomplete.");
+            await FinishRunAsync(instrumentation, RunStatus.Cancelled);
+            throw;
+        }
+        catch (Exception exception)
         {
             logger.LogError(exception, "Unexpected data retrieval run failure for {RunId}", context.RunId);
-            runReporter.AddIssue(
-                "Run",
-                "RunId",
-                context.RunId.ToString(),
-                $"Unexpected run failure: {exception.Message}",
-                IssueSeverity.Error);
+            RecordRunInterruption(
+                context,
+                instrumentation,
+                $"Unexpected run failure: {exception.Message}");
             status = RunStatus.Failed;
-
-            try
-            {
-                instrumentationWriter.RecordStepResult(
-                    instrumentation,
-                    StepExecutionResult<NoOutput>.Failed(
-                        "Run",
-                        [
-                            new StepIssue(
-                                "Run",
-                                "RunId",
-                                context.RunId.ToString(),
-                                StepIssueSeverity.Error,
-                                $"Unexpected run failure: {exception.Message}")
-                        ]));
-            }
-            catch (Exception instrumentationException)
-            {
-                logger.LogError(
-                    instrumentationException,
-                    "Failed to record instrumentation step result for failed run {RunId}",
-                    context.RunId);
-            }
         }
 
+        await FinishRunAsync(instrumentation, status);
+        return new DataRetrievalRunResult(context.RunId, status);
+    }
+
+    private async Task FinishRunAsync(IRunInstrumentation instrumentation, RunStatus status)
+    {
         instrumentationWriter.RecordRunStatus(instrumentation, status);
         runReporter.AddAttribute($"completed ({TimeLabel})", FormatRunTimestamp(DateTimeOffset.UtcNow));
-        await runReporter.CompleteAsync(status == RunStatus.Failed ? RunOutcome.Failed : null);
+        await runReporter.CompleteAsync(status == RunStatus.Success ? null : RunOutcome.Failed);
+    }
 
-        return new DataRetrievalRunResult(context.RunId, status);
+    private void RecordRunInterruption(
+        RunContext context,
+        IRunInstrumentation instrumentation,
+        string message)
+    {
+        runReporter.AddIssue("Run", "RunId", context.RunId.ToString(), message, IssueSeverity.Error);
+
+        try
+        {
+            instrumentationWriter.RecordStepResult(
+                instrumentation,
+                StepExecutionResult<NoOutput>.Failed(
+                    "Run",
+                    [
+                        new StepIssue(
+                            "Run",
+                            "RunId",
+                            context.RunId.ToString(),
+                            StepIssueSeverity.Error,
+                            message)
+                    ]));
+        }
+        catch (Exception instrumentationException)
+        {
+            logger.LogError(
+                instrumentationException,
+                "Failed to record instrumentation step result for interrupted run {RunId}",
+                context.RunId);
+        }
     }
 
     private async Task<RunStatus> ExecuteStepsAsync(

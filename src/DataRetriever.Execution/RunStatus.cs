@@ -6,5 +6,6 @@ public enum RunStatus
     NeverRun,
     Running,
     Success,
-    Failed
+    Failed,
+    Cancelled
 }

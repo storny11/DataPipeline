@@ -1,6 +1,8 @@
 // Verifies the full simulator-backed orchestration path, the published report, and status tracking.
 using DataRetriever.Application;
 using DataRetriever.Application.Runs;
+using DataRetriever.Application.Step1Load.Models;
+using DataRetriever.Application.Step2Load.Models;
 using DataRetriever.Execution;
 using DataRetriever.Monitoring;
 using DataRetriever.Simulators;
@@ -50,6 +52,58 @@ public sealed class DataRetrievalOrchestratorTests
 
         Assert.NotNull(snapshot);
         Assert.Equal(RunStatus.Success, snapshot.RunStatus);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenCancelledMidPipeline_StillPublishesReportAndMarksRunCancelled()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        var publisher = new CapturingPublisher();
+        services.AddSingleton<IRunReportPublisher>(publisher);
+        services.AddRunReporting(options => options.Enabled = false);
+        services
+            .AddDataRetrieverMonitoring()
+            .AddDataRetrieverApplication()
+            .AddDataRetrieverSimulators();
+
+        using var requestCancellation = new CancellationTokenSource();
+        services.AddScoped<IStep<Step1Output, Step2Output>>(_ => new CancellingStep(requestCancellation));
+
+        await using var provider = services.BuildServiceProvider();
+        var orchestrator = provider.GetRequiredService<DataRetrievalOrchestrator>();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => orchestrator.RunAsync(DataRetrievalRunOptions.All, requestCancellation.Token));
+
+        var report = Assert.Single(publisher.Published);
+        Assert.Equal(RunOutcome.Failed, report.Outcome);
+        Assert.Contains(report.Issues, issue =>
+            issue.Severity == IssueSeverity.Error && issue.Message.Contains("cancelled"));
+        Assert.Contains(report.Attributes.Keys, key => key.Equals("completed (ET)", StringComparison.OrdinalIgnoreCase));
+
+        var runId = Guid.Parse(report.Attributes["runId"]!);
+        var tracker = provider.GetRequiredService<IProcessingTracker>();
+        var snapshot = await tracker.GetSnapshotAsync(runId, CancellationToken.None);
+        Assert.NotNull(snapshot);
+        Assert.Equal(RunStatus.Cancelled, snapshot.RunStatus);
+        Assert.NotNull(snapshot.LastAttemptedRunCompletedAt);
+    }
+
+    /// <summary>Simulates a client disconnect while a step is executing.</summary>
+    private sealed class CancellingStep(CancellationTokenSource source) : IStep<Step1Output, Step2Output>
+    {
+        public string Name => "Step2Load";
+
+        public Task<StepExecutionResult<Step2Output>> ExecuteAsync(
+            Step1Output input,
+            RunContext context,
+            CancellationToken cancellationToken)
+        {
+            source.Cancel();
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("The cancelled token should have thrown.");
+        }
     }
 
     private sealed class CapturingPublisher : IRunReportPublisher

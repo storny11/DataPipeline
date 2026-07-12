@@ -149,8 +149,10 @@ await reporter.CompleteAsync(failed ? RunOutcome.Failed : null);
 
 ## Reference integration (DataRetriever, in this repo)
 
-- `DataRetrievalOrchestrator`: adds run attributes at the top, then calls
-  `CompleteAsync(status == Failed ? RunOutcome.Failed : null)` at the bottom; API returns
+- `DataRetrievalOrchestrator`: adds run attributes at the top, then finishes on every exit
+  path — success, unexpected failure, and cancellation (client disconnect) all record a
+  final run status and call `CompleteAsync(status == Success ? null : RunOutcome.Failed)`,
+  so a cancelled run still publishes whatever it collected before rethrowing. API returns
   only `{ runId, status }` (`DataRetrievalRunResult`) — the email *is* the report.
 - `StepRunner` bridges keyed fatal errors carried in `StepExecutionResult.Issues` into the
   reporter (ordinary warnings are origin-reported by validators/mappers directly).
