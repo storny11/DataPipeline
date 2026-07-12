@@ -353,6 +353,67 @@ public sealed class RunReporterTests
     }
 
     [Fact]
+    public async Task RazorFormatter_CapsRenderedIssuesAtThirtyWithMoreNote()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRunReporting(options => options.Enabled = false);
+
+        await using var provider = services.BuildServiceProvider();
+        var formatter = provider.GetRequiredService<IRunReportFormatter>();
+
+        var issues = Enumerable.Range(1, 35)
+            .Select(index => new RunIssue(
+                "Step1",
+                "Row",
+                $"row-{index:D3}",
+                IssueSeverity.Warning,
+                $"Issue message {index:D3}."))
+            .ToList();
+        var report = new RunReport(
+            new Dictionary<string, string?>(),
+            RunOutcome.CompletedWithWarnings,
+            DateTimeOffset.UtcNow,
+            issues,
+            []);
+
+        var email = await formatter.FormatAsync(report, CancellationToken.None);
+
+        Assert.Contains("Warnings (35)", email.HtmlBody);
+        Assert.Contains("Issue message 030.", email.HtmlBody);
+        Assert.DoesNotContain("Issue message 031.", email.HtmlBody);
+        Assert.Contains("and 5 more not shown.", email.HtmlBody);
+    }
+
+    [Fact]
+    public async Task RazorFormatter_CapsRenderedTableRowsAtThirtyWithMoreNote()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddRunReporting(options => options.Enabled = false);
+
+        await using var provider = services.BuildServiceProvider();
+        var formatter = provider.GetRequiredService<IRunReportFormatter>();
+
+        var rows = Enumerable.Range(1, 35)
+            .Select(index => (IReadOnlyList<string?>)[$"cell-{index:D3}"])
+            .ToList();
+        var report = new RunReport(
+            new Dictionary<string, string?>(),
+            RunOutcome.Succeeded,
+            DateTimeOffset.UtcNow,
+            [],
+            [new ResultTable("Persisted Records", ["ID"], [ColumnAlignment.Left], rows)]);
+
+        var email = await formatter.FormatAsync(report, CancellationToken.None);
+
+        Assert.Contains("Persisted Records (35)", email.HtmlBody);
+        Assert.Contains("cell-030", email.HtmlBody);
+        Assert.DoesNotContain("cell-031", email.HtmlBody);
+        Assert.Contains("and 5 more not shown.", email.HtmlBody);
+    }
+
+    [Fact]
     public async Task RazorFormatter_CompactVariant_RendersSummaryTopIssuesAndTableCounts()
     {
         var services = new ServiceCollection();

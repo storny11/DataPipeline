@@ -65,7 +65,11 @@ HTML email report when the run finishes. Built to be dropped into many company s
     (humanized labels — `runId` → "RUN ID" — four per row), Errors/Warnings panels (white
     background, colored left border, very pale table header), an "All clear" panel for
     clean runs, result tables (navy header), muted footer. No plain-text body (removed on
-    request).
+    request). Each issues section and each result table renders at most 30 rows
+    (`ReportRenderLimits.MaxRows`, a code constant — deliberately not configuration)
+    followed by an "…and N more not shown." note; section headings keep the true totals
+    and the `RunReport` snapshot is never truncated. The compact variant keeps its own
+    top-10 issue cap.
 12. **Metadata is caller-owned.** Do not append internal timing fields to the template.
     If a consumer wants Started, Completed, Duration, Environment, etc., they pass those
     as run attributes from the host/application code. The DataRetriever host supplies

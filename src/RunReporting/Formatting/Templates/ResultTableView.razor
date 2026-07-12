@@ -24,7 +24,7 @@ else
             </tr>
         </thead>
         <tbody>
-            @for (var rowIndex = 0; rowIndex < Table.Rows.Count; rowIndex++)
+            @for (var rowIndex = 0; rowIndex < VisibleCount; rowIndex++)
             {
                 var row = Table.Rows[rowIndex];
                 var rowBackground = RowBackground(rowIndex);
@@ -37,6 +37,11 @@ else
             }
         </tbody>
     </table>
+
+    @if (Table.Rows.Count > VisibleCount)
+    {
+        <div style="@TruncationNoteStyle">&hellip;and @(Table.Rows.Count - VisibleCount) more not shown.</div>
+    }
 }
 
 @code {
@@ -48,6 +53,9 @@ else
     private const string CellStyle = "border:1px solid #edf1f6; padding:9px 12px; font-size:14px; line-height:20px; color:#344054; vertical-align:top; mso-line-height-rule:exactly;";
     private const string EmptyStateTableStyle = "width:100%; border-collapse:collapse; border:1px solid #d7dde8; mso-table-lspace:0pt; mso-table-rspace:0pt;";
     private const string EmptyStateCellStyle = "padding:12px 14px; background-color:#f8fafc; color:#475467; font-size:13px; line-height:19px; mso-line-height-rule:exactly;";
+    private const string TruncationNoteStyle = "padding-top:6px; font-size:12px; line-height:17px; color:#667085; mso-line-height-rule:exactly;";
+
+    private int VisibleCount => Math.Min(Table.Rows.Count, ReportRenderLimits.MaxRows);
 
     private static string RowBackground(int index) => index % 2 == 0 ? "#ffffff" : "#fbfcfe";
 
