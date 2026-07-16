@@ -7,7 +7,7 @@ using DataRetriever.Api.Hosting;
 using Microsoft.Extensions.Options;
 using Serilog;
 
-var logDirectory = StartupLogging.ConfigureBootstrapLogger();
+var logFilePath = ApplicationLogging.ConfigureBootstrapLogger();
 
 try
 {
@@ -21,18 +21,14 @@ try
         options.ValidateScopes = true;
     });
 
-    builder.Services.AddSerilog((services, loggerConfiguration) => loggerConfiguration
-        .ReadFrom.Configuration(builder.Configuration)
-        .ReadFrom.Services(services)
-        .Enrich.FromLogContext()
-        .WriteTo.Console()
-        .WriteTo.File(
-            Path.Combine(logDirectory, "application-.log"),
-            rollingInterval: RollingInterval.Day,
-            retainedFileCountLimit: 14,
-            fileSizeLimitBytes: 10 * 1024 * 1024,
-            rollOnFileSizeLimit: true,
-            shared: true));
+    // Replace the bootstrap configuration after the container is available. Both phases
+    // use the same destinations, so early and normal events share one rolling log file.
+    builder.Services.AddSerilog((services, loggerConfiguration) =>
+        ApplicationLogging.ConfigureFinalLogger(
+            services,
+            loggerConfiguration,
+            builder.Configuration,
+            logFilePath));
 
     builder.Services.AddDataRetrieverApi(builder.Configuration);
 

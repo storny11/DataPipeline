@@ -265,7 +265,7 @@ builder.Host.UseDefaultServiceProvider(options =>
 
 Do not disable validation globally to accommodate a broken registration. Fix or isolate the registration. If a third-party package truly requires an exception, document the exact failure and add a focused composition test covering the replacement check.
 
-## Use two-stage logging
+## Use two-stage logging with one physical log
 
 The final host logger does not exist during the earliest configuration and composition failures. Configure a bootstrap logger before creating the builder.
 
@@ -273,25 +273,28 @@ The bootstrap logger must:
 
 - depend on no application configuration section;
 - write to console;
-- write to a dedicated startup file when console capture is not guaranteed;
+- write to the normal application log when console capture is not guaranteed;
 - use an absolute directory or a single primitive environment variable;
 - have file-size and retention limits;
 - fall back to console if the file cannot be opened.
 
+Two logger phases do not require two files. Use the same file path and sink settings in both phases. The bootstrap logger writes the earliest events, then the final logger replaces its configuration and continues in the same rolling file. A separate startup file is only useful when early startup cannot use the normal log destination.
+
 Example:
 
 ```csharp
-var logDirectory = Environment.GetEnvironmentVariable("STARTUP_LOG_DIRECTORY");
+var logDirectory = Environment.GetEnvironmentVariable("LOG_DIRECTORY");
 logDirectory = string.IsNullOrWhiteSpace(logDirectory)
     ? Path.Combine(AppContext.BaseDirectory, "logs")
     : Path.GetFullPath(logDirectory, AppContext.BaseDirectory);
+var logFilePath = Path.Combine(logDirectory, "application-.log");
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .WriteTo.File(
-        Path.Combine(logDirectory, "startup-.log"),
+        logFilePath,
         rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 7,
+        retainedFileCountLimit: 14,
         fileSizeLimitBytes: 10 * 1024 * 1024,
         rollOnFileSizeLimit: true,
         shared: true)
@@ -309,7 +312,7 @@ builder.Services.AddSerilog((services, loggerConfiguration) => loggerConfigurati
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .WriteTo.File(
-        Path.Combine(logDirectory, "application-.log"),
+        logFilePath,
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 14,
         fileSizeLimitBytes: 10 * 1024 * 1024,
@@ -317,7 +320,9 @@ builder.Services.AddSerilog((services, loggerConfiguration) => loggerConfigurati
         shared: true));
 ```
 
-The deployment must provision the directory and grant the process identity write access. The process supervisor should also capture stdout and stderr.
+Centralize those destinations in one helper in production code so the two phases cannot drift. Do not configure a second file sink in `appsettings.json`, because that would duplicate events.
+
+The deployment must provision the directory and grant the process identity write access. Do not assume that a process supervisor preserves console output: it must explicitly redirect and consume the child process's standard output and standard error streams. File logging remains the durable source when it does not.
 
 ## Handle the process boundary once
 
@@ -401,7 +406,7 @@ Build the host in the development environment, or explicitly enable `ValidateOnB
 
 ### Logging test or deployment check
 
-Verify that an early startup failure is visible in at least one durable location and that the process exits nonzero. Also test the behavior when the startup file directory is not writable; console diagnostics must remain available.
+Verify that an early startup failure and a post-build event appear in the same rolling application log and that the failing process exits nonzero. Also test the behavior when the application log directory is not writable; console diagnostics must remain available.
 
 ## Migration procedure
 
@@ -433,6 +438,7 @@ Verify that an early startup failure is visible in at least one durable location
 - [ ] `ValidateOnBuild` and `ValidateScopes` are not broadly disabled.
 - [ ] Bootstrap logging survives failure before the final logger.
 - [ ] The final logger repeats all required sinks.
-- [ ] Startup logs contain only allow-listed configuration metadata.
+- [ ] Bootstrap and final events use the same rolling application log.
+- [ ] Startup events contain only allow-listed configuration metadata.
 - [ ] Invalid configuration produces a nonzero process exit.
 - [ ] Tests prove both failure behavior and startup ordering.
