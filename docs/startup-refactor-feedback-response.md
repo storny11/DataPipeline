@@ -20,6 +20,7 @@ Settle the open decisions as follows:
 8. Use one hosted lifecycle adapter when instrumentation setup and external runtime start/stop require deterministic ordering.
 9. Enable strict DI validation after fixing application-owned registrations. Document an exact external blocker only if one is reproduced.
 10. Replace staged configuration mutation with one explicit final provider pipeline and a documented precedence order.
+11. Own all failures in one top-level boundary: catch options-validation failures separately, log fatally, flush, and exit with a documented nonzero code.
 
 ## 1. Shared application-log path
 
@@ -104,6 +105,41 @@ If the configured file cannot be opened:
 
 Console-only logging is degraded fallback behaviour. Do not rely on it as the normal deployment strategy unless the process supervisor is proven to capture and persist child standard output and standard error.
 
+### Top-level failure boundary
+
+The entry point owns one failure boundary. Its shape is:
+
+1. create the bootstrap logger before anything else;
+2. wrap builder creation, host construction, and `RunAsync()` in one `try` block;
+3. catch `OptionsValidationException` separately and log its aggregated failures as one fatal event;
+4. catch every other exception as a second fatal event;
+5. return a documented nonzero exit code from both catch blocks;
+6. flush and close the logger in `finally` before the process exits.
+
+```csharp
+try
+{
+    // build and run the host
+    return 0;
+}
+catch (OptionsValidationException exception)
+{
+    Log.Fatal(exception, "Application configuration is invalid: {ValidationFailures}", exception.Failures);
+    return 1;
+}
+catch (Exception exception)
+{
+    Log.Fatal(exception, "Application failed during startup or execution.");
+    return 1;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
+```
+
+Prefer returning a nonzero exit code over logging and rethrowing. The supervisor still observes failure through the exit code while the application keeps control of logging and flushing. Rethrow instead only when the platform demonstrably relies on unhandled exceptions for crash-dump collection, and document that requirement where the rethrow occurs.
+
 ### Acceptance criteria
 
 - A failure before host construction appears in the rolling application log.
@@ -112,6 +148,8 @@ Console-only logging is degraded fallback behaviour. Do not rely on it as the no
 - JSON configuration does not declare a second file sink.
 - Early events may have fewer properties but remain readable and attributable.
 - A file-open failure creates a usable console logger without recursive failure.
+- Any startup failure exits with a documented nonzero code after the log is flushed.
+- Options-validation failures are logged as one aggregated fatal event, distinct from unexpected exceptions.
 
 ## 2. Operating mode name and migration
 
@@ -520,6 +558,7 @@ Update the plan using the decisions in this response. Do not return the same unr
 Do not begin implementation until the revised plan:
 
 - names one shared bootstrap-safe log path;
+- defines the top-level failure boundary and its exit-code behaviour;
 - names one canonical operating-mode key and value set;
 - defines the minimal composition contract;
 - explicitly preserves reporting-package validation timing;
