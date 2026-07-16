@@ -1,4 +1,4 @@
-// Resolves one bootstrap-safe log path from primitive process inputs only.
+// Resolves one bootstrap-safe log path from a generic application-instance argument.
 namespace DataRetriever.Api.Hosting;
 
 internal sealed record ApplicationLogPathResolution(
@@ -16,18 +16,18 @@ internal sealed record ApplicationLogPathResolution(
 
 internal static class ApplicationLogPath
 {
-    private const string NamespaceArgumentName = "namespace";
-    private const string EnvironmentArgumentName = "environment";
+    private const string InstanceArgumentName = "instance";
 
-    public static ApplicationLogPathResolution Resolve(string[] args)
+    public static ApplicationLogPathResolution Resolve(string[] args, string environmentName)
     {
         ArgumentNullException.ThrowIfNull(args);
+        ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
 
         var logRoot = Path.Combine(AppContext.BaseDirectory, "logs");
         var applicationName = typeof(ApplicationLogPath).Assembly.GetName().Name ?? "application";
         var logFileName = $"{applicationName}-.log";
 
-        return Resolve(args, ResolveEnvironmentName(args), logRoot, logFileName);
+        return Resolve(args, environmentName, logRoot, logFileName);
     }
 
     internal static ApplicationLogPathResolution Resolve(
@@ -41,117 +41,53 @@ internal static class ApplicationLogPath
         ArgumentException.ThrowIfNullOrWhiteSpace(logRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(logFileName);
 
-        var namespaceArgument = FindArgument(args, NamespaceArgumentName);
-        string? namespaceName = null;
+        var commandLine = new ConfigurationBuilder()
+            .AddCommandLine(args)
+            .Build();
+        var instanceName = commandLine[InstanceArgumentName];
         string? validationError = null;
 
-        if (namespaceArgument.IsPresent)
+        if (instanceName is not null)
         {
-            validationError = GetPathSegmentValidationError(namespaceArgument.Value);
-            if (validationError == null)
-            {
-                namespaceName = namespaceArgument.Value;
-            }
+            validationError = GetPathSegmentValidationError(instanceName);
         }
         else if (!string.Equals(environmentName, Environments.Development, StringComparison.OrdinalIgnoreCase))
         {
             validationError =
-                $"The '--{NamespaceArgumentName}' command-line argument is required outside Development.";
+                $"The '--{InstanceArgumentName}' command-line argument is required outside Development.";
         }
 
         var fullLogRoot = Path.GetFullPath(logRoot);
-        var logDirectory = namespaceName == null
+        var logDirectory = validationError is not null || instanceName is null
             ? fullLogRoot
-            : Path.Combine(fullLogRoot, namespaceName);
+            : Path.Combine(fullLogRoot, instanceName);
 
         return new ApplicationLogPathResolution(
             Path.GetFullPath(Path.Combine(logDirectory, logFileName)),
             validationError);
     }
 
-    private static string ResolveEnvironmentName(string[] args)
-    {
-        var environmentArgument = FindArgument(args, EnvironmentArgumentName);
-        if (environmentArgument.IsPresent && !string.IsNullOrWhiteSpace(environmentArgument.Value))
-        {
-            return environmentArgument.Value;
-        }
-
-        return Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
-            ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-            ?? Environments.Production;
-    }
-
     private static string? GetPathSegmentValidationError(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return $"The '--{NamespaceArgumentName}' command-line argument cannot be blank.";
+            return $"The '--{InstanceArgumentName}' command-line argument cannot be blank.";
         }
 
         if (!string.Equals(value, value.Trim(), StringComparison.Ordinal))
         {
-            return $"The '--{NamespaceArgumentName}' command-line argument cannot have surrounding whitespace.";
+            return $"The '--{InstanceArgumentName}' command-line argument cannot have surrounding whitespace.";
         }
 
         if (value is "." or ".." ||
             Path.IsPathRooted(value) ||
-            value.Contains(Path.DirectorySeparatorChar) ||
-            value.Contains(Path.AltDirectorySeparatorChar) ||
+            value.Contains('/') ||
+            value.Contains('\\') ||
             value.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
-            return $"The '--{NamespaceArgumentName}' command-line argument must be one safe directory name.";
+            return $"The '--{InstanceArgumentName}' command-line argument must be one safe directory name.";
         }
 
         return null;
     }
-
-    private static CommandLineArgument FindArgument(IReadOnlyList<string> args, string key)
-    {
-        var result = new CommandLineArgument(IsPresent: false, Value: null);
-
-        for (var index = 0; index < args.Count; index++)
-        {
-            var argument = args[index];
-            if (string.IsNullOrWhiteSpace(argument))
-            {
-                continue;
-            }
-
-            var normalizedArgument = argument.TrimStart('-', '/');
-            var separatorIndex = normalizedArgument.IndexOf('=');
-            if (separatorIndex >= 0)
-            {
-                var candidateKey = normalizedArgument[..separatorIndex];
-                if (candidateKey.Equals(key, StringComparison.OrdinalIgnoreCase))
-                {
-                    result = new CommandLineArgument(
-                        IsPresent: true,
-                        Value: normalizedArgument[(separatorIndex + 1)..]);
-                }
-
-                continue;
-            }
-
-            if (!normalizedArgument.Equals(key, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var value = index + 1 < args.Count && !LooksLikeOption(args[index + 1])
-                ? args[++index]
-                : string.Empty;
-
-            result = new CommandLineArgument(IsPresent: true, Value: value);
-        }
-
-        return result;
-    }
-
-    private static bool LooksLikeOption(string argument)
-    {
-        return argument.StartsWith('-') || argument.StartsWith('/');
-    }
-
-    private readonly record struct CommandLineArgument(bool IsPresent, string? Value);
 }

@@ -9,7 +9,7 @@ public sealed class ApplicationLogPathTests
         Path.Combine(Path.GetTempPath(), "application-log-path-tests"));
 
     [Fact]
-    public void Resolve_DevelopmentWithoutNamespace_UsesRootLogPath()
+    public void Resolve_DevelopmentWithoutInstance_UsesRootLogPath()
     {
         var result = Resolve([], Environments.Development);
 
@@ -18,7 +18,7 @@ public sealed class ApplicationLogPathTests
     }
 
     [Fact]
-    public void Resolve_ProductionWithoutNamespace_UsesFallbackAndFailsValidation()
+    public void Resolve_ProductionWithoutInstance_UsesFallbackAndFailsValidation()
     {
         var result = Resolve([], Environments.Production);
 
@@ -28,37 +28,37 @@ public sealed class ApplicationLogPathTests
     }
 
     [Theory]
-    [InlineData("--namespace=instance-a")]
-    [InlineData("namespace=instance-a")]
-    [InlineData("/namespace=instance-a")]
-    public void Resolve_ProductionNamespaceEqualsForms_UseNamespacedLogPath(string argument)
+    [InlineData("--instance=worker-a")]
+    [InlineData("instance=worker-a")]
+    [InlineData("/instance=worker-a")]
+    public void Resolve_ProductionInstanceEqualsForms_UseInstanceLogPath(string argument)
     {
         var result = Resolve([argument], Environments.Production);
 
         Assert.Equal(
-            Path.Combine(LogRoot, "instance-a", "application-.log"),
+            Path.Combine(LogRoot, "worker-a", "application-.log"),
             result.LogFilePath);
         Assert.Null(result.ValidationError);
     }
 
     [Fact]
-    public void Resolve_ProductionSeparatedNamespace_UsesNamespacedLogPath()
+    public void Resolve_ProductionSeparatedInstance_UsesInstanceLogPath()
     {
-        var result = Resolve(["--namespace", "instance-a"], Environments.Production);
+        var result = Resolve(["--instance", "worker-a"], Environments.Production);
 
         Assert.Equal(
-            Path.Combine(LogRoot, "instance-a", "application-.log"),
+            Path.Combine(LogRoot, "worker-a", "application-.log"),
             result.LogFilePath);
         Assert.Null(result.ValidationError);
     }
 
     [Theory]
-    [InlineData("--namespace=")]
-    [InlineData("--namespace= ")]
-    [InlineData("--namespace=../outside")]
-    [InlineData("--namespace=child/path")]
-    [InlineData("--namespace=C:\\logs")]
-    public void Resolve_UnsafeNamespace_UsesFallbackAndFailsValidation(string argument)
+    [InlineData("--instance=")]
+    [InlineData("--instance= ")]
+    [InlineData("--instance=../outside")]
+    [InlineData("--instance=child/path")]
+    [InlineData("--instance=C:\\logs")]
+    public void Resolve_UnsafeInstance_UsesFallbackAndFailsValidation(string argument)
     {
         var result = Resolve([argument], Environments.Production);
 
@@ -68,10 +68,10 @@ public sealed class ApplicationLogPathTests
     }
 
     [Fact]
-    public void Resolve_LastNamespaceArgumentWins()
+    public void Resolve_LastInstanceArgumentWins()
     {
         var result = Resolve(
-            ["--namespace=old", "--namespace=new"],
+            ["--instance=old", "--instance=new"],
             Environments.Production);
 
         Assert.Equal(

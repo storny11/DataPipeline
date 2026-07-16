@@ -7,13 +7,21 @@ using DataRetriever.Api.Hosting;
 using Microsoft.Extensions.Options;
 using Serilog;
 
-var startupLogging = ApplicationLogging.ConfigureBootstrapLogger(args);
+var bootstrapLogger = ApplicationLogging.CreateFallbackBootstrapLogger();
+Log.Logger = bootstrapLogger;
 
 try
 {
-    startupLogging.EnsureLaunchIsValid();
-
     var builder = WebApplication.CreateBuilder(args);
+    var logPath = ApplicationLogPath.Resolve(args, builder.Environment.EnvironmentName);
+    var configurationLoggingAvailable = ApplicationLogging.TryConfigureBootstrapLogger(
+        bootstrapLogger,
+        builder.Configuration,
+        logPath.LogFilePath);
+
+    // Configure the root fallback file first, then reject an invalid deployed launch so the
+    // failure is durable whenever configuration-based file logging is available.
+    logPath.EnsureLaunchIsValid();
 
     // Keep container mistakes visible in every environment. Options values are validated
     // separately when the host starts.
@@ -30,7 +38,7 @@ try
             services,
             loggerConfiguration,
             builder.Configuration,
-            startupLogging.LogFilePath));
+            configurationLoggingAvailable));
 
     builder.Services.AddDataRetrieverApi(builder.Configuration);
 
