@@ -1,6 +1,6 @@
 # Email Reporting
 
-This template uses a generic report-table model for email reporting. The reporting layer should not know about service-specific concepts such as persisted records, coupons, trades, instruments, rejected rows, or reminders.
+This template uses a generic report-table model for email reporting. The reporting layer should not know about service-specific concepts such as particular record types, business entities, workflow states, or reminder categories.
 
 ## Core Shape
 
@@ -47,7 +47,7 @@ Each service decides which tables to add. Examples:
 
 - `persisted-records`
 - `rejected-records`
-- `expiring-coupons`
+- `pending-items`
 - `missing-reference-data`
 - `records-skipped`
 

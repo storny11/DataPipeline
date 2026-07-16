@@ -1,5 +1,7 @@
 // Composes the API host dependencies and chooses simulator or real adapter registration.
 using DataRetriever.Api.Composition;
+using DataRetriever.Api.Configuration;
+using DataRetriever.Api.Hosting;
 using DataRetriever.Application;
 using DataRetriever.Monitoring;
 using Microsoft.FeatureManagement;
@@ -14,6 +16,9 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddApplicationOptions(configuration);
+        services.AddHostedService<StartupSummaryHostedService>();
+
         services
             .AddHealthChecks();
 
@@ -40,7 +45,7 @@ public static class ServiceCollectionExtensions
             .AddDataRetrieverMonitoring()
             .AddDataRetrieverApplication();
 
-        var adapterMode = AdapterModeOptions.FromConfiguration(configuration);
+        var adapterMode = AdapterModeConfiguration.ReadRequired(configuration);
         if (adapterMode == AdapterMode.Real)
         {
             services.AddRealAdapters(configuration);

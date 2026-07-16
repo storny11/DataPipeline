@@ -688,7 +688,7 @@ The report builder should not update operational status. The processing tracker 
 
 The report should group issues first by step and severity. It should not create separate top-level user-facing report sections for validator issues versus mapper issues. A Step 3 missing-response warning and a Step 3 amount-mapping warning both belong in the Step 3 warning group.
 
-Successfully processed data should be represented as normal report output, not as issues. Use generic report tables so each service can add one or more grids without changing the shared reporting model. For example, this prototype can add a `persisted-records` table, while another service could add `expiring-coupons` and `rejected-records` tables.
+Successfully processed data should be represented as normal report output, not as issues. Use generic report tables so each service can add one or more grids without changing the shared reporting model. For example, this prototype can add a `persisted-records` table, while another service could add `pending-items` and `rejected-records` tables.
 
 ```csharp
 public sealed record RunReportTable(

@@ -7,13 +7,29 @@ public enum AdapterMode
     Real
 }
 
-public static class AdapterModeOptions
+public static class AdapterModeConfiguration
 {
-    public static AdapterMode FromConfiguration(IConfiguration configuration)
+    public const string ConfigurationKey = "AdapterMode";
+
+    public static AdapterMode ReadRequired(IConfiguration configuration)
     {
-        var configured = configuration["AdapterMode"];
-        return Enum.TryParse<AdapterMode>(configured, ignoreCase: true, out var mode)
-            ? mode
-            : AdapterMode.Simulator;
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        var configured = configuration[ConfigurationKey];
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            throw new InvalidOperationException(
+                $"Required configuration value '{ConfigurationKey}' is missing.");
+        }
+
+        if (!Enum.TryParse<AdapterMode>(configured, ignoreCase: true, out var mode) ||
+            !Enum.IsDefined(mode))
+        {
+            throw new InvalidOperationException(
+                $"Configuration value '{ConfigurationKey}' must be one of: " +
+                $"{string.Join(", ", Enum.GetNames<AdapterMode>())}.");
+        }
+
+        return mode;
     }
 }
