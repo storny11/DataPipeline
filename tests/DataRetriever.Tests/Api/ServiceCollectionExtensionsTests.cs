@@ -20,11 +20,11 @@ public sealed class ServiceCollectionExtensionsTests
         services.AddLogging();
         var configuration = BuildConfiguration(new Dictionary<string, string?>
         {
-            ["Application:Name"] = "Test application",
-            [AdapterModeConfiguration.ConfigurationKey] = AdapterMode.Simulator.ToString()
+            ["Application:Name"] = "Test application"
         });
 
-        var exception = Assert.Throws<InvalidOperationException>(() => services.AddDataRetrieverApi(configuration));
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            services.AddDataRetrieverApi(configuration, AdapterMode.Simulator));
 
         Assert.Contains("EmailReport", exception.Message);
     }
@@ -38,7 +38,6 @@ public sealed class ServiceCollectionExtensionsTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Application:Name"] = "Test application",
-                [AdapterModeConfiguration.ConfigurationKey] = AdapterMode.Simulator.ToString(),
                 ["EmailReport:Enabled"] = "true",
                 ["EmailReport:Host"] = "localhost",
                 ["EmailReport:Port"] = "2525",
@@ -48,7 +47,7 @@ public sealed class ServiceCollectionExtensionsTests
             })
             .Build();
 
-        services.AddDataRetrieverApi(configuration);
+        services.AddDataRetrieverApi(configuration, AdapterMode.Simulator);
 
         using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<RunReportingOptions>();
@@ -68,46 +67,13 @@ public sealed class ServiceCollectionExtensionsTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Application:Name"] = "Test application",
-                [AdapterModeConfiguration.ConfigurationKey] = AdapterMode.Real.ToString(),
                 ["EmailReport:Enabled"] = "false"
             })
             .Build();
 
-        var exception = Assert.Throws<NotSupportedException>(() => services.AddDataRetrieverApi(configuration));
+        var exception = Assert.Throws<NotSupportedException>(() =>
+            services.AddDataRetrieverApi(configuration, AdapterMode.Real));
         Assert.Contains("AdapterMode.Real is not available", exception.Message);
-    }
-
-    [Fact]
-    public void AddDataRetrieverApi_WithoutAdapterMode_FailsFastAtComposition()
-    {
-        var services = new ServiceCollection();
-        var configuration = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["Application:Name"] = "Test application",
-            ["EmailReport:Enabled"] = "false"
-        });
-
-        var exception = Assert.Throws<InvalidOperationException>(() => services.AddDataRetrieverApi(configuration));
-
-        Assert.Contains(AdapterModeConfiguration.ConfigurationKey, exception.Message);
-        Assert.Contains("missing", exception.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void AddDataRetrieverApi_WithInvalidAdapterMode_FailsFastAtComposition()
-    {
-        var services = new ServiceCollection();
-        var configuration = BuildConfiguration(new Dictionary<string, string?>
-        {
-            ["Application:Name"] = "Test application",
-            [AdapterModeConfiguration.ConfigurationKey] = "Unknown",
-            ["EmailReport:Enabled"] = "false"
-        });
-
-        var exception = Assert.Throws<InvalidOperationException>(() => services.AddDataRetrieverApi(configuration));
-
-        Assert.Contains("Simulator", exception.Message);
-        Assert.Contains("Real", exception.Message);
     }
 
     [Fact]
@@ -115,7 +81,6 @@ public sealed class ServiceCollectionExtensionsTests
     {
         var builder = CreateHostBuilder(new Dictionary<string, string?>
         {
-            [AdapterModeConfiguration.ConfigurationKey] = AdapterMode.Simulator.ToString(),
             ["EmailReport:Enabled"] = "false"
         });
         var startupProbe = new StartupProbe();
@@ -135,7 +100,6 @@ public sealed class ServiceCollectionExtensionsTests
         var builder = CreateHostBuilder(new Dictionary<string, string?>
         {
             ["Application:Name"] = " ",
-            [AdapterModeConfiguration.ConfigurationKey] = AdapterMode.Simulator.ToString(),
             ["EmailReport:Enabled"] = "false"
         });
 
@@ -180,7 +144,7 @@ public sealed class ServiceCollectionExtensionsTests
         builder.Configuration.Sources.Clear();
         builder.Configuration.AddInMemoryCollection(values);
         builder.Logging.ClearProviders();
-        builder.Services.AddDataRetrieverApi(builder.Configuration);
+        builder.Services.AddDataRetrieverApi(builder.Configuration, AdapterMode.Simulator);
         return builder;
     }
 
@@ -196,7 +160,6 @@ public sealed class ServiceCollectionExtensionsTests
         return new Dictionary<string, string?>
         {
             ["Application:Name"] = "Test application",
-            [AdapterModeConfiguration.ConfigurationKey] = AdapterMode.Simulator.ToString(),
             ["EmailReport:Enabled"] = "false"
         };
     }

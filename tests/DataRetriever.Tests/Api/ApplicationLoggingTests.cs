@@ -1,12 +1,33 @@
 using DataRetriever.Api.Hosting;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 
 namespace DataRetriever.Tests.Api;
 
 public sealed class ApplicationLoggingTests
 {
+    [Fact]
+    public void AddApplicationConfiguration_OverridesConfiguredFilePathWithResolvedPath()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = Environments.Development
+        });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Serilog:WriteTo:FileSink:Args:path"] = "configured-placeholder.log"
+        });
+
+        var launch = builder.AddApplicationConfiguration([]);
+
+        Assert.Equal(
+            launch.LogFilePath,
+            builder.Configuration["Serilog:WriteTo:FileSink:Args:path"]);
+    }
+
     [Fact]
     public void BootstrapAndFinalLoggers_UseTheSameResolvedConfiguredFile()
     {
@@ -24,10 +45,10 @@ public sealed class ApplicationLoggingTests
             var bootstrapLogger = ApplicationLogging.CreateFallbackBootstrapLogger();
             try
             {
+                ApplicationLogging.ApplyResolvedLogFilePath(configuration, logFilePath);
                 Assert.True(ApplicationLogging.TryConfigureBootstrapLogger(
                     bootstrapLogger,
-                    configuration,
-                    logFilePath));
+                    configuration));
 
                 bootstrapLogger.Information("{Marker}", bootstrapMarker);
             }

@@ -1,5 +1,6 @@
 // Starts the ASP.NET Core host and wires the service endpoints.
 using DataRetriever.Api;
+using DataRetriever.Api.Composition;
 using DataRetriever.Api.Endpoints;
 using DataRetriever.Api.Hosting;
 using Microsoft.Extensions.Options;
@@ -11,8 +12,11 @@ Log.Logger = bootstrapLogger;
 try
 {
     var builder = WebApplication.CreateBuilder(args);
-    builder.ConfigureApplicationHost(args, bootstrapLogger);
-    builder.Services.AddDataRetrieverApi(builder.Configuration);
+    var launch = builder.AddApplicationConfiguration(args);
+    builder.ConfigureApplicationHost(launch, bootstrapLogger);
+
+    var adapterMode = AdapterModeConfiguration.ReadRequired(builder.Configuration);
+    builder.Services.AddDataRetrieverApi(builder.Configuration, adapterMode);
 
     var app = builder.Build();
     app.MapApplicationEndpoints();

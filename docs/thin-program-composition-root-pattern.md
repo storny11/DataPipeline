@@ -90,12 +90,15 @@ Use the following sequence. The order is part of the design.
 If custom configuration is currently loaded by a method that also binds or validates host options, split it into two operations:
 
 ```csharp
-builder.AddApplicationConfiguration(args);  // providers only
-builder.ConfigureApplicationHost(args, bootstrapLogger);
-builder.Services.AddApplication(builder.Configuration); // binding and validation
+var launch = builder.AddApplicationConfiguration(args); // real custom providers only
+builder.ConfigureApplicationHost(launch, bootstrapLogger);
+var mode = ApplicationModeConfiguration.ReadRequired(builder.Configuration);
+builder.Services.AddApplication(builder.Configuration, mode);
 ```
 
 No configuration provider that can change logging may be appended after the bootstrap logger is configured. A final in-memory provider used to inject the resolved file path must remain the highest-priority value for that path.
+
+Do not introduce an empty `AddApplicationConfiguration()` method merely for symmetry. `WebApplication.CreateBuilder(args)` already installs the standard JSON, environment-variable, user-secrets, and command-line providers. Add an application-specific configuration phase only when the application has a real custom, compatibility, or generated provider. In this reference application, the generated absolute Serilog file path is that real provider.
 
 ## Reference shape
 
@@ -108,8 +111,11 @@ Log.Logger = bootstrapLogger;
 try
 {
     var builder = WebApplication.CreateBuilder(args);
-    builder.ConfigureApplicationHost(args, bootstrapLogger);
-    builder.Services.AddApplication(builder.Configuration);
+    var launch = builder.AddApplicationConfiguration(args);
+    builder.ConfigureApplicationHost(launch, bootstrapLogger);
+
+    var mode = ApplicationModeConfiguration.ReadRequired(builder.Configuration);
+    builder.Services.AddApplication(builder.Configuration, mode);
 
     var app = builder.Build();
     app.MapApplicationEndpoints();
@@ -143,16 +149,14 @@ public partial class Program;
 ```csharp
 internal static WebApplicationBuilder ConfigureApplicationHost(
     this WebApplicationBuilder builder,
-    string[] args,
+    ApplicationLaunchContext launch,
     ReloadableLogger bootstrapLogger)
 {
-    var logPath = ApplicationLogPath.Resolve(args, builder.Environment.EnvironmentName);
     var configurationLoggingAvailable = ApplicationLogging.TryConfigureBootstrapLogger(
         bootstrapLogger,
-        builder.Configuration,
-        logPath.LogFilePath);
+        builder.Configuration);
 
-    logPath.EnsureLaunchIsValid();
+    launch.EnsureLaunchIsValid();
 
     builder.Host.UseDefaultServiceProvider(options =>
     {
@@ -176,12 +180,22 @@ internal static WebApplicationBuilder ConfigureApplicationHost(
 ```csharp
 public static IServiceCollection AddApplication(
     this IServiceCollection services,
-    IConfiguration configuration)
+    IConfiguration configuration,
+    ApplicationMode mode)
 {
     services.AddFeatureOne(configuration);
     services.AddFeatureTwo(configuration);
     services.AddHostedService<ApplicationWorker>();
     services.AddHealthChecks();
+
+    if (mode == ApplicationMode.External)
+    {
+        services.AddExternalAdapters(configuration);
+    }
+    else
+    {
+        services.AddLocalAdapters();
+    }
 
     return services;
 }
@@ -212,6 +226,8 @@ public static WebApplication MapApplicationEndpoints(this WebApplication app)
 - Do not log whole options objects. Use an allow-listed startup summary from a hosted service after validation succeeds.
 
 See [startup-configuration-pattern.md](startup-configuration-pattern.md) for the detailed options and lifecycle rules.
+
+See [configuration-composition-boundary.md](configuration-composition-boundary.md) for the provider, composition-input, and runtime-options separation.
 
 ## Logging rules
 

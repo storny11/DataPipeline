@@ -15,14 +15,25 @@ internal static class ApplicationLogging
             .CreateBootstrapLogger();
     }
 
-    public static bool TryConfigureBootstrapLogger(
-        ReloadableLogger bootstrapLogger,
+    public static void ApplyResolvedLogFilePath(
         ConfigurationManager configuration,
         string logFilePath)
     {
-        ArgumentNullException.ThrowIfNull(bootstrapLogger);
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentException.ThrowIfNullOrWhiteSpace(logFilePath);
+
+        configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [FileSinkPathKey] = logFilePath
+        });
+    }
+
+    public static bool TryConfigureBootstrapLogger(
+        ReloadableLogger bootstrapLogger,
+        ConfigurationManager configuration)
+    {
+        ArgumentNullException.ThrowIfNull(bootstrapLogger);
+        ArgumentNullException.ThrowIfNull(configuration);
 
         try
         {
@@ -33,12 +44,14 @@ internal static class ApplicationLogging
                     $"'{FileSinkSectionName}:Name' must select the Serilog File sink.");
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(logFilePath)!);
-            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            var logFilePath = configuration[FileSinkPathKey];
+            if (string.IsNullOrWhiteSpace(logFilePath))
             {
-                [FileSinkPathKey] = logFilePath
-            });
+                throw new InvalidOperationException(
+                    $"Required logging value '{FileSinkPathKey}' is missing.");
+            }
 
+            Directory.CreateDirectory(Path.GetDirectoryName(logFilePath)!);
             bootstrapLogger.Reload(loggerConfiguration =>
                 loggerConfiguration.ReadFrom.Configuration(configuration));
 

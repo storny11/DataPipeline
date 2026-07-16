@@ -6,23 +6,38 @@ namespace DataRetriever.Api.Hosting;
 
 internal static class WebApplicationBuilderExtensions
 {
-    public static WebApplicationBuilder ConfigureApplicationHost(
+    public static ApplicationLogPathResolution AddApplicationConfiguration(
         this WebApplicationBuilder builder,
-        string[] args,
-        ReloadableLogger bootstrapLogger)
+        string[] args)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(args);
+
+        // CreateBuilder has already added the standard providers. This is the application-specific,
+        // highest-priority generated value required by both bootstrap and final logging.
+        var launch = ApplicationLogPath.Resolve(args, builder.Environment.EnvironmentName);
+        ApplicationLogging.ApplyResolvedLogFilePath(
+            builder.Configuration,
+            launch.LogFilePath);
+
+        return launch;
+    }
+
+    public static WebApplicationBuilder ConfigureApplicationHost(
+        this WebApplicationBuilder builder,
+        ApplicationLogPathResolution launch,
+        ReloadableLogger bootstrapLogger)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(launch);
         ArgumentNullException.ThrowIfNull(bootstrapLogger);
 
-        var logPath = ApplicationLogPath.Resolve(args, builder.Environment.EnvironmentName);
         var configurationLoggingAvailable = ApplicationLogging.TryConfigureBootstrapLogger(
             bootstrapLogger,
-            builder.Configuration,
-            logPath.LogFilePath);
+            builder.Configuration);
 
         // Reject invalid launch input only after a durable logger has been attempted.
-        logPath.EnsureLaunchIsValid();
+        launch.EnsureLaunchIsValid();
 
         builder.Host.UseDefaultServiceProvider(options =>
         {

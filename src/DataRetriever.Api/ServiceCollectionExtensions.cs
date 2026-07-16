@@ -14,8 +14,17 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddDataRetrieverApi(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        AdapterMode adapterMode)
     {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        if (!Enum.IsDefined(adapterMode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(adapterMode), adapterMode, "Unsupported adapter mode.");
+        }
+
         services.AddApplicationOptions(configuration);
         services.AddHostedService<StartupSummaryHostedService>();
 
@@ -45,7 +54,6 @@ public static class ServiceCollectionExtensions
             .AddDataRetrieverMonitoring()
             .AddDataRetrieverApplication();
 
-        var adapterMode = AdapterModeConfiguration.ReadRequired(configuration);
         if (adapterMode == AdapterMode.Real)
         {
             services.AddRealAdapters(configuration);

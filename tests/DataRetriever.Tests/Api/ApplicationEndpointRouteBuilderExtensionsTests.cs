@@ -1,4 +1,5 @@
 using DataRetriever.Api;
+using DataRetriever.Api.Composition;
 using DataRetriever.Api.Endpoints;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -16,10 +17,9 @@ public sealed class ApplicationEndpointRouteBuilderExtensionsTests
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Application:Name"] = "Test application",
-            ["AdapterMode"] = "Simulator",
             ["EmailReport:Enabled"] = "false"
         });
-        builder.Services.AddDataRetrieverApi(builder.Configuration);
+        builder.Services.AddDataRetrieverApi(builder.Configuration, AdapterMode.Simulator);
 
         await using var app = builder.Build();
         app.MapApplicationEndpoints();
