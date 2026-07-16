@@ -61,8 +61,10 @@ public sealed class ApplicationConfigurationTests
             });
             string? bootstrapSelector = null;
 
-            var launch = builder.AddApplicationConfiguration(
+            var logFilePath = Path.Combine(contentRoot, "application-.log");
+            builder.AddApplicationConfiguration(
                 args,
+                logFilePath,
                 configuration =>
                 {
                     bootstrapSelector = configuration["externalProfile"];
@@ -80,7 +82,7 @@ public sealed class ApplicationConfigurationTests
             Assert.Equal("local", builder.Configuration["Layering:LocalWins"]);
             Assert.Equal("command-line", builder.Configuration["Layering:CommandLineWins"]);
             Assert.Equal(
-                launch.LogFilePath,
+                logFilePath,
                 builder.Configuration["Serilog:WriteTo:FileSink:Args:path"]);
         }
         finally
@@ -105,9 +107,12 @@ public sealed class ApplicationConfigurationTests
                 EnvironmentName = Environments.Development
             });
 
-            var launch = builder.AddApplicationConfiguration(["--env=Development"]);
+            var logFilePath = Path.Combine(contentRoot, "application-.log");
+            builder.AddApplicationConfiguration(["--env=Development"], logFilePath);
 
-            Assert.False(string.IsNullOrWhiteSpace(launch.LogFilePath));
+            Assert.Equal(
+                logFilePath,
+                builder.Configuration["Serilog:WriteTo:FileSink:Args:path"]);
         }
         finally
         {

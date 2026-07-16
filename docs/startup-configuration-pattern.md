@@ -274,9 +274,9 @@ The bootstrap logger must:
 - depend on no application configuration section;
 - write to console;
 - write to the normal application log when console capture is not guaranteed;
-- use an absolute directory or a single primitive environment variable;
-- have file-size and retention limits;
-- fall back to console if the file cannot be opened.
+- use an absolute directory or primitive launch inputs only;
+- use a rolling pattern compatible with the final configured file sink;
+- fail startup if the file cannot be opened and console output is not preserved.
 
 Two logger phases do not require two files. Use the same file path and sink settings in both phases. The bootstrap logger writes the earliest events, then the final logger replaces its configuration and continues in the same rolling file. A separate startup file is only useful when early startup cannot use the normal log destination.
 
@@ -289,38 +289,32 @@ logDirectory = string.IsNullOrWhiteSpace(logDirectory)
     : Path.GetFullPath(logDirectory, AppContext.BaseDirectory);
 var logFilePath = Path.Combine(logDirectory, "application-.log");
 
-Log.Logger = new LoggerConfiguration()
+var bootstrapLogger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
+Log.Logger = bootstrapLogger;
+
+Directory.CreateDirectory(logDirectory);
+bootstrapLogger.Reload(configuration => configuration
     .WriteTo.Console()
     .WriteTo.File(
         logFilePath,
         rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 14,
-        fileSizeLimitBytes: 10 * 1024 * 1024,
-        rollOnFileSizeLimit: true,
-        shared: true)
-    .CreateBootstrapLogger();
+        retainedFileCountLimit: null,
+        shared: true));
 ```
 
-Wrap directory resolution and file-sink creation in `try`/`catch`. If either fails, immediately create a console-only bootstrap logger and emit a warning there; no path error should occur before a usable logger exists.
+Keep this inside the process-boundary `try` block. Do not catch and suppress directory or file-sink failures: the top-level boundary logs to the already available console logger, rethrows, and returns a hard failure signal. Continuing would make later failures non-durable.
 
-Configure the final logger through the host. The final logger replaces the bootstrap logger, so repeat every sink that must remain active after startup.
+Configure the final logger through the host. Keep normal sinks and their operational settings in `appsettings.json`; inject only the already resolved absolute file path as the highest-priority configuration value.
 
 ```csharp
 builder.Services.AddSerilog((services, loggerConfiguration) => loggerConfiguration
     .ReadFrom.Configuration(builder.Configuration)
-    .ReadFrom.Services(services)
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .WriteTo.File(
-        logFilePath,
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 14,
-        fileSizeLimitBytes: 10 * 1024 * 1024,
-        rollOnFileSizeLimit: true,
-        shared: true));
+    .ReadFrom.Services(services));
 ```
 
-Centralize those destinations in one helper in production code so the two phases cannot drift. Do not configure a second file sink in `appsettings.json`, because that would duplicate events.
+The bootstrap sink exists only during the early phase; the final configured sink replaces it. This does not duplicate events. Keep the rolling interval and `shared` behavior compatible so both phases target the same physical file family.
 
 The deployment must provision the directory and grant the process identity write access. Do not assume that a process supervisor preserves console output: it must explicitly redirect and consume the child process's standard output and standard error streams. File logging remains the durable source when it does not.
 

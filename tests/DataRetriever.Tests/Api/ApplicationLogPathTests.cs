@@ -9,33 +9,34 @@ public sealed class ApplicationLogPathTests
         Path.Combine(Path.GetTempPath(), "application-log-path-tests"));
 
     [Fact]
-    public void ResolveBootstrapFilePath_UsesTheSamePathAsFinalResolution()
+    public void ResolveBootstrapFilePath_UsesInstanceLogPath()
     {
         var args = new[] { "--instance=worker-a" };
 
-        var bootstrapPath = ApplicationLogPath.ResolveBootstrapFilePath(args);
-        var finalPath = ApplicationLogPath.Resolve(args, Environments.Production).LogFilePath;
+        var bootstrapPath = Resolve(args);
 
-        Assert.Equal(finalPath, bootstrapPath);
+        Assert.Equal(Path.Combine(LogRoot, "worker-a", "application-.log"), bootstrapPath);
+        ApplicationLogPath.EnsureLaunchIsValid(args, Environments.Production);
     }
 
     [Fact]
     public void Resolve_DevelopmentWithoutInstance_UsesRootLogPath()
     {
-        var result = Resolve([], Environments.Development);
+        var result = Resolve([]);
 
-        Assert.Equal(Path.Combine(LogRoot, "application-.log"), result.LogFilePath);
-        Assert.Null(result.ValidationError);
+        Assert.Equal(Path.Combine(LogRoot, "application-.log"), result);
+        ApplicationLogPath.EnsureLaunchIsValid([], Environments.Development);
     }
 
     [Fact]
     public void Resolve_ProductionWithoutInstance_UsesFallbackAndFailsValidation()
     {
-        var result = Resolve([], Environments.Production);
+        var result = Resolve([]);
 
-        Assert.Equal(Path.Combine(LogRoot, "application-.log"), result.LogFilePath);
-        Assert.Contains("required outside Development", result.ValidationError);
-        Assert.Throws<InvalidOperationException>(result.EnsureLaunchIsValid);
+        Assert.Equal(Path.Combine(LogRoot, "application-.log"), result);
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => ApplicationLogPath.EnsureLaunchIsValid([], Environments.Production));
+        Assert.Contains("required outside Development", exception.Message);
     }
 
     [Theory]
@@ -44,23 +45,24 @@ public sealed class ApplicationLogPathTests
     [InlineData("/instance=worker-a")]
     public void Resolve_ProductionInstanceEqualsForms_UseInstanceLogPath(string argument)
     {
-        var result = Resolve([argument], Environments.Production);
+        var result = Resolve([argument]);
 
         Assert.Equal(
             Path.Combine(LogRoot, "worker-a", "application-.log"),
-            result.LogFilePath);
-        Assert.Null(result.ValidationError);
+            result);
+        ApplicationLogPath.EnsureLaunchIsValid([argument], Environments.Production);
     }
 
     [Fact]
     public void Resolve_ProductionSeparatedInstance_UsesInstanceLogPath()
     {
-        var result = Resolve(["--instance", "worker-a"], Environments.Production);
+        var args = new[] { "--instance", "worker-a" };
+        var result = Resolve(args);
 
         Assert.Equal(
             Path.Combine(LogRoot, "worker-a", "application-.log"),
-            result.LogFilePath);
-        Assert.Null(result.ValidationError);
+            result);
+        ApplicationLogPath.EnsureLaunchIsValid(args, Environments.Production);
     }
 
     [Theory]
@@ -71,31 +73,29 @@ public sealed class ApplicationLogPathTests
     [InlineData("--instance=C:\\logs")]
     public void Resolve_UnsafeInstance_UsesFallbackAndFailsValidation(string argument)
     {
-        var result = Resolve([argument], Environments.Production);
+        var result = Resolve([argument]);
 
-        Assert.Equal(Path.Combine(LogRoot, "application-.log"), result.LogFilePath);
-        Assert.NotNull(result.ValidationError);
-        Assert.Throws<InvalidOperationException>(result.EnsureLaunchIsValid);
+        Assert.Equal(Path.Combine(LogRoot, "application-.log"), result);
+        Assert.Throws<InvalidOperationException>(
+            () => ApplicationLogPath.EnsureLaunchIsValid([argument], Environments.Production));
     }
 
     [Fact]
     public void Resolve_LastInstanceArgumentWins()
     {
-        var result = Resolve(
-            ["--instance=old", "--instance=new"],
-            Environments.Production);
+        var args = new[] { "--instance=old", "--instance=new" };
+        var result = Resolve(args);
 
         Assert.Equal(
             Path.Combine(LogRoot, "new", "application-.log"),
-            result.LogFilePath);
-        Assert.Null(result.ValidationError);
+            result);
+        ApplicationLogPath.EnsureLaunchIsValid(args, Environments.Production);
     }
 
-    private static ApplicationLogPathResolution Resolve(string[] args, string environmentName)
+    private static string Resolve(string[] args)
     {
-        return ApplicationLogPath.Resolve(
+        return ApplicationLogPath.ResolveBootstrapFilePath(
             args,
-            environmentName,
             LogRoot,
             "application-.log");
     }

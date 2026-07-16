@@ -9,40 +9,27 @@ internal static class ApplicationLogging
     private const string FileSinkSectionName = "Serilog:WriteTo:FileSink";
     private const string FileSinkPathKey = $"{FileSinkSectionName}:Args:path";
 
-    public static ReloadableLogger CreateFallbackBootstrapLogger()
+    public static ReloadableLogger CreateBootstrapLogger()
     {
-        return ConfigureFallback(new LoggerConfiguration())
+        return ConfigureConsole(new LoggerConfiguration())
             .CreateBootstrapLogger();
     }
 
-    public static bool TryEnableBootstrapFile(
+    public static void EnableBootstrapFile(
         ReloadableLogger bootstrapLogger,
         string logFilePath)
     {
         ArgumentNullException.ThrowIfNull(bootstrapLogger);
         ArgumentException.ThrowIfNullOrWhiteSpace(logFilePath);
 
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(logFilePath)!);
-            bootstrapLogger.Reload(loggerConfiguration =>
-                ConfigureFallback(loggerConfiguration)
-                    .WriteTo.File(
-                        logFilePath,
-                        rollingInterval: RollingInterval.Day,
-                        retainedFileCountLimit: null,
-                        shared: true));
-
-            return true;
-        }
-        catch (Exception exception)
-        {
-            Log.Warning(
-                exception,
-                "The bootstrap log file could not be initialized; logging will use the console only.");
-
-            return false;
-        }
+        Directory.CreateDirectory(Path.GetDirectoryName(logFilePath)!);
+        bootstrapLogger.Reload(loggerConfiguration =>
+            ConfigureConsole(loggerConfiguration)
+                .WriteTo.File(
+                    logFilePath,
+                    rollingInterval: RollingInterval.Day,
+                    retainedFileCountLimit: null,
+                    shared: true));
     }
 
     public static void ApplyResolvedLogFilePath(
@@ -58,67 +45,39 @@ internal static class ApplicationLogging
         });
     }
 
-    public static bool TryConfigureBootstrapLogger(
-        ReloadableLogger bootstrapLogger,
-        ConfigurationManager configuration)
+    public static void EnsureFileSinkIsConfigured(IConfiguration configuration)
     {
-        ArgumentNullException.ThrowIfNull(bootstrapLogger);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        try
+        var fileSink = configuration.GetRequiredSection(FileSinkSectionName);
+        if (!string.Equals(fileSink["Name"], "File", StringComparison.OrdinalIgnoreCase))
         {
-            var fileSink = configuration.GetRequiredSection(FileSinkSectionName);
-            if (!string.Equals(fileSink["Name"], "File", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException(
-                    $"'{FileSinkSectionName}:Name' must select the Serilog File sink.");
-            }
-
-            var logFilePath = configuration[FileSinkPathKey];
-            if (string.IsNullOrWhiteSpace(logFilePath))
-            {
-                throw new InvalidOperationException(
-                    $"Required logging value '{FileSinkPathKey}' is missing.");
-            }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(logFilePath)!);
-            bootstrapLogger.Reload(loggerConfiguration =>
-                loggerConfiguration.ReadFrom.Configuration(configuration));
-
-            return true;
+            throw new InvalidOperationException(
+                $"'{FileSinkSectionName}:Name' must select the Serilog File sink.");
         }
-        catch (Exception exception)
-        {
-            Log.Warning(
-                exception,
-                "Configuration-based logging could not be initialized; logging will use the console only.");
 
-            return false;
+        if (string.IsNullOrWhiteSpace(configuration[FileSinkPathKey]))
+        {
+            throw new InvalidOperationException(
+                $"Required logging value '{FileSinkPathKey}' is missing.");
         }
     }
 
     public static void ConfigureFinalLogger(
         IServiceProvider services,
         LoggerConfiguration loggerConfiguration,
-        IConfiguration configuration,
-        bool configurationLoggingAvailable)
+        IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(loggerConfiguration);
         ArgumentNullException.ThrowIfNull(configuration);
-
-        if (!configurationLoggingAvailable)
-        {
-            ConfigureFallback(loggerConfiguration);
-            return;
-        }
 
         loggerConfiguration
             .ReadFrom.Configuration(configuration)
             .ReadFrom.Services(services);
     }
 
-    private static LoggerConfiguration ConfigureFallback(
+    private static LoggerConfiguration ConfigureConsole(
         LoggerConfiguration loggerConfiguration)
     {
         return loggerConfiguration

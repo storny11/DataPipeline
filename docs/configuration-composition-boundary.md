@@ -40,7 +40,11 @@ Do not materialize these options in `Program.cs`. Consumers should inject `IOpti
 ## Recommended startup order
 
 ```csharp
+var logFilePath = ApplicationLogPath.ResolveBootstrapFilePath(args);
+ApplicationLogging.EnableBootstrapFile(bootstrapLogger, logFilePath);
+
 var environmentName = ApplicationEnvironment.ReadRequired(args);
+ApplicationLogPath.EnsureLaunchIsValid(args, environmentName);
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
@@ -48,8 +52,8 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     EnvironmentName = environmentName
 });
 
-var launch = builder.AddApplicationConfiguration(args);
-builder.ConfigureApplicationHost(launch, bootstrapLogger);
+builder.AddApplicationConfiguration(args, logFilePath);
+builder.ConfigureApplicationHost();
 
 var mode = ApplicationModeConfiguration.ReadRequired(builder.Configuration);
 builder.Services.AddApplication(builder.Configuration, mode);
@@ -61,9 +65,10 @@ await app.RunAsync();
 
 The phases are intentionally visible:
 
+- `EnableBootstrapFile(...)` makes early failures durable and fails startup if the file cannot be opened;
 - `CreateBuilder(...)` fixes the environment and installs the standard .NET providers;
-- `AddApplicationConfiguration(args)` inserts real application-specific providers and restores final runtime override precedence;
-- `ConfigureApplicationHost(...)` activates durable bootstrap logging and strict host policies;
+- `AddApplicationConfiguration(args, logFilePath)` inserts real application-specific providers, restores final runtime override precedence, and protects the resolved log destination;
+- `ConfigureApplicationHost()` validates the configured File sink, enables strict host policies, and registers final Serilog;
 - `ReadRequired(...)` validates a composition input once;
 - `AddApplication(...)` registers modules from typed composition inputs and `IConfiguration`;
 - each module owns its normal options pipeline.

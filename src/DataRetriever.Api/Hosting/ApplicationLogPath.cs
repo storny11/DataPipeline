@@ -1,79 +1,74 @@
 // Resolves one bootstrap-safe log path from a generic application-instance argument.
 namespace DataRetriever.Api.Hosting;
 
-internal sealed record ApplicationLogPathResolution(
-    string LogFilePath,
-    string? ValidationError)
-{
-    public void EnsureLaunchIsValid()
-    {
-        if (!string.IsNullOrWhiteSpace(ValidationError))
-        {
-            throw new InvalidOperationException(ValidationError);
-        }
-    }
-}
-
 internal static class ApplicationLogPath
 {
     private const string InstanceArgumentName = "instance";
 
     public static string ResolveBootstrapFilePath(string[] args)
     {
-        return Resolve(args, Environments.Development).LogFilePath;
-    }
-
-    public static ApplicationLogPathResolution Resolve(string[] args, string environmentName)
-    {
         ArgumentNullException.ThrowIfNull(args);
-        ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
 
         var logRoot = Path.Combine(AppContext.BaseDirectory, "logs");
         var applicationName = typeof(ApplicationLogPath).Assembly.GetName().Name ?? "application";
         var logFileName = $"{applicationName}-.log";
 
-        return Resolve(args, environmentName, logRoot, logFileName);
+        return ResolveBootstrapFilePath(args, logRoot, logFileName);
     }
 
-    internal static ApplicationLogPathResolution Resolve(
-        string[] args,
-        string environmentName,
+    internal static string ResolveBootstrapFilePath(
+        IReadOnlyList<string> args,
         string logRoot,
         string logFileName)
     {
         ArgumentNullException.ThrowIfNull(args);
-        ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
         ArgumentException.ThrowIfNullOrWhiteSpace(logRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(logFileName);
 
-        var commandLine = new ConfigurationBuilder()
-            .AddCommandLine(args)
-            .Build();
-        var instanceName = commandLine[InstanceArgumentName];
-        string? validationError = null;
+        var instanceName = ReadInstanceName(args);
+        var fullLogRoot = Path.GetFullPath(logRoot);
+        var logDirectory = instanceName is null || GetPathSegmentValidationError(instanceName) is not null
+            ? fullLogRoot
+            : Path.Combine(fullLogRoot, instanceName);
 
-        if (instanceName is not null)
-        {
-            validationError = GetPathSegmentValidationError(instanceName);
-        }
-        else if (!string.Equals(environmentName, Environments.Development, StringComparison.OrdinalIgnoreCase))
+        return Path.GetFullPath(Path.Combine(logDirectory, logFileName));
+    }
+
+    public static void EnsureLaunchIsValid(string[] args, string environmentName)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
+
+        var instanceName = ReadInstanceName(args);
+        var validationError = GetPathSegmentValidationError(instanceName);
+        if (validationError is null &&
+            instanceName is null &&
+            !string.Equals(environmentName, Environments.Development, StringComparison.OrdinalIgnoreCase))
         {
             validationError =
                 $"The '--{InstanceArgumentName}' command-line argument is required outside Development.";
         }
 
-        var fullLogRoot = Path.GetFullPath(logRoot);
-        var logDirectory = validationError is not null || instanceName is null
-            ? fullLogRoot
-            : Path.Combine(fullLogRoot, instanceName);
+        if (validationError is not null)
+        {
+            throw new InvalidOperationException(validationError);
+        }
+    }
 
-        return new ApplicationLogPathResolution(
-            Path.GetFullPath(Path.Combine(logDirectory, logFileName)),
-            validationError);
+    private static string? ReadInstanceName(IReadOnlyList<string> args)
+    {
+        return new ConfigurationBuilder()
+            .AddCommandLine(args.ToArray())
+            .Build()[InstanceArgumentName];
     }
 
     private static string? GetPathSegmentValidationError(string? value)
     {
+        if (value is null)
+        {
+            return null;
+        }
+
         if (string.IsNullOrWhiteSpace(value))
         {
             return $"The '--{InstanceArgumentName}' command-line argument cannot be blank.";

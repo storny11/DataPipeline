@@ -27,7 +27,11 @@ Failing is intentional. It prevents a deployed service from silently reporting `
 Enable the bootstrap-safe application file before resolving the environment or invoking an external provider. That keeps these earliest failures durable while still using the same file family as normal logging.
 
 ```csharp
+var logFilePath = ApplicationLogPath.ResolveBootstrapFilePath(args);
+ApplicationLogging.EnableBootstrapFile(bootstrapLogger, logFilePath);
+
 var environmentName = ApplicationEnvironment.ReadRequired(args);
+ApplicationLogPath.EnsureLaunchIsValid(args, environmentName);
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -75,8 +79,9 @@ Do not clear `builder.Configuration.Sources` merely to reorder application provi
 The template exposes an insertion callback instead of inventing a fake remote provider:
 
 ```csharp
-var launch = builder.AddApplicationConfiguration(
+builder.AddApplicationConfiguration(
     args,
+    resolvedLogFilePath,
     configuration => configuration.AddExternalSettings(
         configuration["externalProfile"]));
 ```

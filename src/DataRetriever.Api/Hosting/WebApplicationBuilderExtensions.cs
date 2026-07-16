@@ -1,18 +1,19 @@
 // Configures process-wide host infrastructure before application modules are registered.
 using Serilog;
-using Serilog.Extensions.Hosting;
 
 namespace DataRetriever.Api.Hosting;
 
 internal static class WebApplicationBuilderExtensions
 {
-    public static ApplicationLogPathResolution AddApplicationConfiguration(
+    public static WebApplicationBuilder AddApplicationConfiguration(
         this WebApplicationBuilder builder,
         string[] args,
+        string logFilePath,
         Action<ConfigurationManager>? addExternalConfiguration = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(args);
+        ArgumentException.ThrowIfNullOrWhiteSpace(logFilePath);
 
         // CreateBuilder has already loaded base/environment JSON and made bootstrap CLI values
         // available. Insert application-specific providers, then replay the normal runtime
@@ -25,29 +26,18 @@ internal static class WebApplicationBuilderExtensions
             .AddCommandLine(args);
 
         // This generated safety value is intentionally higher priority than user configuration.
-        var launch = ApplicationLogPath.Resolve(args, builder.Environment.EnvironmentName);
         ApplicationLogging.ApplyResolvedLogFilePath(
             builder.Configuration,
-            launch.LogFilePath);
+            logFilePath);
 
-        return launch;
+        return builder;
     }
 
     public static WebApplicationBuilder ConfigureApplicationHost(
-        this WebApplicationBuilder builder,
-        ApplicationLogPathResolution launch,
-        ReloadableLogger bootstrapLogger)
+        this WebApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        ArgumentNullException.ThrowIfNull(launch);
-        ArgumentNullException.ThrowIfNull(bootstrapLogger);
-
-        var configurationLoggingAvailable = ApplicationLogging.TryConfigureBootstrapLogger(
-            bootstrapLogger,
-            builder.Configuration);
-
-        // Reject invalid launch input only after a durable logger has been attempted.
-        launch.EnsureLaunchIsValid();
+        ApplicationLogging.EnsureFileSinkIsConfigured(builder.Configuration);
 
         builder.Host.UseDefaultServiceProvider(options =>
         {
@@ -60,8 +50,7 @@ internal static class WebApplicationBuilderExtensions
             ApplicationLogging.ConfigureFinalLogger(
                 services,
                 loggerConfiguration,
-                builder.Configuration,
-                configurationLoggingAvailable));
+                builder.Configuration));
 
         return builder;
     }

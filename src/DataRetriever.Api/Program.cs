@@ -6,23 +6,25 @@ using DataRetriever.Api.Hosting;
 using Microsoft.Extensions.Options;
 using Serilog;
 
-var bootstrapLogger = ApplicationLogging.CreateFallbackBootstrapLogger();
+var bootstrapLogger = ApplicationLogging.CreateBootstrapLogger();
 Log.Logger = bootstrapLogger;
 
 try
 {
     var bootstrapLogFilePath = ApplicationLogPath.ResolveBootstrapFilePath(args);
-    ApplicationLogging.TryEnableBootstrapFile(bootstrapLogger, bootstrapLogFilePath);
+    ApplicationLogging.EnableBootstrapFile(bootstrapLogger, bootstrapLogFilePath);
 
     var environmentName = ApplicationEnvironment.ReadRequired(args);
+    ApplicationLogPath.EnsureLaunchIsValid(args, environmentName);
+
     var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     {
         Args = args,
         ContentRootPath = AppContext.BaseDirectory,
         EnvironmentName = environmentName
     });
-    var launch = builder.AddApplicationConfiguration(args);
-    builder.ConfigureApplicationHost(launch, bootstrapLogger);
+    builder.AddApplicationConfiguration(args, bootstrapLogFilePath);
+    builder.ConfigureApplicationHost();
 
     var adapterMode = AdapterModeConfiguration.ReadRequired(builder.Configuration);
     builder.Services.AddDataRetrieverApi(builder.Configuration, adapterMode);

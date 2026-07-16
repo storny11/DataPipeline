@@ -21,12 +21,12 @@ public sealed class ApplicationLoggingTests
 
         try
         {
-            var bootstrapLogger = ApplicationLogging.CreateFallbackBootstrapLogger();
+            var bootstrapLogger = ApplicationLogging.CreateBootstrapLogger();
             try
             {
-                Assert.True(ApplicationLogging.TryEnableBootstrapFile(
+                ApplicationLogging.EnableBootstrapFile(
                     bootstrapLogger,
-                    logFilePath));
+                    logFilePath);
                 bootstrapLogger.Fatal("{Marker}", marker);
             }
             finally
@@ -49,6 +49,34 @@ public sealed class ApplicationLoggingTests
     }
 
     [Fact]
+    public void EnableBootstrapFile_WhenFileCannotBeOpened_Throws()
+    {
+        var blockingFilePath = Path.GetTempFileName();
+        var bootstrapLogger = ApplicationLogging.CreateBootstrapLogger();
+
+        try
+        {
+            Assert.ThrowsAny<IOException>(() => ApplicationLogging.EnableBootstrapFile(
+                bootstrapLogger,
+                Path.Combine(blockingFilePath, "application-.log")));
+        }
+        finally
+        {
+            bootstrapLogger.Dispose();
+            File.Delete(blockingFilePath);
+        }
+    }
+
+    [Fact]
+    public void EnsureFileSinkIsConfigured_WhenNamedFileSinkIsMissing_Throws()
+    {
+        var configuration = new ConfigurationManager();
+
+        Assert.Throws<InvalidOperationException>(
+            () => ApplicationLogging.EnsureFileSinkIsConfigured(configuration));
+    }
+
+    [Fact]
     public void AddApplicationConfiguration_OverridesConfiguredFilePathWithResolvedPath()
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -60,10 +88,11 @@ public sealed class ApplicationLoggingTests
             ["Serilog:WriteTo:FileSink:Args:path"] = "configured-placeholder.log"
         });
 
-        var launch = builder.AddApplicationConfiguration([]);
+        var logFilePath = Path.GetFullPath("resolved.log");
+        builder.AddApplicationConfiguration([], logFilePath);
 
         Assert.Equal(
-            launch.LogFilePath,
+            logFilePath,
             builder.Configuration["Serilog:WriteTo:FileSink:Args:path"]);
     }
 
@@ -74,21 +103,18 @@ public sealed class ApplicationLoggingTests
             Path.GetTempPath(),
             "application-logging-tests",
             Guid.NewGuid().ToString("N"));
-        var logFilePath = Path.Combine(testDirectory, "application.log");
+        var logFilePath = Path.Combine(testDirectory, "application-.log");
         var configuration = CreateConfiguration();
         var bootstrapMarker = $"bootstrap-{Guid.NewGuid():N}";
         var finalMarker = $"final-{Guid.NewGuid():N}";
 
         try
         {
-            var bootstrapLogger = ApplicationLogging.CreateFallbackBootstrapLogger();
+            var bootstrapLogger = ApplicationLogging.CreateBootstrapLogger();
             try
             {
+                ApplicationLogging.EnableBootstrapFile(bootstrapLogger, logFilePath);
                 ApplicationLogging.ApplyResolvedLogFilePath(configuration, logFilePath);
-                Assert.True(ApplicationLogging.TryConfigureBootstrapLogger(
-                    bootstrapLogger,
-                    configuration));
-
                 bootstrapLogger.Information("{Marker}", bootstrapMarker);
             }
             finally
@@ -102,7 +128,11 @@ public sealed class ApplicationLoggingTests
                 finalLogger.Information("{Marker}", finalMarker);
             }
 
-            var logContents = File.ReadAllText(logFilePath);
+            var logFiles = Directory.GetFiles(testDirectory);
+            var logContents = string.Join(
+                Environment.NewLine,
+                logFiles.Select(File.ReadAllText));
+            Assert.Single(logFiles);
             Assert.Contains(bootstrapMarker, logContents, StringComparison.Ordinal);
             Assert.Contains(finalMarker, logContents, StringComparison.Ordinal);
             Assert.Equal(logFilePath, configuration["Serilog:WriteTo:FileSink:Args:path"]);
@@ -125,6 +155,7 @@ public sealed class ApplicationLoggingTests
             ["Serilog:MinimumLevel:Default"] = "Information",
             ["Serilog:WriteTo:FileSink:Name"] = "File",
             ["Serilog:WriteTo:FileSink:Args:path"] = "placeholder.log",
+            ["Serilog:WriteTo:FileSink:Args:rollingInterval"] = "Day",
             ["Serilog:WriteTo:FileSink:Args:shared"] = "true"
         });
 
@@ -139,8 +170,7 @@ public sealed class ApplicationLoggingTests
         ApplicationLogging.ConfigureFinalLogger(
             services,
             loggerConfiguration,
-            configuration,
-            configurationLoggingAvailable: true);
+            configuration);
 
         return loggerConfiguration.CreateLogger();
     }

@@ -33,8 +33,8 @@ These lifecycle steps should remain visible. Moving the entire file into a gener
 
 ### The host-infrastructure extension owns
 
-- the bootstrap-safe log path and bootstrap logger reload;
-- delayed validation of launch input after durable logging has been attempted;
+- injection of the bootstrap-safe path into final logging configuration;
+- strict host policy after launch validation has completed under durable logging;
 - `ValidateOnBuild` and `ValidateScopes` policy;
 - registration of the final host logger;
 - other process-wide host mechanics that are independent of business features.
@@ -70,33 +70,32 @@ Do not resolve a runtime service from `app.Services` and call a custom `Start()`
 
 Use the following sequence. The order is part of the design.
 
-1. Create a console-capable emergency/bootstrap logger before the `try` block.
+1. Create a console-capable reloadable bootstrap logger before the `try` block.
 2. Enter the top-level `try` block.
-3. Resolve the host environment and create the application builder exactly once.
-4. Add every custom configuration provider that can affect startup.
-5. Resolve and inject any bootstrap-safe logging path override.
-6. Reload the bootstrap logger from the completed configuration.
-7. Reject invalid launch arguments only after the durable logging attempt.
-8. Enable strict dependency-injection validation.
-9. Register the final logger using the same logging configuration and resolved path.
-10. Register application modules.
-11. Build the host exactly once.
-12. Map endpoint modules.
-13. Run the host exactly once.
-14. At the process boundary, log known configuration failures or unexpected failures once.
-15. Preserve the chosen hard-failure signal by rethrowing or returning a nonzero code.
-16. Flush logging in `finally`.
+3. Resolve the bootstrap-safe path and add the file sink. Let file initialization failure stop startup.
+4. Resolve and validate the host environment and launch arguments while durable logging is active.
+5. Create the application builder exactly once.
+6. Add every custom configuration provider that can affect startup and inject the resolved file path last.
+7. Validate the configured File sink and enable strict dependency-injection validation.
+8. Register the final logger from the completed configuration and the same resolved path.
+9. Register application modules.
+10. Build the host exactly once.
+11. Map endpoint modules.
+12. Run the host exactly once.
+13. At the process boundary, log known configuration failures or unexpected failures once.
+14. Preserve the chosen hard-failure signal by rethrowing or returning a nonzero code.
+15. Flush logging in `finally`.
 
 If custom configuration is currently loaded by a method that also binds or validates host options, split it into two operations:
 
 ```csharp
-var launch = builder.AddApplicationConfiguration(args); // real custom providers only
-builder.ConfigureApplicationHost(launch, bootstrapLogger);
+builder.AddApplicationConfiguration(args, logFilePath); // real custom providers only
+builder.ConfigureApplicationHost();
 var mode = ApplicationModeConfiguration.ReadRequired(builder.Configuration);
 builder.Services.AddApplication(builder.Configuration, mode);
 ```
 
-No configuration provider that can change logging may be appended after the bootstrap logger is configured. A final in-memory provider used to inject the resolved file path must remain the highest-priority value for that path.
+The bootstrap logger deliberately depends only on primitive launch inputs, not full application configuration. A final in-memory provider used to inject the resolved file path must remain the highest-priority value for the final logger.
 
 Do not introduce an empty `AddApplicationConfiguration()` method merely for symmetry. `WebApplication.CreateBuilder(...)` already installs the standard JSON, environment-variable, user-secrets, and command-line providers. Add an application-specific configuration phase only when the application has a real external, local, compatibility, or generated provider. In this reference application, the optional local layer and generated absolute Serilog file path are real providers.
 
@@ -105,20 +104,24 @@ Do not introduce an empty `AddApplicationConfiguration()` method merely for symm
 ### `Program.cs`
 
 ```csharp
-var bootstrapLogger = ApplicationLogging.CreateFallbackBootstrapLogger();
+var bootstrapLogger = ApplicationLogging.CreateBootstrapLogger();
 Log.Logger = bootstrapLogger;
 
 try
 {
+    var logFilePath = ApplicationLogPath.ResolveBootstrapFilePath(args);
+    ApplicationLogging.EnableBootstrapFile(bootstrapLogger, logFilePath);
+
     var environmentName = ApplicationEnvironment.ReadRequired(args);
+    ApplicationLogPath.EnsureLaunchIsValid(args, environmentName);
     var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     {
         Args = args,
         ContentRootPath = AppContext.BaseDirectory,
         EnvironmentName = environmentName
     });
-    var launch = builder.AddApplicationConfiguration(args);
-    builder.ConfigureApplicationHost(launch, bootstrapLogger);
+    builder.AddApplicationConfiguration(args, logFilePath);
+    builder.ConfigureApplicationHost();
 
     var mode = ApplicationModeConfiguration.ReadRequired(builder.Configuration);
     builder.Services.AddApplication(builder.Configuration, mode);
@@ -154,16 +157,8 @@ public partial class Program;
 
 ```csharp
 internal static WebApplicationBuilder ConfigureApplicationHost(
-    this WebApplicationBuilder builder,
-    ApplicationLaunchContext launch,
-    ReloadableLogger bootstrapLogger)
+    this WebApplicationBuilder builder)
 {
-    var configurationLoggingAvailable = ApplicationLogging.TryConfigureBootstrapLogger(
-        bootstrapLogger,
-        builder.Configuration);
-
-    launch.EnsureLaunchIsValid();
-
     builder.Host.UseDefaultServiceProvider(options =>
     {
         options.ValidateOnBuild = true;
@@ -174,8 +169,7 @@ internal static WebApplicationBuilder ConfigureApplicationHost(
         ApplicationLogging.ConfigureFinalLogger(
             services,
             loggerConfiguration,
-            builder.Configuration,
-            configurationLoggingAvailable));
+            builder.Configuration));
 
     return builder;
 }

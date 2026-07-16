@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Use one simple Serilog flow that keeps normal sink settings visible in `appsettings.json`, captures startup failures after host configuration is available, and writes bootstrap and runtime events to the same resolved file.
+Use one simple Serilog flow that keeps normal sink settings visible in `appsettings.json`, captures failures before host configuration is available, and writes bootstrap and runtime events to the same resolved file.
 
 This reference intentionally uses generic application terminology.
 
@@ -24,7 +24,7 @@ Code owns only:
 - the resolved File sink path override;
 - the bootstrap-to-final logger lifecycle.
 
-Do not configure normal console or file sinks in both code and configuration.
+The short-lived bootstrap phase defines its minimal sinks in code. The final phase defines its normal sinks in configuration. Never add the same sink twice within either phase.
 
 ## Serilog configuration shape
 
@@ -92,24 +92,22 @@ Treat the instance as one directory segment. Reject:
 - either directory separator;
 - invalid filename characters.
 
-Return the fallback root path together with any validation error. This lets the configured bootstrap logger start before the application rejects the launch.
+Resolve a safe path first. If the instance value is missing or unsafe, use the fixed root path. Validate the same launch arguments separately after file logging is active, then reject an invalid launch. No result/context object is needed.
 
 ## Startup order
 
 Use this order:
 
 1. Create a console-only reloadable bootstrap logger.
-2. Resolve the generic instance path from primitive launch arguments and enable the same application file as an early fallback.
-3. Resolve other fallible bootstrap inputs, including the host environment.
-4. Create the application builder once and add custom configuration providers.
-5. Add the resolved File sink path as an in-memory override.
-6. Reload the bootstrap logger from `builder.Configuration`.
-7. Throw a delayed launch-validation error inside the top-level `try` block.
-8. Register services and configure final Serilog using the same configuration instance.
+2. Resolve the generic instance path from primitive launch arguments and enable the same application file.
+3. Let file initialization throw if the directory or sink cannot be opened. The process must not continue with console-only logging when console output is not preserved.
+4. Resolve and validate other fallible bootstrap inputs, including the host environment and instance argument.
+5. Create the application builder once and add custom configuration providers.
+6. Add the already resolved File sink path as an in-memory override.
+7. Validate that the completed configuration still contains the named File sink.
+8. Register services and configure final Serilog from the completed configuration.
 9. Build and run the host.
 10. Log fatal failures once, rethrow, and flush in `finally`.
-
-If configuration-based logging cannot initialize, retain the active early fallback so the fatal startup event remains durable when its file was available. If the host continues, configure the final logger with the console-only fallback. Do not create a second startup-log family.
 
 ## Final logger
 
@@ -121,7 +119,7 @@ loggerConfiguration
     .ReadFrom.Services(services);
 ```
 
-It must not add normal sinks again. The bootstrap reload and final logger read the same named configuration and therefore share the same concrete file path.
+It must not add normal sinks again in code. The final logger reads the named configuration and the injected path; its file sink continues in the same rolling file used by the bootstrap phase.
 
 ## Verification
 
@@ -136,4 +134,4 @@ Tests should prove:
 - failures before the full configuration pipeline exists reach the bootstrap-safe application file;
 - bootstrap and final events appear in the same file;
 - configuration-owned sinks are not duplicated in code;
-- configuration logging failure leaves a usable console fallback.
+- failure to initialize durable file logging fails startup instead of silently continuing.
