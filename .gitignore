@@ -5,3 +5,4 @@ riderModule.iml
 /_ReSharper.Caches/
 captures/
 **/captures/
+**/appsettings.local.json

@@ -17,6 +17,15 @@
       <InternalsVisibleTo Include="DataRetriever.Tests" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Content Update="appsettings.local.json"
+               CopyToOutputDirectory="PreserveNewest"
+               CopyToPublishDirectory="Never" />
+      <Content Update="appsettings.local.example.json"
+               CopyToOutputDirectory="Never"
+               CopyToPublishDirectory="Never" />
+    </ItemGroup>
+
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>

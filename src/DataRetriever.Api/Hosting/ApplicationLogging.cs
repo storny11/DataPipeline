@@ -15,6 +15,36 @@ internal static class ApplicationLogging
             .CreateBootstrapLogger();
     }
 
+    public static bool TryEnableBootstrapFile(
+        ReloadableLogger bootstrapLogger,
+        string logFilePath)
+    {
+        ArgumentNullException.ThrowIfNull(bootstrapLogger);
+        ArgumentException.ThrowIfNullOrWhiteSpace(logFilePath);
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(logFilePath)!);
+            bootstrapLogger.Reload(loggerConfiguration =>
+                ConfigureFallback(loggerConfiguration)
+                    .WriteTo.File(
+                        logFilePath,
+                        rollingInterval: RollingInterval.Day,
+                        retainedFileCountLimit: null,
+                        shared: true));
+
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Log.Warning(
+                exception,
+                "The bootstrap log file could not be initialized; logging will use the console only.");
+
+            return false;
+        }
+    }
+
     public static void ApplyResolvedLogFilePath(
         ConfigurationManager configuration,
         string logFilePath)

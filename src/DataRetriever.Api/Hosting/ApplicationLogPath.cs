@@ -18,6 +18,11 @@ internal static class ApplicationLogPath
 {
     private const string InstanceArgumentName = "instance";
 
+    public static string ResolveBootstrapFilePath(string[] args)
+    {
+        return Resolve(args, Environments.Development).LogFilePath;
+    }
+
     public static ApplicationLogPathResolution Resolve(string[] args, string environmentName)
     {
         ArgumentNullException.ThrowIfNull(args);

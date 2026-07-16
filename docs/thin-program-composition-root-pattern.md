@@ -72,7 +72,7 @@ Use the following sequence. The order is part of the design.
 
 1. Create a console-capable emergency/bootstrap logger before the `try` block.
 2. Enter the top-level `try` block.
-3. Create the application builder exactly once.
+3. Resolve the host environment and create the application builder exactly once.
 4. Add every custom configuration provider that can affect startup.
 5. Resolve and inject any bootstrap-safe logging path override.
 6. Reload the bootstrap logger from the completed configuration.
@@ -98,7 +98,7 @@ builder.Services.AddApplication(builder.Configuration, mode);
 
 No configuration provider that can change logging may be appended after the bootstrap logger is configured. A final in-memory provider used to inject the resolved file path must remain the highest-priority value for that path.
 
-Do not introduce an empty `AddApplicationConfiguration()` method merely for symmetry. `WebApplication.CreateBuilder(args)` already installs the standard JSON, environment-variable, user-secrets, and command-line providers. Add an application-specific configuration phase only when the application has a real custom, compatibility, or generated provider. In this reference application, the generated absolute Serilog file path is that real provider.
+Do not introduce an empty `AddApplicationConfiguration()` method merely for symmetry. `WebApplication.CreateBuilder(...)` already installs the standard JSON, environment-variable, user-secrets, and command-line providers. Add an application-specific configuration phase only when the application has a real external, local, compatibility, or generated provider. In this reference application, the optional local layer and generated absolute Serilog file path are real providers.
 
 ## Reference shape
 
@@ -110,7 +110,13 @@ Log.Logger = bootstrapLogger;
 
 try
 {
-    var builder = WebApplication.CreateBuilder(args);
+    var environmentName = ApplicationEnvironment.ReadRequired(args);
+    var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+    {
+        Args = args,
+        ContentRootPath = AppContext.BaseDirectory,
+        EnvironmentName = environmentName
+    });
     var launch = builder.AddApplicationConfiguration(args);
     builder.ConfigureApplicationHost(launch, bootstrapLogger);
 
@@ -228,6 +234,8 @@ public static WebApplication MapApplicationEndpoints(this WebApplication app)
 See [startup-configuration-pattern.md](startup-configuration-pattern.md) for the detailed options and lifecycle rules.
 
 See [configuration-composition-boundary.md](configuration-composition-boundary.md) for the provider, composition-input, and runtime-options separation.
+
+See [environment-configuration-layering.md](environment-configuration-layering.md) for pre-builder environment selection and external/local provider precedence.
 
 ## Logging rules
 

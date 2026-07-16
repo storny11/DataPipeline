@@ -9,6 +9,17 @@ public sealed class ApplicationLogPathTests
         Path.Combine(Path.GetTempPath(), "application-log-path-tests"));
 
     [Fact]
+    public void ResolveBootstrapFilePath_UsesTheSamePathAsFinalResolution()
+    {
+        var args = new[] { "--instance=worker-a" };
+
+        var bootstrapPath = ApplicationLogPath.ResolveBootstrapFilePath(args);
+        var finalPath = ApplicationLogPath.Resolve(args, Environments.Production).LogFilePath;
+
+        Assert.Equal(finalPath, bootstrapPath);
+    }
+
+    [Fact]
     public void Resolve_DevelopmentWithoutInstance_UsesRootLogPath()
     {
         var result = Resolve([], Environments.Development);

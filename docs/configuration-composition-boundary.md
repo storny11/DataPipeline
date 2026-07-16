@@ -40,7 +40,13 @@ Do not materialize these options in `Program.cs`. Consumers should inject `IOpti
 ## Recommended startup order
 
 ```csharp
-var builder = WebApplication.CreateBuilder(args);
+var environmentName = ApplicationEnvironment.ReadRequired(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+    EnvironmentName = environmentName
+});
 
 var launch = builder.AddApplicationConfiguration(args);
 builder.ConfigureApplicationHost(launch, bootstrapLogger);
@@ -55,16 +61,16 @@ await app.RunAsync();
 
 The phases are intentionally visible:
 
-- `CreateBuilder(args)` installs the standard .NET providers;
-- `AddApplicationConfiguration(args)` adds only real application-specific providers;
+- `CreateBuilder(...)` fixes the environment and installs the standard .NET providers;
+- `AddApplicationConfiguration(args)` inserts real application-specific providers and restores final runtime override precedence;
 - `ConfigureApplicationHost(...)` activates durable bootstrap logging and strict host policies;
 - `ReadRequired(...)` validates a composition input once;
 - `AddApplication(...)` registers modules from typed composition inputs and `IConfiguration`;
 - each module owns its normal options pipeline.
 
-## Do not duplicate the standard providers
+## Preserve the standard providers
 
-`WebApplication.CreateBuilder(args)` already adds the normal providers, including:
+`WebApplication.CreateBuilder(...)` already adds the normal providers, including:
 
 - `appsettings.json`;
 - `appsettings.{Environment}.json`;
@@ -72,7 +78,9 @@ The phases are intentionally visible:
 - environment variables;
 - command-line arguments.
 
-Do not add those providers again merely to create an `AddApplicationConfiguration()` method. Duplicate providers make precedence harder to reason about and can change which value wins.
+Do not clear and manually reconstruct all sources merely to insert an application provider. Clearing the collection also removes framework sources such as user secrets and host/application fallback providers.
+
+There is one deliberate exception to the general no-duplication rule. When an external provider and `appsettings.local.json` must sit before environment variables and command-line arguments, append environment variables and command-line arguments once after those custom sources. Their initial copies make bootstrap selectors available; their final copies restore the documented runtime precedence.
 
 If the application has no custom provider, omit the method entirely. In this example application, the method is meaningful because it adds the generated, validated absolute Serilog file path as a final in-memory override.
 
@@ -85,14 +93,16 @@ For a service with custom providers, a reasonable conceptual order is:
 1. standard base JSON;
 2. environment-specific JSON;
 3. remote or instance configuration;
-4. environment variables;
-5. compatibility mappings;
+4. optional local JSON;
+5. environment variables;
 6. command-line values;
 7. generated safety-critical overrides whose destination must not be redirected.
 
 The exact order is application-specific. A generated durable log path may intentionally be last so an arbitrary configured value cannot bypass path validation.
 
-Add command-line configuration once. If `CreateBuilder(args)` already added it, do not append it repeatedly after every derived provider. When a custom provider must sit before command-line values, either construct the whole pipeline deliberately or compute one focused final override; do not mutate the configuration in alternating stages.
+Do not append command-line configuration repeatedly after derived providers. When custom providers must sit before command-line values, append it once at the end of the normal provider pipeline and document why the initial bootstrap copy and final precedence copy both exist.
+
+See [environment-configuration-layering.md](environment-configuration-layering.md) for the complete environment and local-file pattern.
 
 ## Compatibility mappings
 

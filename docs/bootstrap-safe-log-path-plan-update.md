@@ -18,7 +18,8 @@ Configuration owns normal logging behavior:
 
 Code owns only:
 
-- a console-only emergency bootstrap logger;
+- a console emergency bootstrap logger;
+- a temporary bootstrap file sink at the already resolved normal application path;
 - the application-instance log directory;
 - the resolved File sink path override;
 - the bootstrap-to-final logger lifecycle.
@@ -98,16 +99,17 @@ Return the fallback root path together with any validation error. This lets the 
 Use this order:
 
 1. Create a console-only reloadable bootstrap logger.
-2. Create the application builder once.
-3. Resolve the generic instance path from command-line configuration and the builder environment.
-4. Add the resolved File sink path as an in-memory override.
-5. Reload the bootstrap logger from `builder.Configuration`.
-6. Throw a delayed launch-validation error inside the top-level `try` block.
-7. Register services and configure final Serilog using the same configuration instance.
-8. Build and run the host.
-9. Log fatal failures once, rethrow, and flush in `finally`.
+2. Resolve the generic instance path from primitive launch arguments and enable the same application file as an early fallback.
+3. Resolve other fallible bootstrap inputs, including the host environment.
+4. Create the application builder once and add custom configuration providers.
+5. Add the resolved File sink path as an in-memory override.
+6. Reload the bootstrap logger from `builder.Configuration`.
+7. Throw a delayed launch-validation error inside the top-level `try` block.
+8. Register services and configure final Serilog using the same configuration instance.
+9. Build and run the host.
+10. Log fatal failures once, rethrow, and flush in `finally`.
 
-If configuration-based logging cannot initialize, retain the console bootstrap logger and configure the final logger with the same console-only fallback. Do not create a second startup-log family.
+If configuration-based logging cannot initialize, retain the active early fallback so the fatal startup event remains durable when its file was available. If the host continues, configure the final logger with the console-only fallback. Do not create a second startup-log family.
 
 ## Final logger
 
@@ -131,6 +133,7 @@ Tests should prove:
 - blank and unsafe values select the fallback and fail;
 - duplicate values use the provider's last-value-wins behavior;
 - the named File sink receives the resolved path override;
+- failures before the full configuration pipeline exists reach the bootstrap-safe application file;
 - bootstrap and final events appear in the same file;
 - configuration-owned sinks are not duplicated in code;
 - configuration logging failure leaves a usable console fallback.

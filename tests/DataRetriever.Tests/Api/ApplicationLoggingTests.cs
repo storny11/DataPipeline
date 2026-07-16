@@ -10,6 +10,45 @@ namespace DataRetriever.Tests.Api;
 public sealed class ApplicationLoggingTests
 {
     [Fact]
+    public void BootstrapFile_CapturesFailuresBeforeApplicationConfigurationExists()
+    {
+        var testDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "application-logging-tests",
+            Guid.NewGuid().ToString("N"));
+        var logFilePath = Path.Combine(testDirectory, "application-.log");
+        var marker = $"pre-configuration-{Guid.NewGuid():N}";
+
+        try
+        {
+            var bootstrapLogger = ApplicationLogging.CreateFallbackBootstrapLogger();
+            try
+            {
+                Assert.True(ApplicationLogging.TryEnableBootstrapFile(
+                    bootstrapLogger,
+                    logFilePath));
+                bootstrapLogger.Fatal("{Marker}", marker);
+            }
+            finally
+            {
+                bootstrapLogger.Dispose();
+            }
+
+            var logContents = string.Join(
+                Environment.NewLine,
+                Directory.GetFiles(testDirectory).Select(File.ReadAllText));
+            Assert.Contains(marker, logContents, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(testDirectory))
+            {
+                Directory.Delete(testDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void AddApplicationConfiguration_OverridesConfiguredFilePathWithResolvedPath()
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions

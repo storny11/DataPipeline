@@ -8,13 +8,23 @@ internal static class WebApplicationBuilderExtensions
 {
     public static ApplicationLogPathResolution AddApplicationConfiguration(
         this WebApplicationBuilder builder,
-        string[] args)
+        string[] args,
+        Action<ConfigurationManager>? addExternalConfiguration = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(args);
 
-        // CreateBuilder has already added the standard providers. This is the application-specific,
-        // highest-priority generated value required by both bootstrap and final logging.
+        // CreateBuilder has already loaded base/environment JSON and made bootstrap CLI values
+        // available. Insert application-specific providers, then replay the normal runtime
+        // overrides so the final precedence is external < local < environment < command line.
+        addExternalConfiguration?.Invoke(builder.Configuration);
+
+        builder.Configuration
+            .AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: false)
+            .AddEnvironmentVariables()
+            .AddCommandLine(args);
+
+        // This generated safety value is intentionally higher priority than user configuration.
         var launch = ApplicationLogPath.Resolve(args, builder.Environment.EnvironmentName);
         ApplicationLogging.ApplyResolvedLogFilePath(
             builder.Configuration,
