@@ -7,10 +7,12 @@ using DataRetriever.Api.Hosting;
 using Microsoft.Extensions.Options;
 using Serilog;
 
-var logFilePath = ApplicationLogging.ConfigureBootstrapLogger();
+var startupLogging = ApplicationLogging.ConfigureBootstrapLogger(args);
 
 try
 {
+    startupLogging.EnsureLaunchIsValid();
+
     var builder = WebApplication.CreateBuilder(args);
 
     // Keep container mistakes visible in every environment. Options values are validated
@@ -28,7 +30,7 @@ try
             services,
             loggerConfiguration,
             builder.Configuration,
-            logFilePath));
+            startupLogging.LogFilePath));
 
     builder.Services.AddDataRetrieverApi(builder.Configuration);
 
@@ -49,12 +51,12 @@ catch (OptionsValidationException exception)
         exception,
         "Application configuration is invalid: {ValidationFailures}",
         exception.Failures);
-    return 1;
+    throw;
 }
 catch (Exception exception)
 {
     Log.Fatal(exception, "Application failed during startup or execution.");
-    return 1;
+    throw;
 }
 finally
 {

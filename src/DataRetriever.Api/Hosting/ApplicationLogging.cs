@@ -5,39 +5,50 @@ namespace DataRetriever.Api.Hosting;
 
 internal static class ApplicationLogging
 {
-    private const string LogDirectoryEnvironmentVariable = "LOG_DIRECTORY";
-    private const string LogFileName = "application-.log";
-
-    public static string? ConfigureBootstrapLogger()
+    public static StartupLoggingContext ConfigureBootstrapLogger(string[] args)
     {
+        ApplicationLogPathResolution resolution;
+
         try
         {
-            var logFilePath = ResolveLogFilePath();
-            Directory.CreateDirectory(Path.GetDirectoryName(logFilePath)!);
-
-            Log.Logger = WriteToDestinations(
-                    new LoggerConfiguration()
-                        .MinimumLevel.Information()
-                        .Enrich.FromLogContext(),
-                    logFilePath)
-                .CreateBootstrapLogger();
-
-            return logFilePath;
+            resolution = ApplicationLogPath.Resolve(args);
         }
         catch (Exception exception)
         {
+            ConfigureConsoleBootstrapLogger();
+            Log.Warning(exception, "The application log path could not be resolved.");
+
+            return new StartupLoggingContext(
+                LogFilePath: null,
+                ValidationError: "The application log path could not be resolved.");
+        }
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(resolution.LogFilePath)!);
+
             Log.Logger = WriteToDestinations(
                     new LoggerConfiguration()
                         .MinimumLevel.Information()
                         .Enrich.FromLogContext(),
-                    logFilePath: null)
+                    resolution.LogFilePath)
                 .CreateBootstrapLogger();
+
+            return new StartupLoggingContext(
+                resolution.LogFilePath,
+                resolution.ValidationError);
+        }
+        catch (Exception exception)
+        {
+            ConfigureConsoleBootstrapLogger();
 
             Log.Warning(
                 exception,
                 "The application log file could not be opened; logging will use the console only.");
 
-            return null;
+            return new StartupLoggingContext(
+                LogFilePath: null,
+                resolution.ValidationError);
         }
     }
 
@@ -75,13 +86,26 @@ internal static class ApplicationLogging
         return loggerConfiguration;
     }
 
-    private static string ResolveLogFilePath()
+    private static void ConfigureConsoleBootstrapLogger()
     {
-        var configuredDirectory = Environment.GetEnvironmentVariable(LogDirectoryEnvironmentVariable);
-        var logDirectory = string.IsNullOrWhiteSpace(configuredDirectory)
-            ? Path.Combine(AppContext.BaseDirectory, "logs")
-            : Path.GetFullPath(configuredDirectory, AppContext.BaseDirectory);
+        Log.Logger = WriteToDestinations(
+                new LoggerConfiguration()
+                    .MinimumLevel.Information()
+                    .Enrich.FromLogContext(),
+                logFilePath: null)
+            .CreateBootstrapLogger();
+    }
+}
 
-        return Path.Combine(logDirectory, LogFileName);
+internal sealed record StartupLoggingContext(
+    string? LogFilePath,
+    string? ValidationError)
+{
+    public void EnsureLaunchIsValid()
+    {
+        if (!string.IsNullOrWhiteSpace(ValidationError))
+        {
+            throw new InvalidOperationException(ValidationError);
+        }
     }
 }
