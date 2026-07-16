@@ -20,7 +20,21 @@ Settle the open decisions as follows:
 8. Use one hosted lifecycle adapter when instrumentation setup and external runtime start/stop require deterministic ordering.
 9. Enable strict DI validation after fixing application-owned registrations. Document an exact external blocker only if one is reproduced.
 10. Replace staged configuration mutation with one explicit final provider pipeline and a documented precedence order.
-11. Own all failures in one top-level boundary: catch options-validation failures separately, log fatally, flush, and exit with a documented nonzero code.
+11. Own all failures in one top-level boundary: catch options-validation failures separately, log fatally, flush, and rethrow so the process supervisor receives the required hard-failure signal.
+
+## Response to the latest verification feedback
+
+The remaining feedback does not introduce a new architectural direction. It identifies implementation evidence that must be collected before the refactor is considered complete.
+
+Handle it as follows:
+
+1. Treat `LOG_DIRECTORY` as a deployment contract and verify that every deployment can supply the fully resolved application-specific directory.
+2. Preserve log-and-rethrow semantics; returning a controlled nonzero code is not interchangeable when the supervisor contract requires an unhandled process failure.
+3. Put local or instance-specific configuration after remote configuration in the final provider list so local overrides retain their existing precedence.
+4. Attempt strict DI validation and record an exact reproduced blocker if it cannot remain enabled.
+5. Capture baseline build and test failures, then use focused verification so unrelated failures cannot hide regressions.
+
+These are verification requirements, not reasons to leave the plan undecided.
 
 ## 1. Shared application-log path
 
@@ -62,6 +76,33 @@ var logFilePath = Path.Combine(logDirectory, "application-.log");
 The log destination must be available before application configuration and options validation. Do not parse a broad host-options object merely to discover where early failures should be written.
 
 If deployment requires a per-application or per-instance directory, deployment should supply an already resolved directory through `LOG_DIRECTORY`. This keeps path selection out of the application-options graph and avoids circular startup dependencies.
+
+### Deployment-path migration
+
+`LOG_DIRECTORY` is the complete directory contract. The application must not append a directory segment obtained from later-bound runtime options.
+
+Before implementation, inventory each supported deployment and record:
+
+- the current resolved application-log directory;
+- the value that deployment will provide as `LOG_DIRECTORY`;
+- the process identity that needs write permission;
+- the log collector or operator workflow that reads the directory;
+- whether multiple application instances could accidentally share the directory.
+
+Where the existing derived-directory convention must be preserved, set `LOG_DIRECTORY` to that exact resolved directory. Move the derivation into deployment configuration rather than recreating it inside bootstrap code.
+
+The `AppContext.BaseDirectory/logs` fallback is intended for local execution and emergency fallback. Production deployment must set `LOG_DIRECTORY` explicitly.
+
+Before cutover, verify:
+
+1. the directory can be created or already exists;
+2. the runtime identity can create, append, roll, and delete retained files;
+3. monitoring or collection watches the new resolved path;
+4. separate instances cannot write unrelated events into the same logical log unless that sharing is intentional;
+5. both bootstrap and final events appear in that directory;
+6. no obsolete file sink continues writing to the previous location.
+
+Do not dual-write to old and new application logs as a permanent compatibility measure. If a deployment cannot provide a bootstrap-safe directory, record that deployment as an explicit blocker and resolve it before implementation rather than reading runtime options early.
 
 ### Sink ownership
 
@@ -113,8 +154,8 @@ The entry point owns one failure boundary. Its shape is:
 2. wrap builder creation, host construction, and `RunAsync()` in one `try` block;
 3. catch `OptionsValidationException` separately and log its aggregated failures as one fatal event;
 4. catch every other exception as a second fatal event;
-5. return a documented nonzero exit code from both catch blocks;
-6. flush and close the logger in `finally` before the process exits.
+5. rethrow from both catch blocks so the supervisor receives an unhandled failure;
+6. flush and close the logger in `finally` before the exception leaves the process.
 
 ```csharp
 try
@@ -125,12 +166,12 @@ try
 catch (OptionsValidationException exception)
 {
     Log.Fatal(exception, "Application configuration is invalid: {ValidationFailures}", exception.Failures);
-    return 1;
+    throw;
 }
 catch (Exception exception)
 {
     Log.Fatal(exception, "Application failed during startup or execution.");
-    return 1;
+    throw;
 }
 finally
 {
@@ -138,7 +179,9 @@ finally
 }
 ```
 
-Prefer returning a nonzero exit code over logging and rethrowing. The supervisor still observes failure through the exit code while the application keeps control of logging and flushing. Rethrow instead only when the platform demonstrably relies on unhandled exceptions for crash-dump collection, and document that requirement where the rethrow occurs.
+Log and rethrow is an intentional process contract. A controlled `return 1` is not a substitute in this plan because the supervisor requires a hard unhandled-failure signal. The `finally` block still gives Serilog an opportunity to flush before exception propagation completes.
+
+Do not reconsider this choice during implementation unless deployment evidence proves that the supervisor contract has changed. If it changes, update the plan and process-level tests before changing the entry point.
 
 ### Acceptance criteria
 
@@ -148,7 +191,8 @@ Prefer returning a nonzero exit code over logging and rethrowing. The supervisor
 - JSON configuration does not declare a second file sink.
 - Early events may have fewer properties but remain readable and attributable.
 - A file-open failure creates a usable console logger without recursive failure.
-- Any startup failure exits with a documented nonzero code after the log is flushed.
+- Any startup failure is rethrown after the fatal event is flushed.
+- A process-level test proves that the supervisor observes the required hard-failure signal.
 - Options-validation failures are logged as one aggregated fatal event, distinct from unexpected exceptions.
 
 ## 2. Operating mode name and migration
@@ -410,12 +454,14 @@ The final application configuration should have one documented provider sequence
 
 1. base JSON settings;
 2. environment-specific JSON settings;
-3. instance-specific JSON settings, if retained;
-4. remote or document-backed configuration;
+3. remote or document-backed configuration;
+4. local or instance-specific JSON settings, if retained;
 5. environment variables;
 6. command-line arguments.
 
 Later providers override earlier providers. Add each provider once. In particular, do not add command-line configuration twice.
+
+This ordering intentionally lets local or instance-specific settings override remote settings. Preserve that behaviour unless a documented deployment contract says otherwise.
 
 ### Minimal bootstrap configuration
 
@@ -446,17 +492,20 @@ Derived runtime objects belong in service registration or options configuration,
 Add tests that prove:
 
 - base values are overridden by environment-specific values;
-- instance values override the intended lower-precedence sources;
-- remote values participate at the documented precedence point;
+- remote values override base and environment-specific values;
+- local or instance-specific values override remote values;
 - environment variables override file and remote values;
 - command-line arguments win last;
 - an empty scalar override behaves intentionally;
 - the same provider is not added twice.
 
+For at least one representative scalar key, set a different value in every provider and assert the exact final winner. Add a second test in which command-line and environment overrides are absent so the local-versus-remote precedence is proved directly.
+
 ### Acceptance criteria
 
 - One final configuration graph is used by the application.
 - Provider order is documented in code and tests.
+- Local or instance-specific settings retain precedence over remote settings.
 - Command-line arguments are added once.
 - No helper repeatedly builds and mutates configuration.
 - Remote-provider bootstrap needs are isolated from application options.
@@ -512,6 +561,7 @@ Do not hide new failures among known noise. The refactor must introduce no addit
 - Changed projects compile independently where possible.
 - Focused startup tests pass.
 - The final report distinguishes pre-existing failures from regressions.
+- No new failure is dismissed merely because the full solution already contained unrelated noise.
 
 ## Required changes to the implementation plan
 
@@ -558,7 +608,8 @@ Update the plan using the decisions in this response. Do not return the same unr
 Do not begin implementation until the revised plan:
 
 - names one shared bootstrap-safe log path;
-- defines the top-level failure boundary and its exit-code behaviour;
+- proves each deployment can supply the shared log directory;
+- defines the top-level failure boundary and its rethrow behaviour;
 - names one canonical operating-mode key and value set;
 - defines the minimal composition contract;
 - explicitly preserves reporting-package validation timing;
