@@ -1,16 +1,16 @@
 {
   "$schema": "https://json.schemastore.org/launchsettings.json",
   "profiles": {
-    "http": {
+    "local-http": {
       "commandName": "Project",
-      "commandLineArgs": "--env=Development",
+      "commandLineArgs": "--environment=local",
       "dotnetRunMessages": true,
       "launchBrowser": true,
       "applicationUrl": "http://localhost:5091"
     },
-    "https": {
+    "local-uk-https": {
       "commandName": "Project",
-      "commandLineArgs": "--env=Development",
+      "commandLineArgs": "--environment=local-uk",
       "dotnetRunMessages": true,
       "launchBrowser": true,
       "applicationUrl": "https://localhost:7041;http://localhost:5091"

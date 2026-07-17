@@ -1,52 +1,99 @@
 using DataRetriever.Api.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DataRetriever.Tests.Api;
 
 public sealed class ApplicationConfigurationTests
 {
     [Fact]
-    public void AddApplicationConfiguration_AppliesDocumentedProviderPrecedence()
+    public void AddApplicationConfiguration_AppliesRequiredProviderPrecedence()
     {
         var contentRoot = CreateContentRoot(
             baseJson:
             """
             {
+              "Application": { "Name": "base" },
               "Layering": {
+                "ExternalOnly": "base",
                 "EnvironmentWins": "base",
-                "ExternalWins": "base",
-                "LocalWins": "base",
                 "CommandLineWins": "base"
               }
             }
             """,
+            environmentName: "local",
             environmentJson:
             """
             {
+              "Application": { "Name": "environment" },
               "Layering": {
                 "EnvironmentWins": "environment",
-                "ExternalWins": "environment"
-              }
-            }
-            """,
-            localJson:
-            """
-            {
-              "Layering": {
-                "LocalWins": "local",
-                "CommandLineWins": "local"
+                "CommandLineWins": "environment"
               }
             }
             """);
         var args = new[]
         {
-            "--env=Development",
+            "--environment=local",
             "--externalProfile=remote-a",
+            "--application-name=command-line-name",
+            "--adapter-mode=Real",
+            "--log-level=Warning",
             "--Layering:CommandLineWins=command-line",
             "--Serilog:WriteTo:FileSink:Args:path=untrusted.log"
         };
+
+        try
+        {
+            var launchArguments = ApplicationLaunchArguments.Parse(args);
+            var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+            {
+                Args = args,
+                ContentRootPath = contentRoot,
+                EnvironmentName = ApplicationEnvironment.ReadRequired(launchArguments)
+            });
+            string? selectedExternalProfile = null;
+
+            var logFilePath = Path.Combine(contentRoot, "application.log");
+            builder.AddApplicationConfiguration(
+                args,
+                logFilePath,
+                launchArguments,
+                (configuration, externalConfigurationProfile) =>
+                {
+                    selectedExternalProfile = externalConfigurationProfile;
+                    configuration.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["Layering:ExternalOnly"] = "external",
+                        ["Layering:EnvironmentWins"] = "external",
+                        ["Layering:CommandLineWins"] = "external"
+                    });
+                });
+
+            Assert.Equal("remote-a", selectedExternalProfile);
+            Assert.Equal("local", builder.Environment.EnvironmentName);
+            Assert.Equal("external", builder.Configuration["Layering:ExternalOnly"]);
+            Assert.Equal("environment", builder.Configuration["Layering:EnvironmentWins"]);
+            Assert.Equal("command-line", builder.Configuration["Layering:CommandLineWins"]);
+            Assert.Equal("command-line-name", builder.Configuration["Application:Name"]);
+            Assert.Equal("Real", builder.Configuration["AdapterMode"]);
+            Assert.Equal("Warning", builder.Configuration["Serilog:MinimumLevel:Default"]);
+            Assert.Equal(
+                logFilePath,
+                builder.Configuration["Serilog:WriteTo:FileSink:Args:path"]);
+        }
+        finally
+        {
+            Directory.Delete(contentRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void AddApplicationConfiguration_MissingEnvironmentFileIsAllowed()
+    {
+        var contentRoot = CreateContentRoot(baseJson: "{}", environmentName: null, environmentJson: null);
+        var args = new[] { "--environment=custom" };
 
         try
         {
@@ -54,33 +101,13 @@ public sealed class ApplicationConfigurationTests
             {
                 Args = args,
                 ContentRootPath = contentRoot,
-                EnvironmentName = ApplicationEnvironment.ReadRequired(
-                    args,
-                    dotnetEnvironment: null,
-                    aspNetCoreEnvironment: null)
+                EnvironmentName = "custom"
             });
-            string? bootstrapSelector = null;
+            var launchArguments = ApplicationLaunchArguments.Parse(args);
+            var logFilePath = Path.Combine(contentRoot, "application.log");
 
-            var logFilePath = Path.Combine(contentRoot, "application-.log");
-            builder.AddApplicationConfiguration(
-                args,
-                logFilePath,
-                configuration =>
-                {
-                    bootstrapSelector = configuration["externalProfile"];
-                    configuration.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["Layering:ExternalWins"] = "external",
-                        ["Layering:LocalWins"] = "external"
-                    });
-                });
+            builder.AddApplicationConfiguration(args, logFilePath, launchArguments);
 
-            Assert.Equal("remote-a", bootstrapSelector);
-            Assert.Equal(Environments.Development, builder.Environment.EnvironmentName);
-            Assert.Equal("environment", builder.Configuration["Layering:EnvironmentWins"]);
-            Assert.Equal("external", builder.Configuration["Layering:ExternalWins"]);
-            Assert.Equal("local", builder.Configuration["Layering:LocalWins"]);
-            Assert.Equal("command-line", builder.Configuration["Layering:CommandLineWins"]);
             Assert.Equal(
                 logFilePath,
                 builder.Configuration["Serilog:WriteTo:FileSink:Args:path"]);
@@ -92,38 +119,72 @@ public sealed class ApplicationConfigurationTests
     }
 
     [Fact]
-    public void AddApplicationConfiguration_MissingLocalFileIsAllowed()
+    public void AddApplicationConfiguration_ExternalProviderRequiresStableProfile()
     {
-        var contentRoot = CreateContentRoot(
-            baseJson: "{}",
-            environmentJson: "{}");
-
-        try
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
-            var builder = WebApplication.CreateBuilder(new WebApplicationOptions
-            {
-                Args = ["--env=Development"],
-                ContentRootPath = contentRoot,
-                EnvironmentName = Environments.Development
-            });
+            EnvironmentName = "local"
+        });
+        var launchArguments = ApplicationLaunchArguments.Parse(["--environment=local"]);
 
-            var logFilePath = Path.Combine(contentRoot, "application-.log");
-            builder.AddApplicationConfiguration(["--env=Development"], logFilePath);
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            builder.AddApplicationConfiguration(
+                [],
+                Path.GetFullPath("application.log"),
+                launchArguments,
+                (_, _) => { }));
 
-            Assert.Equal(
-                logFilePath,
-                builder.Configuration["Serilog:WriteTo:FileSink:Args:path"]);
-        }
-        finally
+        Assert.Contains("--externalProfile", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AddApplicationConfiguration_ExternalProfileRequiresProvider()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
-            Directory.Delete(contentRoot, recursive: true);
-        }
+            EnvironmentName = "local"
+        });
+        var launchArguments = ApplicationLaunchArguments.Parse(
+            ["--environment=local", "--externalProfile=remote-a"]);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            builder.AddApplicationConfiguration(
+                [],
+                Path.GetFullPath("application.log"),
+                launchArguments));
+
+        Assert.Contains("no external configuration provider", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ConfigureApplicationHost_DoesNotEagerlyConstructEveryRegistration()
+    {
+        var builder = CreateBuilderWithRequiredLogging();
+        builder.Services.AddSingleton<RequiresMissingDependency>();
+        builder.ConfigureApplicationHost();
+
+        using var app = builder.Build();
+
+        Assert.NotNull(app.Services);
+    }
+
+    [Fact]
+    public void ConfigureApplicationHost_AlwaysValidatesScopes()
+    {
+        var builder = CreateBuilderWithRequiredLogging();
+        builder.Services.AddScoped<ScopedDependency>();
+        builder.ConfigureApplicationHost();
+
+        using var app = builder.Build();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            app.Services.GetRequiredService<ScopedDependency>());
     }
 
     private static string CreateContentRoot(
         string baseJson,
-        string environmentJson,
-        string? localJson = null)
+        string? environmentName,
+        string? environmentJson)
     {
         var contentRoot = Path.Combine(
             Path.GetTempPath(),
@@ -131,15 +192,41 @@ public sealed class ApplicationConfigurationTests
             Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
         File.WriteAllText(Path.Combine(contentRoot, "appsettings.json"), baseJson);
-        File.WriteAllText(
-            Path.Combine(contentRoot, "appsettings.Development.json"),
-            environmentJson);
 
-        if (localJson is not null)
+        if (environmentName is not null && environmentJson is not null)
         {
-            File.WriteAllText(Path.Combine(contentRoot, "appsettings.local.json"), localJson);
+            File.WriteAllText(
+                Path.Combine(contentRoot, $"appsettings.{environmentName}.json"),
+                environmentJson);
         }
 
         return contentRoot;
+    }
+
+    private static WebApplicationBuilder CreateBuilderWithRequiredLogging()
+    {
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = "custom"
+        });
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Serilog:WriteTo:FileSink:Name"] = "File",
+            ["Serilog:WriteTo:FileSink:Args:path"] = Path.GetFullPath("application.log")
+        });
+        return builder;
+    }
+
+    private interface IMissingDependency
+    {
+    }
+
+    private sealed class RequiresMissingDependency(IMissingDependency dependency)
+    {
+        public IMissingDependency Dependency { get; } = dependency;
+    }
+
+    private sealed class ScopedDependency
+    {
     }
 }

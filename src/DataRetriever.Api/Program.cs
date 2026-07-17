@@ -11,11 +11,12 @@ Log.Logger = bootstrapLogger;
 
 try
 {
-    var bootstrapLogFilePath = ApplicationLogPath.ResolveBootstrapFilePath(args);
-    ApplicationLogging.EnableBootstrapFile(bootstrapLogger, bootstrapLogFilePath);
+    var launchArguments = ApplicationLaunchArguments.Parse(args);
+    var logPath = ApplicationLogPath.Resolve(launchArguments.Instance);
+    ApplicationLogging.EnableBootstrapFile(bootstrapLogger, logPath.FilePath);
+    logPath.ThrowIfInvalid();
 
-    var environmentName = ApplicationEnvironment.ReadRequired(args);
-    ApplicationLogPath.EnsureLaunchIsValid(args, environmentName);
+    var environmentName = ApplicationEnvironment.ReadRequired(launchArguments);
 
     var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     {
@@ -23,7 +24,10 @@ try
         ContentRootPath = AppContext.BaseDirectory,
         EnvironmentName = environmentName
     });
-    builder.AddApplicationConfiguration(args, bootstrapLogFilePath);
+    builder.AddApplicationConfiguration(
+        args,
+        logPath.FilePath,
+        launchArguments);
     builder.ConfigureApplicationHost();
 
     var adapterMode = AdapterModeConfiguration.ReadRequired(builder.Configuration);

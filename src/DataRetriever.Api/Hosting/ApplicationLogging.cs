@@ -6,6 +6,8 @@ namespace DataRetriever.Api.Hosting;
 
 internal static class ApplicationLogging
 {
+    private const int RetainedFileCountLimit = 14;
+    private const long FileSizeLimitBytes = 10 * 1024 * 1024;
     private const string FileSinkSectionName = "Serilog:WriteTo:FileSink";
     private const string FileSinkPathKey = $"{FileSinkSectionName}:Args:path";
 
@@ -27,8 +29,10 @@ internal static class ApplicationLogging
             ConfigureConsole(loggerConfiguration)
                 .WriteTo.File(
                     logFilePath,
-                    rollingInterval: RollingInterval.Day,
-                    retainedFileCountLimit: null,
+                    rollingInterval: RollingInterval.Infinite,
+                    retainedFileCountLimit: RetainedFileCountLimit,
+                    fileSizeLimitBytes: FileSizeLimitBytes,
+                    rollOnFileSizeLimit: true,
                     shared: true));
     }
 

@@ -89,7 +89,10 @@ public sealed class ApplicationLoggingTests
         });
 
         var logFilePath = Path.GetFullPath("resolved.log");
-        builder.AddApplicationConfiguration([], logFilePath);
+        builder.AddApplicationConfiguration(
+            [],
+            logFilePath,
+            ApplicationLaunchArguments.Parse(["--environment=local"]));
 
         Assert.Equal(
             logFilePath,
@@ -155,7 +158,7 @@ public sealed class ApplicationLoggingTests
             ["Serilog:MinimumLevel:Default"] = "Information",
             ["Serilog:WriteTo:FileSink:Name"] = "File",
             ["Serilog:WriteTo:FileSink:Args:path"] = "placeholder.log",
-            ["Serilog:WriteTo:FileSink:Args:rollingInterval"] = "Day",
+            ["Serilog:WriteTo:FileSink:Args:rollingInterval"] = "Infinite",
             ["Serilog:WriteTo:FileSink:Args:shared"] = "true"
         });
 

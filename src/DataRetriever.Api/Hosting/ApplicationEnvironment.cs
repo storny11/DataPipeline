@@ -3,45 +3,35 @@ namespace DataRetriever.Api.Hosting;
 
 internal static class ApplicationEnvironment
 {
-    public const string ArgumentName = "env";
+    public const string ArgumentName = ApplicationLaunchArguments.EnvironmentArgumentName;
 
-    public static string ReadRequired(string[] args)
+    public static string ReadRequired(ApplicationLaunchArguments launchArguments)
     {
-        return ReadRequired(
-            args,
-            Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT"),
-            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"));
+        ArgumentNullException.ThrowIfNull(launchArguments);
+
+        return ReadRequired(launchArguments.Environment);
     }
 
-    internal static string ReadRequired(
-        string[] args,
-        string? dotnetEnvironment,
-        string? aspNetCoreEnvironment)
+    internal static string ReadRequired(string? commandLineEnvironment)
     {
-        ArgumentNullException.ThrowIfNull(args);
-
-        var commandLine = new ConfigurationBuilder()
-            .AddCommandLine(args)
-            .Build();
-        var environmentName = commandLine[ArgumentName]
-            ?? dotnetEnvironment
-            ?? aspNetCoreEnvironment;
-
-        if (string.IsNullOrWhiteSpace(environmentName))
+        if (string.IsNullOrWhiteSpace(commandLineEnvironment))
         {
             throw new InvalidOperationException(
-                $"The '--{ArgumentName}' command-line argument is required when no .NET environment variable is set.");
+                $"The '--{ArgumentName}' command-line argument is required.");
         }
 
-        if (!string.Equals(environmentName, environmentName.Trim(), StringComparison.Ordinal) ||
-            environmentName is "." or ".." ||
-            environmentName.Any(character =>
+        if (!string.Equals(
+                commandLineEnvironment,
+                commandLineEnvironment.Trim(),
+                StringComparison.Ordinal) ||
+            commandLineEnvironment is "." or ".." ||
+            commandLineEnvironment.Any(character =>
                 !char.IsLetterOrDigit(character) && character is not '.' and not '-' and not '_'))
         {
             throw new InvalidOperationException(
                 $"The '--{ArgumentName}' command-line argument must use only letters, numbers, '.', '-' or '_'.");
         }
 
-        return environmentName;
+        return commandLineEnvironment;
     }
 }

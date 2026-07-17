@@ -1,65 +1,65 @@
-// Resolves one bootstrap-safe log path from a generic application-instance argument.
+// Resolves one bootstrap-safe log file before full application configuration exists.
+using System.Globalization;
+
 namespace DataRetriever.Api.Hosting;
+
+internal sealed record ApplicationLogPathResolution(
+    string FilePath,
+    string? ValidationError)
+{
+    public void ThrowIfInvalid()
+    {
+        if (ValidationError is not null)
+        {
+            throw new InvalidOperationException(ValidationError);
+        }
+    }
+}
 
 internal static class ApplicationLogPath
 {
-    private const string InstanceArgumentName = "instance";
+    private const string InstanceArgumentName = ApplicationLaunchArguments.InstanceArgumentName;
 
-    public static string ResolveBootstrapFilePath(string[] args)
+    public static ApplicationLogPathResolution Resolve(string? instanceName)
     {
-        ArgumentNullException.ThrowIfNull(args);
-
-        var logRoot = Path.Combine(AppContext.BaseDirectory, "logs");
+        var logRoot = ResolveDefaultLogRoot();
         var applicationName = typeof(ApplicationLogPath).Assembly.GetName().Name ?? "application";
-        var logFileName = $"{applicationName}-.log";
+        var currentDate = DateTime.Today.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+        var processId = Environment.ProcessId.ToString(CultureInfo.InvariantCulture);
+        var logFileName = $"{applicationName}_{currentDate}_{processId}.log";
 
-        return ResolveBootstrapFilePath(args, logRoot, logFileName);
+        return Resolve(instanceName, logRoot, logFileName);
     }
 
-    internal static string ResolveBootstrapFilePath(
-        IReadOnlyList<string> args,
+    internal static ApplicationLogPathResolution Resolve(
+        string? instanceName,
         string logRoot,
         string logFileName)
     {
-        ArgumentNullException.ThrowIfNull(args);
         ArgumentException.ThrowIfNullOrWhiteSpace(logRoot);
         ArgumentException.ThrowIfNullOrWhiteSpace(logFileName);
 
-        var instanceName = ReadInstanceName(args);
         var fullLogRoot = Path.GetFullPath(logRoot);
-        var logDirectory = instanceName is null || GetPathSegmentValidationError(instanceName) is not null
-            ? fullLogRoot
-            : Path.Combine(fullLogRoot, instanceName);
-
-        return Path.GetFullPath(Path.Combine(logDirectory, logFileName));
-    }
-
-    public static void EnsureLaunchIsValid(string[] args, string environmentName)
-    {
-        ArgumentNullException.ThrowIfNull(args);
-        ArgumentException.ThrowIfNullOrWhiteSpace(environmentName);
-
-        var instanceName = ReadInstanceName(args);
         var validationError = GetPathSegmentValidationError(instanceName);
-        if (validationError is null &&
-            instanceName is null &&
-            !string.Equals(environmentName, Environments.Development, StringComparison.OrdinalIgnoreCase))
-        {
-            validationError =
-                $"The '--{InstanceArgumentName}' command-line argument is required outside Development.";
-        }
+        var logDirectory = instanceName is not null && validationError is null
+            ? Path.Combine(fullLogRoot, instanceName)
+            : fullLogRoot;
 
-        if (validationError is not null)
-        {
-            throw new InvalidOperationException(validationError);
-        }
+        return new ApplicationLogPathResolution(
+            Path.GetFullPath(Path.Combine(logDirectory, logFileName)),
+            validationError);
     }
 
-    private static string? ReadInstanceName(IReadOnlyList<string> args)
+    private static string ResolveDefaultLogRoot()
     {
-        return new ConfigurationBuilder()
-            .AddCommandLine(args.ToArray())
-            .Build()[InstanceArgumentName];
+        if (!OperatingSystem.IsWindows())
+        {
+            return Path.Combine(AppContext.BaseDirectory, "logs");
+        }
+
+        return Directory.Exists(@"D:\")
+            ? @"D:\Logs"
+            : @"C:\Logs";
     }
 
     private static string? GetPathSegmentValidationError(string? value)

@@ -5,78 +5,78 @@ namespace DataRetriever.Tests.Api;
 
 public sealed class ApplicationEnvironmentTests
 {
+    [Fact]
+    public void Parse_CollectsBootstrapSelectorsWithLastValueWins()
+    {
+        var result = ApplicationLaunchArguments.Parse(
+        [
+            "--environment=Staging",
+            "--instance=old",
+            "--externalProfile=remote-a",
+            "--instance=new"
+        ]);
+
+        Assert.Equal(Environments.Staging, result.Environment);
+        Assert.Equal("new", result.Instance);
+        Assert.Equal("remote-a", result.ExternalConfigurationProfile);
+    }
+
     [Theory]
-    [InlineData("--env=Development")]
-    [InlineData("env=Development")]
-    [InlineData("/env=Development")]
-    public void ReadRequired_CommandLineEnvironmentWins(string argument)
+    [InlineData("--environment=Development")]
+    [InlineData("environment=Development")]
+    [InlineData("/environment=Development")]
+    public void ReadRequired_UsesRequiredCommandLineEnvironment(string argument)
     {
-        var result = ApplicationEnvironment.ReadRequired(
-            [argument],
-            Environments.Staging,
-            Environments.Production);
+        var launchArguments = ApplicationLaunchArguments.Parse([argument]);
+
+        var result = ApplicationEnvironment.ReadRequired(launchArguments);
 
         Assert.Equal(Environments.Development, result);
     }
 
     [Fact]
-    public void ReadRequired_SeparatedCommandLineEnvironmentWins()
+    public void ReadRequired_UsesSeparatedCommandLineEnvironment()
     {
-        var result = ApplicationEnvironment.ReadRequired(
-            ["--env", Environments.Development],
-            Environments.Staging,
-            Environments.Production);
+        var launchArguments = ApplicationLaunchArguments.Parse(
+            ["--environment", Environments.Development]);
+
+        var result = ApplicationEnvironment.ReadRequired(launchArguments);
 
         Assert.Equal(Environments.Development, result);
     }
 
     [Fact]
-    public void ReadRequired_DotnetEnvironmentWinsOverAspNetCoreEnvironment()
+    public void ReadRequired_MissingEnvironmentFailsInsteadOfUsingFrameworkDefaults()
     {
-        var result = ApplicationEnvironment.ReadRequired(
-            [],
-            Environments.Staging,
-            Environments.Production);
+        var launchArguments = ApplicationLaunchArguments.Parse([]);
 
-        Assert.Equal(Environments.Staging, result);
-    }
-
-    [Fact]
-    public void ReadRequired_UsesAspNetCoreEnvironmentAsLocalFallback()
-    {
-        var result = ApplicationEnvironment.ReadRequired(
-            [],
-            dotnetEnvironment: null,
-            aspNetCoreEnvironment: Environments.Development);
-
-        Assert.Equal(Environments.Development, result);
-    }
-
-    [Fact]
-    public void ReadRequired_MissingEnvironmentFailsInsteadOfSilentlyUsingProduction()
-    {
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            ApplicationEnvironment.ReadRequired(
-                [],
-                dotnetEnvironment: null,
-                aspNetCoreEnvironment: null));
+            ApplicationEnvironment.ReadRequired(launchArguments));
 
-        Assert.Contains("--env", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("--environment", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReadRequired_LegacyEnvironmentAliasIsNotAccepted()
+    {
+        var launchArguments = ApplicationLaunchArguments.Parse(["--env=Development"]);
+
+        Assert.Throws<InvalidOperationException>(() =>
+            ApplicationEnvironment.ReadRequired(launchArguments));
     }
 
     [Theory]
-    [InlineData("--env=")]
-    [InlineData("--env= Development")]
-    [InlineData("--env=Dev Env")]
-    [InlineData("--env=Dev:Test")]
-    [InlineData("--env=../Development")]
-    [InlineData("--env=child/Development")]
+    [InlineData("--environment=")]
+    [InlineData("--environment= Development")]
+    [InlineData("--environment=Dev Env")]
+    [InlineData("--environment=Dev:Test")]
+    [InlineData("--environment=../Development")]
+    [InlineData("--environment=child/Development")]
     public void ReadRequired_UnsafeEnvironmentFails(string argument)
     {
+        var launchArguments = ApplicationLaunchArguments.Parse([argument]);
+
         Assert.Throws<InvalidOperationException>(() =>
-            ApplicationEnvironment.ReadRequired(
-                [argument],
-                dotnetEnvironment: null,
-                aspNetCoreEnvironment: null));
+            ApplicationEnvironment.ReadRequired(launchArguments));
     }
 }
